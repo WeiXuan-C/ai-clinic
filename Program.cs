@@ -1,10 +1,34 @@
 using ai_clinic.Components;
+using ai_clinic.Backend.Services;
+using Supabase;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+// Configure Supabase
+var supabaseUrl = builder.Configuration["Supabase:Url"] 
+    ?? Environment.GetEnvironmentVariable("SUPABASE_URL")
+    ?? throw new InvalidOperationException("Supabase URL not configured");
+var supabaseKey = builder.Configuration["Supabase:Key"] 
+    ?? Environment.GetEnvironmentVariable("SUPABASE_KEY")
+    ?? throw new InvalidOperationException("Supabase Key not configured");
+
+builder.Services.AddScoped<Supabase.Client>(_ => 
+    new Supabase.Client(
+        supabaseUrl, 
+        supabaseKey,
+        new SupabaseOptions
+        {
+            AutoConnectRealtime = true
+        }
+    )
+);
+
+// Register services
+builder.Services.AddScoped<SupabaseService>();
 
 var app = builder.Build();
 
