@@ -1,8 +1,5 @@
 @page "/patient/consultation"
 @layout Components.Layout.SidebarLayout
-@using Backend.Models
-@using Backend.Services
-@inject DoctorService DoctorService
 
 <style>
     .consultation-container {
@@ -1258,6 +1255,45 @@
     private List<Doctor> doctors = new();
     private List<string> specialties = new();
 
+    // Dummy data models
+    private class Doctor
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public string Specialty { get; set; } = "";
+        public string ImageUrl { get; set; } = "";
+        public bool IsVerified { get; set; }
+        public double Rating { get; set; }
+        public int ReviewCount { get; set; }
+        public int YearsExperience { get; set; }
+        public List<string> Languages { get; set; } = new();
+        public decimal ConsultationFee { get; set; }
+        public bool IsAvailable { get; set; }
+        public string NextAvailable { get; set; } = "";
+    }
+
+    private class ConsultationHistory
+    {
+        public int Id { get; set; }
+        public string Title { get; set; } = "";
+        public string Status { get; set; } = "";
+        public DateTime Date { get; set; }
+        public int UnreadCount { get; set; }
+        public bool IsUrgent { get; set; }
+    }
+
+    private class ConsultationMessage
+    {
+        public int Id { get; set; }
+        public string Content { get; set; } = "";
+        public bool IsFromUser { get; set; }
+        public bool IsAiReviewed { get; set; }
+        public DateTime Timestamp { get; set; }
+        public string? AttachmentName { get; set; }
+        public string? AttachmentUrl { get; set; }
+        public bool HasQuickActions { get; set; }
+    }
+
     private List<ConsultationHistory> consultationHistory = new()
     {
         new ConsultationHistory { Id = 1, Title = "Ongoing: General Health", Status = "Analyzing recent blood reports...", Date = DateTime.Now, UnreadCount = 2 },
@@ -1319,8 +1355,95 @@
 
     protected override void OnInitialized()
     {
-        doctors = DoctorService.GetAvailableDoctors();
-        specialties = DoctorService.GetSpecialties();
+        // Initialize with dummy data
+        doctors = new List<Doctor>
+        {
+            new Doctor 
+            { 
+                Id = 1, 
+                Name = "Dr. Sarah Johnson", 
+                Specialty = "Cardiology", 
+                ImageUrl = "https://i.pravatar.cc/150?img=1",
+                IsVerified = true,
+                Rating = 4.9,
+                ReviewCount = 234,
+                YearsExperience = 15,
+                Languages = new List<string> { "English", "Spanish" },
+                ConsultationFee = 150,
+                IsAvailable = true,
+                NextAvailable = "Today, 2:00 PM"
+            },
+            new Doctor 
+            { 
+                Id = 2, 
+                Name = "Dr. Michael Chen", 
+                Specialty = "Dermatology", 
+                ImageUrl = "https://i.pravatar.cc/150?img=2",
+                IsVerified = true,
+                Rating = 4.8,
+                ReviewCount = 189,
+                YearsExperience = 12,
+                Languages = new List<string> { "English", "Mandarin" },
+                ConsultationFee = 120,
+                IsAvailable = false,
+                NextAvailable = "Tomorrow, 10:00 AM"
+            },
+            new Doctor 
+            { 
+                Id = 3, 
+                Name = "Dr. Emily Rodriguez", 
+                Specialty = "General Practice", 
+                ImageUrl = "https://i.pravatar.cc/150?img=3",
+                IsVerified = true,
+                Rating = 4.7,
+                ReviewCount = 312,
+                YearsExperience = 8,
+                Languages = new List<string> { "English", "Spanish", "Portuguese" },
+                ConsultationFee = 100,
+                IsAvailable = true,
+                NextAvailable = "Now"
+            },
+            new Doctor 
+            { 
+                Id = 4, 
+                Name = "Dr. James Wilson", 
+                Specialty = "Neurology", 
+                ImageUrl = "https://i.pravatar.cc/150?img=4",
+                IsVerified = true,
+                Rating = 4.9,
+                ReviewCount = 156,
+                YearsExperience = 20,
+                Languages = new List<string> { "English", "French" },
+                ConsultationFee = 180,
+                IsAvailable = true,
+                NextAvailable = "Today, 4:30 PM"
+            },
+            new Doctor 
+            { 
+                Id = 5, 
+                Name = "Dr. Priya Patel", 
+                Specialty = "Pediatrics", 
+                ImageUrl = "https://i.pravatar.cc/150?img=5",
+                IsVerified = true,
+                Rating = 5.0,
+                ReviewCount = 278,
+                YearsExperience = 10,
+                Languages = new List<string> { "English", "Hindi", "Gujarati" },
+                ConsultationFee = 110,
+                IsAvailable = false,
+                NextAvailable = "Tomorrow, 9:00 AM"
+            }
+        };
+        
+        specialties = new List<string> 
+        { 
+            "All Specialties", 
+            "Cardiology", 
+            "Dermatology", 
+            "General Practice", 
+            "Neurology", 
+            "Pediatrics" 
+        };
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

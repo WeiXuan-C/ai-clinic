@@ -1,5 +1,5 @@
 using ai_clinic.Components;
-using Backend.Services;
+using AiClinic;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -7,8 +7,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-// Register application services
-builder.Services.AddScoped<DoctorService>();
+// Add application services with dependency injection
+builder.Services.AddApplicationServices(builder.Configuration);
 
 var app = builder.Build();
 
