@@ -1,0 +1,712 @@
+@page "/patient/records"
+@layout Components.Layout.SidebarLayout
+
+<PageTitle>Medical Records - AI Medical Clinic</PageTitle>
+
+<link rel="stylesheet" href="/css/stitch-design-system.css" />
+
+<!-- Header -->
+<header class="content-header">
+    <div class="header-left">
+        <h1>Medical Records</h1>
+        <p class="body-md" style="margin: 0.5rem;">
+            <span class="status-indicator">●</span>
+            Secure access to your complete medical history
+        </p>
+    </div>
+    <div class="header-right">
+        <button class="btn btn-secondary">
+            <i data-lucide="download"></i>
+            Export Records
+        </button>
+        <button class="btn btn-primary">
+            <i data-lucide="upload"></i>
+            Upload Document
+        </button>
+    </div>
+</header>
+
+<!-- Filter Tabs -->
+<div class="filter-tabs">
+    <button class="tab-btn active">All Records</button>
+    <button class="tab-btn">Lab Results</button>
+    <button class="tab-btn">Prescriptions</button>
+    <button class="tab-btn">Imaging</button>
+    <button class="tab-btn">Visit Notes</button>
+    <button class="tab-btn">Immunizations</button>
+</div>
+
+<!-- Content Grid -->
+<div class="content-grid">
+    <!-- Recent Records -->
+    <section class="records-section">
+        <div class="section-header">
+            <h2 class="headline-md">Recent Records</h2>
+            <div class="search-box">
+                <i data-lucide="search"></i>
+                <input type="text" placeholder="Search records..." />
+            </div>
+        </div>
+        
+        <div class="records-list">
+            <!-- Lab Result -->
+            <div class="record-item">
+                <div class="record-icon lab">
+                    <i data-lucide="flask-conical"></i>
+                </div>
+                <div class="record-info">
+                    <h4 class="headline-sm">Complete Blood Count (CBC)</h4>
+                    <p class="body-sm">Lab Results • October 15, 2023</p>
+                    <p class="body-sm">Dr. Helena Vance • Quest Diagnostics</p>
+                </div>
+                <div class="record-actions">
+                    <span class="badge badge-lab">LAB RESULT</span>
+                    <button class="icon-btn-sm">
+                        <i data-lucide="eye"></i>
+                    </button>
+                    <button class="icon-btn-sm">
+                        <i data-lucide="download"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Prescription -->
+            <div class="record-item">
+                <div class="record-icon prescription">
+                    <i data-lucide="pill"></i>
+                </div>
+                <div class="record-info">
+                    <h4 class="headline-sm">Lisinopril 10mg Prescription</h4>
+                    <p class="body-sm">Prescription • October 12, 2023</p>
+                    <p class="body-sm">Dr. Michael Chen • 90-day supply</p>
+                </div>
+                <div class="record-actions">
+                    <span class="badge badge-prescription">PRESCRIPTION</span>
+                    <button class="icon-btn-sm">
+                        <i data-lucide="eye"></i>
+                    </button>
+                    <button class="icon-btn-sm">
+                        <i data-lucide="download"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Visit Note -->
+            <div class="record-item">
+                <div class="record-icon visit">
+                    <i data-lucide="file-text"></i>
+                </div>
+                <div class="record-info">
+                    <h4 class="headline-sm">Annual Physical Examination</h4>
+                    <p class="body-sm">Visit Notes • October 10, 2023</p>
+                    <p class="body-sm">Dr. Michael Chen • Primary Care</p>
+                </div>
+                <div class="record-actions">
+                    <span class="badge badge-visit">VISIT NOTE</span>
+                    <button class="icon-btn-sm">
+                        <i data-lucide="eye"></i>
+                    </button>
+                    <button class="icon-btn-sm">
+                        <i data-lucide="download"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Imaging -->
+            <div class="record-item">
+                <div class="record-icon imaging">
+                    <i data-lucide="scan"></i>
+                </div>
+                <div class="record-info">
+                    <h4 class="headline-sm">Chest X-Ray</h4>
+                    <p class="body-sm">Imaging • September 28, 2023</p>
+                    <p class="body-sm">Dr. Sarah Williams • Radiology Dept</p>
+                </div>
+                <div class="record-actions">
+                    <span class="badge badge-imaging">IMAGING</span>
+                    <button class="icon-btn-sm">
+                        <i data-lucide="eye"></i>
+                    </button>
+                    <button class="icon-btn-sm">
+                        <i data-lucide="download"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Immunization -->
+            <div class="record-item">
+                <div class="record-icon immunization">
+                    <i data-lucide="syringe"></i>
+                </div>
+                <div class="record-info">
+                    <h4 class="headline-sm">Influenza Vaccine</h4>
+                    <p class="body-sm">Immunization • September 15, 2023</p>
+                    <p class="body-sm">Nurse Jennifer Lee • Preventive Care</p>
+                </div>
+                <div class="record-actions">
+                    <span class="badge badge-immunization">IMMUNIZATION</span>
+                    <button class="icon-btn-sm">
+                        <i data-lucide="eye"></i>
+                    </button>
+                    <button class="icon-btn-sm">
+                        <i data-lucide="download"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- AI Analysis -->
+            <div class="record-item">
+                <div class="record-icon ai">
+                    <i data-lucide="brain"></i>
+                </div>
+                <div class="record-info">
+                    <h4 class="headline-sm">AI Health Risk Assessment</h4>
+                    <p class="body-sm">AI Analysis • September 10, 2023</p>
+                    <p class="body-sm">Clinical AI Assistant • Predictive Analytics</p>
+                </div>
+                <div class="record-actions">
+                    <span class="badge badge-ai">AI ANALYSIS</span>
+                    <button class="icon-btn-sm">
+                        <i data-lucide="eye"></i>
+                    </button>
+                    <button class="icon-btn-sm">
+                        <i data-lucide="download"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Quick Stats -->
+    <section class="stats-card">
+        <h3 class="headline-md">Record Summary</h3>
+        <div class="stats-list">
+            <div class="stat-item">
+                <i data-lucide="file-text" class="stat-icon"></i>
+                <div class="stat-info">
+                    <h4 class="headline-lg">247</h4>
+                    <p class="body-sm">Total Records</p>
+                </div>
+            </div>
+            <div class="stat-item">
+                <i data-lucide="flask-conical" class="stat-icon"></i>
+                <div class="stat-info">
+                    <h4 class="headline-lg">42</h4>
+                    <p class="body-sm">Lab Results</p>
+                </div>
+            </div>
+            <div class="stat-item">
+                <i data-lucide="pill" class="stat-icon"></i>
+                <div class="stat-info">
+                    <h4 class="headline-lg">18</h4>
+                    <p class="body-sm">Prescriptions</p>
+                </div>
+            </div>
+            <div class="stat-item">
+                <i data-lucide="scan" class="stat-icon"></i>
+                <div class="stat-info">
+                    <h4 class="headline-lg">12</h4>
+                    <p class="body-sm">Imaging Studies</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Timeline View -->
+    <section class="timeline-card">
+        <div class="section-header">
+            <h3 class="headline-md">Medical Timeline</h3>
+            <button class="link-primary">View Full Timeline</button>
+        </div>
+        <div class="timeline">
+            <div class="timeline-item">
+                <div class="timeline-dot"></div>
+                <div class="timeline-content">
+                    <span class="timeline-date">Oct 15, 2023</span>
+                    <p class="body-md">Blood work completed</p>
+                </div>
+            </div>
+            <div class="timeline-item">
+                <div class="timeline-dot"></div>
+                <div class="timeline-content">
+                    <span class="timeline-date">Oct 12, 2023</span>
+                    <p class="body-md">Prescription renewed</p>
+                </div>
+            </div>
+            <div class="timeline-item">
+                <div class="timeline-dot"></div>
+                <div class="timeline-content">
+                    <span class="timeline-date">Oct 10, 2023</span>
+                    <p class="body-md">Annual physical exam</p>
+                </div>
+            </div>
+            <div class="timeline-item">
+                <div class="timeline-dot"></div>
+                <div class="timeline-content">
+                    <span class="timeline-date">Sep 28, 2023</span>
+                    <p class="body-md">Chest X-ray performed</p>
+                </div>
+            </div>
+            <div class="timeline-item">
+                <div class="timeline-dot"></div>
+                <div class="timeline-content">
+                    <span class="timeline-date">Sep 15, 2023</span>
+                    <p class="body-md">Flu vaccine administered</p>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+@code {
+    // Component logic here
+}
+
+<style>
+    .content-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 2rem;
+    }
+
+    .header-left h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #191c1e;
+        margin: 0.5rem;
+        font-family: 'Manrope', sans-serif;
+    }
+
+    .header-left p {
+        color: #434654;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .status-indicator {
+        color: #76f3ea;
+        font-size: 0.75rem;
+    }
+
+    .header-right {
+        display: flex;
+        gap: 1rem;
+    }
+
+    /* Filter Tabs */
+    .filter-tabs {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        overflow-x: auto;
+        padding-bottom: 0.5rem;
+    }
+
+    .tab-btn {
+        padding: 0.75rem 1.5rem;
+        background: white;
+        border: 1px solid #e6e8ea;
+        border-radius: 8px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        white-space: nowrap;
+        font-size: 0.875rem;
+    }
+
+    .tab-btn:hover {
+        background: #f7f9fb;
+    }
+
+    .tab-btn.active {
+        background: #0052cc;
+        color: white;
+        border-color: #0052cc;
+    }
+
+    .content-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 2rem;
+    }
+
+    /* Records Section */
+    .records-section {
+        grid-column: span 1;
+        background: white;
+        padding: 2rem;
+        border-radius: 16px;
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.75rem;
+    }
+
+    .section-header h2 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #191c1e;
+    }
+
+    .search-box {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 1rem;
+        background: #f7f9fb;
+        border-radius: 8px;
+        min-width: 300px;
+    }
+
+    .search-box input {
+        border: none;
+        background: transparent;
+        outline: none;
+        font-size: 0.875rem;
+        width: 100%;
+    }
+
+    .records-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .record-item {
+        display: flex;
+        align-items: center;
+        gap: 1.25rem;
+        padding: 1.25rem;
+        background: #f7f9fb;
+        border-radius: 12px;
+        transition: all 0.2s;
+    }
+
+    .record-item:hover {
+        background: #eceef0;
+        transform: translateX(4px);
+    }
+
+    .record-icon {
+        width: 48px;
+        height: 48px;
+        min-width: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+
+    .record-icon.lab {
+        background: #e3f2fd;
+        color: #1976d2;
+    }
+
+    .record-icon.prescription {
+        background: #f3e5f5;
+        color: #7b1fa2;
+    }
+
+    .record-icon.visit {
+        background: #e8f5e9;
+        color: #388e3c;
+    }
+
+    .record-icon.imaging {
+        background: #fff3e0;
+        color: #f57c00;
+    }
+
+    .record-icon.immunization {
+        background: #fce4ec;
+        color: #c2185b;
+    }
+
+    .record-icon.ai {
+        background: #76f3ea;
+        color: #006a65;
+    }
+
+    .record-info {
+        flex: 1;
+    }
+
+    .record-info h4 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #191c1e;
+        margin-bottom: 0.25rem;
+    }
+
+    .record-info p {
+        font-size: 0.75rem;
+        color: #434654;
+        margin-bottom: 0.125rem;
+    }
+
+    .record-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .badge {
+        padding: 0.375rem 0.75rem;
+        border-radius: 6px;
+        font-size: 0.625rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        white-space: nowrap;
+    }
+
+    .badge-lab {
+        background: #e3f2fd;
+        color: #1976d2;
+    }
+
+    .badge-prescription {
+        background: #f3e5f5;
+        color: #7b1fa2;
+    }
+
+    .badge-visit {
+        background: #e8f5e9;
+        color: #388e3c;
+    }
+
+    .badge-imaging {
+        background: #fff3e0;
+        color: #f57c00;
+    }
+
+    .badge-immunization {
+        background: #fce4ec;
+        color: #c2185b;
+    }
+
+    .badge-ai {
+        background: #76f3ea;
+        color: #006a65;
+    }
+
+    .icon-btn-sm {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: white;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+    }
+
+    .icon-btn-sm:hover {
+        background: #e6e8ea;
+    }
+
+    /* Stats Card */
+    .stats-card {
+        grid-column: span 1;
+        background: white;
+        padding: 2rem;
+        border-radius: 16px;
+        height: fit-content;
+    }
+
+    .stats-card h3 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #191c1e;
+        margin-bottom: 1.5rem;
+    }
+
+    .stats-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+
+    .stat-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1.25rem;
+        background: #f7f9fb;
+        border-radius: 12px;
+    }
+
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        min-width: 48px;
+        background: #76f3ea;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: #006a65;
+    }
+
+    .stat-info h4 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #191c1e;
+        margin-bottom: 0.25rem;
+    }
+
+    .stat-info p {
+        color: #434654;
+        font-size: 0.875rem;
+    }
+
+    /* Timeline Card */
+    .timeline-card {
+        grid-column: span 1;
+        background: white;
+        padding: 2rem;
+        border-radius: 16px;
+    }
+
+    .timeline-card .section-header {
+        margin-bottom: 1.5rem;
+    }
+
+    .timeline-card h3 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #191c1e;
+    }
+
+    .link-primary {
+        color: #0052cc;
+        text-decoration: none;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+
+    .timeline {
+        position: relative;
+        padding-left: 2rem;
+    }
+
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 8px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #e6e8ea;
+    }
+
+    .timeline-item {
+        position: relative;
+        margin-bottom: 1.5rem;
+    }
+
+    .timeline-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .timeline-dot {
+        position: absolute;
+        left: -1.5rem;
+        top: 0.25rem;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #0052cc;
+        border: 3px solid white;
+        box-shadow: 0 0 0 2px #e6e8ea;
+    }
+
+    .timeline-content {
+        padding-left: 0.5rem;
+    }
+
+    .timeline-date {
+        font-size: 0.75rem;
+        color: #434654;
+        font-weight: 600;
+        display: block;
+        margin-bottom: 0.25rem;
+    }
+
+    .timeline-content p {
+        color: #191c1e;
+        font-size: 0.875rem;
+    }
+
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: none;
+        font-size: 0.875rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn-primary {
+        background: #0052cc;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #003d9b;
+        transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+        background: #e6e8ea;
+        color: #191c1e;
+    }
+
+    .btn-secondary:hover {
+        background: #d8dadc;
+    }
+
+    /* Responsive */
+    @@media (max-width: 1024px) {
+        .content-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .records-section,
+        .stats-card,
+        .timeline-card {
+            grid-column: span 1;
+        }
+
+        .search-box {
+            min-width: 200px;
+        }
+    }
+
+    @@media (max-width: 768px) {
+        .filter-tabs {
+            gap: 0.5rem;
+        }
+
+        .record-actions {
+            flex-direction: column;
+            align-items: flex-end;
+        }
+
+        .header-right {
+            flex-direction: column;
+        }
+    }
+</style>

@@ -1,0 +1,1493 @@
+@page "/patient/consultation"
+@layout Components.Layout.SidebarLayout
+@using Backend.Models
+@using Backend.Services
+@inject DoctorService DoctorService
+
+<style>
+    .consultation-container {
+        display: grid;
+        grid-template-columns: 280px 1fr 320px;
+        height: 100vh;
+        background: #f5f7fa;
+        gap: 0;
+        margin: -2.5rem -3rem -2.5rem -3rem;
+        width: calc(100% + 6rem);
+        position: relative;
+    }
+
+    /* History Sidebar */
+    .history-sidebar {
+        background: white;
+        border-right: 1px solid #e5e7eb;
+        padding: 24px 16px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        height: 100vh;
+        position: relative;
+    }
+
+    .history-sidebar::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .history-sidebar::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+
+    .history-sidebar::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 4px;
+    }
+
+    .history-sidebar::-webkit-scrollbar-thumb:hover {
+        background: #a8a8a8;
+    }
+
+    .history-sidebar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+    }
+
+    .history-sidebar h3 {
+        font-size: 12px;
+        font-weight: 600;
+        color: #6b7280;
+        letter-spacing: 0.5px;
+    }
+
+    .new-consultation-btn {
+        padding: 6px 12px;
+        background: #0ea5e9;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+    }
+
+    .history-item {
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 8px;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    .history-item:hover {
+        background: #f9fafb;
+    }
+
+    .history-item.active {
+        background: #e0f2fe;
+        border-left: 3px solid #0ea5e9;
+    }
+
+    .history-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 4px;
+    }
+
+    .history-title {
+        font-size: 14px;
+        font-weight: 500;
+        color: #111827;
+    }
+
+    .history-meta {
+        font-size: 12px;
+        color: #6b7280;
+    }
+
+    .unread-badge {
+        background: #ef4444;
+        color: white;
+        font-size: 10px;
+        font-weight: 600;
+        padding: 2px 6px;
+        border-radius: 10px;
+    }
+
+    .urgent-tag {
+        display: inline-block;
+        font-size: 11px;
+        color: #dc2626;
+        margin-top: 4px;
+    }
+
+    /* Chat Area */
+    .chat-area {
+        display: flex;
+        flex-direction: column;
+        background: white;
+        position: relative;
+        height: 100vh;
+        overflow: hidden;
+        z-index: 1;
+    }
+
+    .chat-header {
+        border-bottom: 1px solid #e5e7eb;
+        background: white;
+        flex-shrink: 0;
+    }
+
+    .mode-toggle {
+        display: flex;
+        gap: 8px;
+        padding: 16px;
+    }
+
+    .toggle-btn {
+        flex: 1;
+        padding: 12px 16px;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        background: white;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        color: #6b7280;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .toggle-btn:hover {
+        border-color: #0ea5e9;
+    }
+
+    .toggle-btn.active {
+        background: #0ea5e9;
+        border-color: #0ea5e9;
+        color: white;
+    }
+
+    .active-doctor-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        background: #f9fafb;
+        border-top: 1px solid #e5e7eb;
+    }
+
+    .mini-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+
+    .doctor-details-mini {
+        flex: 1;
+    }
+
+    .doctor-name-mini {
+        font-size: 14px;
+        font-weight: 600;
+        color: #111827;
+    }
+
+    .doctor-status {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        color: #6b7280;
+    }
+
+    .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+    }
+
+    .status-dot.online {
+        background: #10b981;
+    }
+
+    .video-call-btn {
+        padding: 8px 16px;
+        background: #0ea5e9;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    /* Doctor Directory */
+    .doctor-directory {
+        flex: 1;
+        overflow-y: auto;
+        padding: 24px;
+        min-height: 0;
+    }
+
+    .doctor-directory::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .doctor-directory::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+
+    .doctor-directory::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 4px;
+    }
+
+    .doctor-directory::-webkit-scrollbar-thumb:hover {
+        background: #a8a8a8;
+    }
+
+    .directory-header h2 {
+        font-size: 24px;
+        font-weight: 600;
+        color: #111827;
+        margin-bottom: 16px;
+    }
+
+    .filters {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 24px;
+    }
+
+    .filter-select, .search-input {
+        padding: 10px 14px;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 14px;
+    }
+
+    .filter-select {
+        min-width: 180px;
+    }
+
+    .search-input {
+        flex: 1;
+    }
+
+    .doctor-list {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .doctor-card {
+        display: flex;
+        gap: 16px;
+        padding: 20px;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+        background: white;
+    }
+
+    .doctor-card:hover {
+        border-color: #0ea5e9;
+        box-shadow: 0 4px 12px rgba(14, 165, 233, 0.1);
+    }
+
+    .doctor-avatar {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        object-fit: cover;
+        background: #e5e7eb;
+    }
+
+    .doctor-info {
+        flex: 1;
+    }
+
+    .doctor-header-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 4px;
+    }
+
+    .doctor-info h4 {
+        font-size: 18px;
+        font-weight: 600;
+        color: #111827;
+    }
+
+    .verified-badge {
+        background: #0ea5e9;
+        color: white;
+        font-size: 12px;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .specialty {
+        font-size: 14px;
+        color: #6b7280;
+        margin-bottom: 8px;
+    }
+
+    .doctor-meta {
+        display: flex;
+        gap: 16px;
+        margin-bottom: 8px;
+        font-size: 13px;
+    }
+
+    .rating {
+        color: #f59e0b;
+    }
+
+    .experience {
+        color: #6b7280;
+    }
+
+    .doctor-details {
+        display: flex;
+        justify-content: space-between;
+        font-size: 13px;
+        color: #6b7280;
+    }
+
+    .fee {
+        font-weight: 600;
+        color: #0ea5e9;
+    }
+
+    .next-available {
+        font-size: 12px;
+        color: #10b981;
+        margin-top: 4px;
+    }
+
+    .doctor-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-end;
+    }
+
+    .availability {
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+    .availability.available {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .availability.unavailable {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .quick-book-btn {
+        padding: 6px 12px;
+        background: white;
+        color: #0ea5e9;
+        border: 1px solid #0ea5e9;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .quick-book-btn:hover {
+        background: #0ea5e9;
+        color: white;
+    }
+
+    /* Messages */
+    .messages-container {
+        flex: 1;
+        overflow-y: auto;
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        min-height: 0;
+    }
+
+    .messages-container::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .messages-container::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+
+    .messages-container::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 4px;
+    }
+
+    .messages-container::-webkit-scrollbar-thumb:hover {
+        background: #a8a8a8;
+    }
+
+    .typing-indicator {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px;
+    }
+
+    .typing-dot {
+        width: 8px;
+        height: 8px;
+        background: #6b7280;
+        border-radius: 50%;
+        animation: typing 1.4s infinite;
+    }
+
+    .typing-dot:nth-child(2) {
+        animation-delay: 0.2s;
+    }
+
+    .typing-dot:nth-child(3) {
+        animation-delay: 0.4s;
+    }
+
+    @@keyframes typing {
+        0%, 60%, 100% {
+            transform: translateY(0);
+            opacity: 0.7;
+        }
+        30% {
+            transform: translateY(-10px);
+            opacity: 1;
+        }
+    }
+
+    .typing-text {
+        font-size: 13px;
+        color: #6b7280;
+        font-style: italic;
+    }
+
+    .message {
+        display: flex;
+        gap: 12px;
+        max-width: 80%;
+    }
+
+    .message.user-message {
+        align-self: flex-end;
+        flex-direction: row-reverse;
+    }
+
+    .message-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        flex-shrink: 0;
+    }
+
+    .user-message .message-avatar {
+        background: #3b82f6;
+    }
+
+    .ai-message .message-avatar {
+        background: #10b981;
+    }
+
+    .message-content {
+        flex: 1;
+    }
+
+    .review-badge {
+        font-size: 11px;
+        font-weight: 600;
+        color: #3b82f6;
+        margin-bottom: 6px;
+        letter-spacing: 0.5px;
+    }
+
+    .message-text {
+        padding: 12px 16px;
+        border-radius: 12px;
+        font-size: 14px;
+        line-height: 1.5;
+    }
+
+    .user-message .message-text {
+        background: #dbeafe;
+        color: #1e3a8a;
+    }
+
+    .ai-message .message-text {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .message-time {
+        font-size: 11px;
+        color: #9ca3af;
+        margin-top: 4px;
+        text-align: right;
+    }
+
+    .message-attachment {
+        margin-top: 8px;
+        padding: 8px 12px;
+        background: rgba(255, 255, 255, 0.5);
+        border-radius: 6px;
+        font-size: 13px;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .quick-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 8px;
+    }
+
+    .quick-action-btn {
+        padding: 4px 10px;
+        background: rgba(255, 255, 255, 0.5);
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        border-radius: 12px;
+        font-size: 12px;
+        cursor: pointer;
+    }
+
+    .ai-insight-card {
+        background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%);
+        padding: 16px;
+        border-radius: 12px;
+        border-left: 4px solid #0ea5e9;
+        margin: 16px 0;
+    }
+
+    .insight-icon {
+        font-size: 24px;
+        margin-bottom: 8px;
+    }
+
+    .insight-content strong {
+        font-size: 12px;
+        font-weight: 600;
+        color: #0369a1;
+        display: block;
+        margin-bottom: 6px;
+    }
+
+    .insight-content p {
+        font-size: 14px;
+        color: #075985;
+        margin: 0;
+    }
+
+    .action-prompt {
+        display: flex;
+        gap: 12px;
+        padding: 16px;
+        background: #f0fdf4;
+        border-radius: 12px;
+        border: 1px solid #86efac;
+    }
+
+    .prompt-icon {
+        font-size: 24px;
+    }
+
+    .prompt-content strong {
+        font-size: 14px;
+        font-weight: 600;
+        color: #166534;
+        display: block;
+        margin-bottom: 4px;
+    }
+
+    .prompt-content p {
+        font-size: 13px;
+        color: #15803d;
+        margin-bottom: 12px;
+    }
+
+    .prompt-actions {
+        display: flex;
+        gap: 8px;
+    }
+
+    .btn-primary {
+        padding: 8px 16px;
+        background: #10b981;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+    }
+
+    .btn-secondary {
+        padding: 8px 16px;
+        background: white;
+        color: #10b981;
+        border: 1px solid #10b981;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+    }
+
+    /* Input Area */
+    .input-area {
+        padding: 16px 24px;
+        border-top: 1px solid #e5e7eb;
+        background: white;
+        flex-shrink: 0;
+    }
+
+    .uploaded-files-preview {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+
+    .file-preview {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        background: #e0f2fe;
+        border-radius: 8px;
+        font-size: 13px;
+    }
+
+    .file-name {
+        color: #0369a1;
+        font-weight: 500;
+    }
+
+    .remove-file-btn {
+        background: transparent;
+        border: none;
+        color: #6b7280;
+        font-size: 20px;
+        cursor: pointer;
+    }
+
+    .input-features {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+    }
+
+    .feature-badge {
+        font-size: 12px;
+        color: #10b981;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .attach-btn {
+        padding: 6px 12px;
+        background: transparent;
+        color: #0ea5e9;
+        border: 1px solid #0ea5e9;
+        border-radius: 6px;
+        font-size: 12px;
+        cursor: pointer;
+    }
+
+    .input-box {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        padding: 12px;
+        border: 2px solid #e5e7eb;
+        border-radius: 12px;
+        background: #f9fafb;
+    }
+
+    .icon-btn {
+        background: transparent;
+        border: none;
+        font-size: 20px;
+        cursor: pointer;
+        padding: 4px;
+    }
+
+    .input-box input {
+        flex: 1;
+        border: none;
+        background: transparent;
+        font-size: 14px;
+        outline: none;
+    }
+
+    .send-btn {
+        width: 36px;
+        height: 36px;
+        background: #0ea5e9;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        font-size: 18px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .send-btn.disabled {
+        background: #d1d5db;
+        cursor: not-allowed;
+    }
+
+    .quick-suggestions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+        padding: 12px;
+        background: #f9fafb;
+        border-radius: 8px;
+    }
+
+    .suggestion-chip {
+        padding: 8px 14px;
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 20px;
+        font-size: 13px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .suggestion-chip:hover {
+        background: #0ea5e9;
+        color: white;
+        border-color: #0ea5e9;
+    }
+
+    .back-btn {
+        margin-top: 12px;
+        padding: 8px 16px;
+        background: transparent;
+        color: #6b7280;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        font-size: 13px;
+        cursor: pointer;
+        width: 100%;
+    }
+
+    /* Context Sidebar */
+    .context-sidebar {
+        background: white;
+        border-left: 1px solid #e5e7eb;
+        padding: 24px 16px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        height: 100vh;
+        position: relative;
+    }
+
+    .context-sidebar::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .context-sidebar::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+
+    .context-sidebar::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 4px;
+    }
+
+    .context-sidebar::-webkit-scrollbar-thumb:hover {
+        background: #a8a8a8;
+    }
+
+    .context-sidebar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+    }
+
+    .context-sidebar h3 {
+        font-size: 16px;
+        font-weight: 600;
+        color: #111827;
+        margin-bottom: 8px;
+    }
+
+    .context-description {
+        font-size: 13px;
+        color: #6b7280;
+        margin-bottom: 20px;
+        line-height: 1.5;
+    }
+
+    .document-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+
+    .document-item {
+        display: flex;
+        gap: 12px;
+        padding: 12px;
+        border-radius: 8px;
+    }
+
+    .document-item.analyzed {
+        background: #dbeafe;
+    }
+
+    .document-item.verified {
+        background: #fce7f3;
+    }
+
+    .doc-icon {
+        font-size: 24px;
+    }
+
+    .doc-info {
+        flex: 1;
+    }
+
+    .doc-name {
+        font-size: 13px;
+        font-weight: 500;
+        color: #111827;
+        margin-bottom: 2px;
+    }
+
+    .doc-meta {
+        font-size: 11px;
+        color: #6b7280;
+        margin-bottom: 4px;
+    }
+
+    .doc-status {
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+    }
+
+    .analyzed .doc-status {
+        color: #1e40af;
+    }
+
+    .verified .doc-status {
+        color: #be185d;
+    }
+
+    .insight-header {
+        font-size: 12px;
+        font-weight: 600;
+        color: #0369a1;
+        margin-bottom: 8px;
+        letter-spacing: 0.5px;
+    }
+
+    .export-btn {
+        width: 100%;
+        padding: 12px;
+        background: #f3f4f6;
+        color: #374151;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .export-btn:hover {
+        background: #e5e7eb;
+    }
+</style>
+
+<div class="consultation-container">
+    <!-- Left Sidebar: History -->
+    <div class="history-sidebar">
+        <div class="history-sidebar-header">
+            <h3>HISTORY</h3>
+            <button class="new-consultation-btn" @onclick="StartNewConsultation">+ New</button>
+        </div>
+        <div class="history-list">
+            @foreach (var item in consultationHistory)
+            {
+                <div class="history-item @(item.Id == selectedHistoryId ? "active" : "")" @onclick="() => LoadConsultation(item.Id)">
+                    <div class="history-header">
+                        <div class="history-title">@item.Title</div>
+                        @if (item.UnreadCount > 0)
+                        {
+                            <span class="unread-badge">@item.UnreadCount</span>
+                        }
+                    </div>
+                    <div class="history-meta">@item.Date.ToString("MMM dd, yyyy") • @item.Status</div>
+                    @if (item.IsUrgent)
+                    {
+                        <span class="urgent-tag">🔴 Urgent</span>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Main Chat Area -->
+    <div class="chat-area">
+        <!-- Header with Mode Toggle -->
+        <div class="chat-header">
+            <div class="mode-toggle">
+                <button class="toggle-btn @(isAiMode ? "active" : "")" @onclick="() => SwitchMode(true)">
+                    <span class="icon">🤖</span> AI Assistant
+                </button>
+                <button class="toggle-btn @(!isAiMode ? "active" : "")" @onclick="() => SwitchMode(false)">
+                    <span class="icon">👨‍⚕️</span> Human Doctor
+                </button>
+            </div>
+            
+            @if (selectedDoctor.HasValue)
+            {
+                var doctor = doctors.FirstOrDefault(d => d.Id == selectedDoctor.Value);
+                if (doctor != null)
+                {
+                    <div class="active-doctor-info">
+                        <img src="@doctor.ImageUrl" alt="@doctor.Name" class="mini-avatar" />
+                        <div class="doctor-details-mini">
+                            <div class="doctor-name-mini">@doctor.Name</div>
+                            <div class="doctor-status">
+                                <span class="status-dot online"></span> Online
+                            </div>
+                        </div>
+                        <button class="video-call-btn" @onclick="StartVideoCall">📹 Video Call</button>
+                    </div>
+                }
+            }
+        </div>
+
+        @if (!isAiMode && !selectedDoctor.HasValue)
+        {
+            <!-- Doctor Directory -->
+            <div class="doctor-directory">
+                <div class="directory-header">
+                    <h2>Select a Doctor</h2>
+                    <div class="filters">
+                        <select class="filter-select" @bind="selectedSpecialty">
+                            @foreach (var specialty in specialties)
+                            {
+                                <option value="@specialty">@specialty</option>
+                            }
+                        </select>
+                        <input type="text" class="search-input" placeholder="Search doctors..." @bind="searchQuery" @bind:event="oninput" />
+                    </div>
+                </div>
+
+                <div class="doctor-list">
+                    @foreach (var doctor in FilteredDoctors)
+                    {
+                        <div class="doctor-card" @onclick="() => SelectDoctor(doctor.Id)">
+                            <img src="@doctor.ImageUrl" alt="@doctor.Name" class="doctor-avatar" />
+                            <div class="doctor-info">
+                                <div class="doctor-header-row">
+                                    <h4>@doctor.Name</h4>
+                                    @if (doctor.IsVerified)
+                                    {
+                                        <span class="verified-badge">✓</span>
+                                    }
+                                </div>
+                                <p class="specialty">@doctor.Specialty</p>
+                                <div class="doctor-meta">
+                                    <span class="rating">⭐ @doctor.Rating (@doctor.ReviewCount)</span>
+                                    <span class="experience">@doctor.YearsExperience years exp.</span>
+                                </div>
+                                <div class="doctor-details">
+                                    <span class="languages">@string.Join(", ", doctor.Languages)</span>
+                                    <span class="fee">$@doctor.ConsultationFee</span>
+                                </div>
+                                @if (!string.IsNullOrEmpty(doctor.NextAvailable))
+                                {
+                                    <div class="next-available">Next: @doctor.NextAvailable</div>
+                                }
+                            </div>
+                            <div class="doctor-actions">
+                                <div class="availability @(doctor.IsAvailable ? "available" : "unavailable")">
+                                    @(doctor.IsAvailable ? "Available Now" : "Busy")
+                                </div>
+                                <button class="quick-book-btn" @onclick:stopPropagation="true" @onclick="() => QuickBookDoctor(doctor.Id)">
+                                    📅 Book
+                                </button>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+        else
+        {
+            <!-- Chat Messages -->
+            <div class="messages-container" @ref="messagesContainer">
+                @if (isTyping)
+                {
+                    <div class="typing-indicator">
+                        <span class="typing-dot"></span>
+                        <span class="typing-dot"></span>
+                        <span class="typing-dot"></span>
+                        <span class="typing-text">@(isAiMode ? "AI" : "Doctor") is typing...</span>
+                    </div>
+                }
+                
+                @foreach (var message in messages)
+                {
+                    <div class="message @(message.IsFromUser ? "user-message" : "ai-message")">
+                        <div class="message-avatar">
+                            @if (message.IsFromUser)
+                            {
+                                <span class="avatar-icon">👤</span>
+                            }
+                            else if (message.IsAiReviewed)
+                            {
+                                <span class="avatar-icon">🔒</span>
+                            }
+                            else
+                            {
+                                <span class="avatar-icon">🤖</span>
+                            }
+                        </div>
+                        <div class="message-content">
+                            @if (message.IsAiReviewed)
+                            {
+                                <div class="review-badge">DR. ARIS • HUMAN REVIEW</div>
+                            }
+                            <div class="message-text">
+                                @message.Content
+                                <div class="message-time">@message.Timestamp.ToString("HH:mm")</div>
+                            </div>
+                            @if (message.AttachmentName != null)
+                            {
+                                <div class="message-attachment" @onclick="() => DownloadAttachment(message.AttachmentUrl)">
+                                    📎 @message.AttachmentName
+                                    <span class="download-icon">⬇️</span>
+                                </div>
+                            }
+                            @if (message.HasQuickActions)
+                            {
+                                <div class="quick-actions">
+                                    <button class="quick-action-btn">👍 Helpful</button>
+                                    <button class="quick-action-btn">📋 Copy</button>
+                                    <button class="quick-action-btn">🔖 Save</button>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+
+                @if (showAiInsight)
+                {
+                    <div class="ai-insight-card">
+                        <div class="insight-icon">💡</div>
+                        <div class="insight-content">
+                            <strong>AI INSIGHT CARD</strong>
+                            <p>The AI detected a correlation between your high stress logs and recent glucose spikes.</p>
+                        </div>
+                    </div>
+                }
+
+                @if (showActionPrompt)
+                {
+                    <div class="action-prompt">
+                        <div class="prompt-icon">💡</div>
+                        <div class="prompt-content">
+                            <strong>Prepare for your visit</strong>
+                            <p>Would you like me to summarize your activity logs from the last 7 days for Dr. Aria?</p>
+                            <div class="prompt-actions">
+                                <button class="btn-primary">Yes, summarize</button>
+                                <button class="btn-secondary">Not now</button>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <!-- Input Area -->
+            <div class="input-area">
+                @if (uploadedFiles.Any())
+                {
+                    <div class="uploaded-files-preview">
+                        @foreach (var file in uploadedFiles)
+                        {
+                            <div class="file-preview">
+                                <span class="file-icon">📄</span>
+                                <span class="file-name">@file</span>
+                                <button class="remove-file-btn" @onclick="() => RemoveFile(file)">×</button>
+                            </div>
+                        }
+                    </div>
+                }
+                
+                <div class="input-features">
+                    <span class="feature-badge">🔒 End-to-end encrypted medical sanctuary</span>
+                    <label class="attach-btn">
+                        📎 Attach Medical Docs
+                        <InputFile OnChange="HandleFileUpload" multiple hidden />
+                    </label>
+                </div>
+                
+                <div class="input-box">
+                    <button class="icon-btn" @onclick="ToggleQuickActions">😊</button>
+                    <input type="text" 
+                           placeholder="Describe your symptoms or ask a question..." 
+                           @bind="currentMessage" 
+                           @onkeypress="HandleKeyPress"
+                           @oninput="HandleTyping" />
+                    <button class="icon-btn" @onclick="ToggleVoiceInput">🎤</button>
+                    <button class="send-btn @(string.IsNullOrWhiteSpace(currentMessage) ? "disabled" : "")" 
+                            @onclick="SendMessage" 
+                            disabled="@string.IsNullOrWhiteSpace(currentMessage)">
+                        ➤
+                    </button>
+                </div>
+                
+                @if (showQuickActions)
+                {
+                    <div class="quick-suggestions">
+                        <button class="suggestion-chip" @onclick='() => SetMessage("I need a prescription refill")'>💊 Prescription Refill</button>
+                        <button class="suggestion-chip" @onclick='() => SetMessage("I want to schedule a follow-up")'>📅 Schedule Follow-up</button>
+                        <button class="suggestion-chip" @onclick='() => SetMessage("Can you review my recent test results?")'>📊 Review Results</button>
+                        <button class="suggestion-chip" @onclick='() => SetMessage("I have questions about my medication")'>❓ Medication Questions</button>
+                    </div>
+                }
+                
+                @if (!isAiMode && selectedDoctor.HasValue)
+                {
+                    <button class="back-btn" @onclick="BackToDoctorList">← Back to Doctor List</button>
+                }
+            </div>
+        }
+    </div>
+
+    <!-- Right Sidebar: Document Context -->
+    <div class="context-sidebar">
+        <div class="context-sidebar-header">
+            <h3>Document Context</h3>
+        </div>
+        <p class="context-description">The following documents are being used by the AI to provide context for this conversation.</p>
+        
+        <div class="document-list">
+            <div class="document-item analyzed">
+                <div class="doc-icon">📄</div>
+                <div class="doc-info">
+                    <div class="doc-name">Blood_Panel_Oct23.pdf</div>
+                    <div class="doc-meta">Uploaded 2h ago</div>
+                    <div class="doc-status">AI ANALYZED</div>
+                </div>
+            </div>
+
+            <div class="document-item verified">
+                <div class="doc-icon">🖼️</div>
+                <div class="doc-info">
+                    <div class="doc-name">ECG_Scan_Final.jpg</div>
+                    <div class="doc-meta">Uploaded Sep 30</div>
+                    <div class="doc-status">HUMAN VERIFIED</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="ai-insight-card">
+            <div class="insight-header">💡 AI INSIGHT CARD</div>
+            <p>The AI detected a correlation between your high stress logs and recent glucose spikes.</p>
+        </div>
+
+        <button class="export-btn">⬇️ Export Conversation</button>
+    </div>
+</div>
+
+@code {
+    [Inject] private IJSRuntime JSRuntime { get; set; } = default!;
+    
+    private ElementReference messagesContainer;
+    private bool isAiMode = true;
+    private int? selectedDoctor = null;
+    private int selectedHistoryId = 1;
+    private string currentMessage = "";
+    private string searchQuery = "";
+    private string selectedSpecialty = "All Specialties";
+    private bool showAiInsight = true;
+    private bool showActionPrompt = true;
+    private bool showQuickActions = false;
+    private bool isTyping = false;
+    private List<string> uploadedFiles = new();
+
+    private List<Doctor> doctors = new();
+    private List<string> specialties = new();
+
+    private List<ConsultationHistory> consultationHistory = new()
+    {
+        new ConsultationHistory { Id = 1, Title = "Ongoing: General Health", Status = "Analyzing recent blood reports...", Date = DateTime.Now, UnreadCount = 2 },
+        new ConsultationHistory { Id = 2, Title = "Dermatology Scan", Status = "Resolved", Date = new DateTime(2023, 10, 12), UnreadCount = 0 },
+        new ConsultationHistory { Id = 3, Title = "Flu Assessment", Status = "Resolved", Date = new DateTime(2023, 9, 28), UnreadCount = 0, IsUrgent = false }
+    };
+
+    private List<ConsultationMessage> messages = new()
+    {
+        new ConsultationMessage 
+        { 
+            Id = 1, 
+            Content = "Hello. I've finished reviewing your latest Cardiovascular Panel. Based on the data, your resting heart rate shows a healthy trend, but your LDL levels are slightly elevated.", 
+            IsFromUser = false, 
+            Timestamp = DateTime.Now.AddMinutes(-10),
+            HasQuickActions = true
+        },
+        new ConsultationMessage 
+        { 
+            Id = 2, 
+            Content = "Can you explain what these LDL levels mean for my daily routine? Should I wait to talk to Dr. Aria?", 
+            IsFromUser = true, 
+            Timestamp = DateTime.Now.AddMinutes(-5) 
+        },
+        new ConsultationMessage 
+        { 
+            Id = 3, 
+            Content = "The AI's observation is correct. We should look at increasing your fiber intake. I've highlighted the specific section in your October Report that we should discuss in our video call tomorrow.", 
+            IsFromUser = false, 
+            IsAiReviewed = true, 
+            Timestamp = DateTime.Now.AddMinutes(-2),
+            AttachmentName = "October Report",
+            AttachmentUrl = "/documents/october-report.pdf",
+            HasQuickActions = true
+        }
+    };
+
+    private IEnumerable<Doctor> FilteredDoctors
+    {
+        get
+        {
+            var filtered = doctors.AsEnumerable();
+            
+            if (selectedSpecialty != "All Specialties")
+            {
+                filtered = filtered.Where(d => d.Specialty == selectedSpecialty);
+            }
+            
+            if (!string.IsNullOrWhiteSpace(searchQuery))
+            {
+                filtered = filtered.Where(d => 
+                    d.Name.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
+                    d.Specialty.Contains(searchQuery, StringComparison.OrdinalIgnoreCase));
+            }
+            
+            return filtered;
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        doctors = DoctorService.GetAvailableDoctors();
+        specialties = DoctorService.GetSpecialties();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await JSRuntime.InvokeVoidAsync("eval", "if (window.lucide) lucide.createIcons();");
+    }
+
+    private void SwitchMode(bool aiMode)
+    {
+        isAiMode = aiMode;
+        selectedDoctor = null;
+        messages.Clear();
+        
+        // Add welcome message
+        if (aiMode)
+        {
+            messages.Add(new ConsultationMessage
+            {
+                Id = messages.Count + 1,
+                Content = "Hello! I'm your AI health assistant. How can I help you today?",
+                IsFromUser = false,
+                Timestamp = DateTime.Now,
+                HasQuickActions = true
+            });
+        }
+    }
+
+    private void SelectDoctor(int doctorId)
+    {
+        selectedDoctor = doctorId;
+        var doctor = doctors.FirstOrDefault(d => d.Id == doctorId);
+        
+        messages.Clear();
+        messages.Add(new ConsultationMessage
+        {
+            Id = 1,
+            Content = $"Hello! This is {doctor?.Name}. I'm here to help you. What brings you in today?",
+            IsFromUser = false,
+            Timestamp = DateTime.Now,
+            HasQuickActions = true
+        });
+    }
+
+    private void BackToDoctorList()
+    {
+        selectedDoctor = null;
+    }
+
+    private async Task SendMessage()
+    {
+        if (!string.IsNullOrWhiteSpace(currentMessage))
+        {
+            var userMessage = new ConsultationMessage
+            {
+                Id = messages.Count + 1,
+                Content = currentMessage,
+                IsFromUser = true,
+                Timestamp = DateTime.Now
+            };
+            messages.Add(userMessage);
+            
+            var sentMessage = currentMessage;
+            currentMessage = "";
+            
+            // Simulate AI/Doctor response
+            isTyping = true;
+            StateHasChanged();
+            
+            await Task.Delay(2000); // Simulate thinking time
+            
+            isTyping = false;
+            messages.Add(new ConsultationMessage
+            {
+                Id = messages.Count + 1,
+                Content = GenerateResponse(sentMessage),
+                IsFromUser = false,
+                Timestamp = DateTime.Now,
+                HasQuickActions = true
+            });
+            
+            StateHasChanged();
+        }
+    }
+
+    private string GenerateResponse(string userMessage)
+    {
+        if (isAiMode)
+        {
+            return "Based on your symptoms, I recommend scheduling a consultation with a specialist. Would you like me to help you find an available doctor?";
+        }
+        else
+        {
+            return "Thank you for sharing that information. Let me review your medical history and get back to you with recommendations.";
+        }
+    }
+
+    private async Task HandleKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(currentMessage))
+        {
+            await SendMessage();
+        }
+    }
+
+    private void HandleTyping(ChangeEventArgs e)
+    {
+        currentMessage = e.Value?.ToString() ?? "";
+    }
+
+    private async Task HandleFileUpload(InputFileChangeEventArgs e)
+    {
+        foreach (var file in e.GetMultipleFiles(5))
+        {
+            uploadedFiles.Add(file.Name);
+        }
+        StateHasChanged();
+    }
+
+    private void RemoveFile(string fileName)
+    {
+        uploadedFiles.Remove(fileName);
+    }
+
+    private void ToggleQuickActions()
+    {
+        showQuickActions = !showQuickActions;
+    }
+
+    private void ToggleVoiceInput()
+    {
+        // Voice input functionality
+    }
+
+    private void SetMessage(string message)
+    {
+        currentMessage = message;
+        showQuickActions = false;
+    }
+
+    private void LoadConsultation(int id)
+    {
+        selectedHistoryId = id;
+        // Load consultation messages
+    }
+
+    private void StartNewConsultation()
+    {
+        messages.Clear();
+        selectedHistoryId = 0;
+        selectedDoctor = null;
+    }
+
+    private void QuickBookDoctor(int doctorId)
+    {
+        // Open booking modal
+    }
+
+    private void StartVideoCall()
+    {
+        // Start video call
+    }
+
+    private void DownloadAttachment(string? url)
+    {
+        if (!string.IsNullOrEmpty(url))
+        {
+            // Download file
+        }
+    }
+}

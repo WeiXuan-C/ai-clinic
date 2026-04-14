@@ -1,3 +1,21 @@
 bin/
 obj/
+
+# SENSITIVE - Never commit these files
 appsettings.Development.json
+appsettings.Production.json
+appsettings.Staging.json
+*.Development.json
+*.Production.json
+.env
+.env.local
+secrets.json
+
+# IDE
+.vs/
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

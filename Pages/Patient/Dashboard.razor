@@ -1,0 +1,610 @@
+@page "/patient/dashboard"
+@layout Components.Layout.SidebarLayout
+
+<PageTitle>Dashboard - AI Medical Clinic</PageTitle>
+
+<link rel="stylesheet" href="/css/stitch-design-system.css" />
+
+<!-- Header -->
+<header class="content-header">
+    <div class="header-left">
+        <h1>Welcome back, @patientName</h1>
+        <p class="body-md" style="margin: 0.5rem;">
+            <span class="status-indicator">●</span>
+            Your Clinical Sanctuary is active and monitoring.
+        </p>
+    </div>
+</header>
+
+<!-- Content Grid -->
+<div class="content-grid">
+    <!-- Hero Card -->
+    <div class="hero-card">
+        <i data-lucide="zap" class="hero-icon"></i>
+        <h2 class="headline-md">Start New<br/>AI Chat</h2>
+        <p class="body-md">Instant assessment</p>
+        <button class="hero-arrow">
+            <i data-lucide="arrow-right"></i>
+        </button>
+    </div>
+
+    <!-- Recent Consultations -->
+    <section class="consultations-section">
+        <div class="section-header">
+            <h2 class="headline-md">Recent Consultations</h2>
+            <a href="#" class="link-primary">View All</a>
+        </div>
+        <div class="consultations-list">
+            <div class="consultation-item">
+                <div class="consultation-icon ai">
+                    <i data-lucide="bot"></i>
+                </div>
+                <div class="consultation-info">
+                    <h4 class="headline-sm">Symptom Assessment</h4>
+                    <p class="body-sm">Clinical AI Assistant • Today, 10:24 AM</p>
+                </div>
+                <span class="badge badge-ai">AI ASSIST</span>
+            </div>
+            <div class="consultation-item">
+                <div class="consultation-icon doctor">
+                    <i data-lucide="stethoscope"></i>
+                </div>
+                <div class="consultation-info">
+                    <h4 class="headline-sm">Cardiology Follow-up</h4>
+                    <p class="body-sm">Dr. Helena Vance • Oct 12, 2023</p>
+                </div>
+                <span class="badge badge-doctor">DOCTOR VISIT</span>
+            </div>
+            <div class="consultation-item">
+                <div class="consultation-icon lab">
+                    <i data-lucide="bar-chart-3"></i>
+                </div>
+                <div class="consultation-info">
+                    <h4 class="headline-sm">Blood Analysis Review</h4>
+                    <p class="body-sm">Pathology Dept • Oct 08, 2023</p>
+                </div>
+                <span class="badge badge-lab">LAB RESULTS</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Book Doctor Visit -->
+    <div class="book-visit-card">
+        <i data-lucide="calendar-check" class="book-icon"></i>
+        <h3 class="headline-md">Book Doctor<br/>Visit</h3>
+        <p class="body-md">Specialist network</p>
+        <button class="card-arrow">
+            <i data-lucide="arrow-right"></i>
+        </button>
+    </div>
+
+    <!-- Upcoming Appointment -->
+    <section class="upcoming-section">
+        <div class="upcoming-header">
+            <i data-lucide="calendar" class="upcoming-icon"></i>
+            <span class="headline-sm">Upcoming</span>
+        </div>
+        <div class="upcoming-card">
+            <h3 class="headline-md">Wednesday</h3>
+            <p class="body-lg primary-text">Oct 25 @@ 2:30 PM</p>
+            <p class="body-md">Annual Physical with<br/>Dr. Michael Chen</p>
+        </div>
+    </section>
+
+    <!-- Health Pulse -->
+    <section class="health-pulse-card">
+        <div class="pulse-header">
+            <i data-lucide="heart-pulse" class="pulse-icon"></i>
+            <span class="headline-sm">Health Pulse</span>
+        </div>
+        <div class="pulse-content">
+            <p class="body-sm">HbA1C LEVELS</p>
+            <h2 class="display-sm">5.4%</h2>
+            <div class="pulse-status">
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 54%"></div>
+                </div>
+                <span class="badge badge-success">NORMAL</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Health Prediction Summary -->
+    <section class="prediction-section">
+        <div class="prediction-header">
+            <h2 class="headline-md">Health Prediction Summary</h2>
+            <span class="badge badge-ai-insight">AI INSIGHTS</span>
+        </div>
+        <p class="body-md prediction-text">
+            Based on your recent wearable data and lab results, your cardiovascular 
+            efficiency has improved by 12% since last month. Keep up the high-intensity 
+            interval training for optimal longevity scores.
+        </p>
+        <div class="prediction-actions">
+            <button class="btn btn-primary">View Detailed Report</button>
+            <button class="btn btn-secondary">Ask Follow-up</button>
+        </div>
+    </section>
+</div>
+
+@code {
+    private string patientName = "Sarah";
+}
+
+
+<style>
+    .content-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 2rem;
+    }
+
+    .header-left h1 {
+        font-size: 2rem;
+        font-weight: 1000;
+        color: #191c1e;
+        margin: 0.5rem;
+        font-family: 'Manrope', sans-serif;
+    }
+
+    .header-left p {
+        color: #434654;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .status-indicator {
+        color: #76f3ea;
+        font-size: 0.75rem;
+    }
+
+    .header-right {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .user-avatars {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .avatar-sm {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #76f3ea, #006a65);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        border: 2px solid white;
+    }
+
+    .icon-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: #f2f4f6;
+        border: none;
+        cursor: pointer;
+        font-size: 1.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Content Grid */
+    .content-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 2rem;
+    }
+
+    /* Hero Card */
+    .hero-card {
+        grid-column: span 1;
+        background: linear-gradient(135deg, #0052cc, #003d9b);
+        color: white;
+        padding: 2.5rem;
+        border-radius: 16px;
+        position: relative;
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+
+    .hero-card:hover {
+        transform: translateY(-4px);
+    }
+
+    .hero-icon {
+        width: 48px;
+        height: 48px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .hero-card h2 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        line-height: 1.2;
+    }
+
+    .hero-card p {
+        opacity: 0.9;
+        font-size: 0.875rem;
+    }
+
+    .hero-arrow {
+        position: absolute;
+        bottom: 2rem;
+        right: 2rem;
+        width: 40px;
+        height: 40px;
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        border-radius: 50%;
+        color: white;
+        font-size: 1.5rem;
+        cursor: pointer;
+    }
+
+    /* Consultations Section */
+    .consultations-section {
+        grid-column: span 2;
+        background: white;
+        padding: 2rem;
+        border-radius: 16px;
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.75rem;
+    }
+
+    .section-header h2 {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #191c1e;
+    }
+
+    .link-primary {
+        color: #0052cc;
+        text-decoration: none;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+
+    .consultations-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+
+    .consultation-item {
+        display: flex;
+        align-items: center;
+        gap: 1.25rem;
+        padding: 1.25rem;
+        background: #f7f9fb;
+        border-radius: 12px;
+    }
+
+    .consultation-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+
+    .consultation-icon.ai {
+        background: #76f3ea;
+    }
+
+    .consultation-icon.doctor {
+        background: #dae2ff;
+    }
+
+    .consultation-icon.lab {
+        background: #e0e3e5;
+    }
+
+    .consultation-info {
+        flex: 1;
+    }
+
+    .consultation-info h4 {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #191c1e;
+        margin-bottom: 0.25rem;
+    }
+
+    .consultation-info p {
+        font-size: 0.75rem;
+        color: #434654;
+    }
+
+    .badge {
+        padding: 0.375rem 0.75rem;
+        border-radius: 6px;
+        font-size: 0.625rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+    }
+
+    .badge-ai {
+        background: #76f3ea;
+        color: #006a65;
+    }
+
+    .badge-doctor {
+        background: #e6e8ea;
+        color: #434654;
+    }
+
+    .badge-lab {
+        background: #e6e8ea;
+        color: #434654;
+    }
+
+    .badge-success {
+        background: #76f3ea;
+        color: #006a65;
+    }
+
+    .badge-ai-insight {
+        background: #76f3ea;
+        color: #006a65;
+    }
+
+    /* Book Visit Card */
+    .book-visit-card {
+        grid-column: span 1;
+        background: white;
+        padding: 2.5rem;
+        border-radius: 16px;
+        position: relative;
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+
+    .book-visit-card:hover {
+        transform: translateY(-4px);
+    }
+
+    .book-icon {
+        width: 48px;
+        height: 48px;
+        background: #76f3ea;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .book-visit-card h3 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #191c1e;
+        margin-bottom: 0.5rem;
+        line-height: 1.2;
+    }
+
+    .book-visit-card p {
+        color: #434654;
+        font-size: 0.875rem;
+    }
+
+    .card-arrow {
+        position: absolute;
+        bottom: 2rem;
+        right: 2rem;
+        width: 40px;
+        height: 40px;
+        background: #f2f4f6;
+        border: none;
+        border-radius: 50%;
+        color: #191c1e;
+        font-size: 1.5rem;
+        cursor: pointer;
+    }
+
+    /* Upcoming Section */
+    .upcoming-section {
+        grid-column: span 1;
+        background: white;
+        padding: 2rem;
+        border-radius: 16px;
+    }
+
+    .upcoming-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .upcoming-icon {
+        font-size: 1.25rem;
+    }
+
+    .upcoming-card {
+        padding: 1.5rem;
+        background: #f7f9fb;
+        border-radius: 12px;
+    }
+
+    .upcoming-card h3 {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #191c1e;
+        margin-bottom: 0.5rem;
+    }
+
+    .primary-text {
+        color: #0052cc;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    .upcoming-card p:last-child {
+        color: #434654;
+        font-size: 0.875rem;
+    }
+
+    /* Health Pulse Card */
+    .health-pulse-card {
+        grid-column: span 1;
+        background: white;
+        padding: 2rem;
+        border-radius: 16px;
+    }
+
+    .pulse-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 1.75rem;
+    }
+
+    .pulse-icon {
+        font-size: 1.25rem;
+    }
+
+    .pulse-content p {
+        font-size: 0.75rem;
+        color: #434654;
+        margin-bottom: 0.5rem;
+    }
+
+    .pulse-content h2 {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #191c1e;
+        margin-bottom: 1rem;
+    }
+
+    .pulse-status {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .progress-bar {
+        width: 100%;
+        height: 8px;
+        background: #e6e8ea;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #76f3ea, #006a65);
+        border-radius: 4px;
+    }
+
+    /* Prediction Section */
+    .prediction-section {
+        grid-column: span 3;
+        background: white;
+        padding: 2.5rem;
+        border-radius: 16px;
+    }
+
+    .prediction-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.75rem;
+    }
+
+    .prediction-header h2 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #191c1e;
+    }
+
+    .prediction-text {
+        color: #434654;
+        line-height: 1.6;
+        margin-bottom: 2rem;
+    }
+
+    .prediction-actions {
+        display: flex;
+        gap: 1rem;
+    }
+
+    .btn {
+        padding: 1rem 1.75rem;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: none;
+        font-size: 0.875rem;
+    }
+
+    .btn-primary {
+        background: #0052cc;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #003d9b;
+        transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+        background: #e6e8ea;
+        color: #191c1e;
+    }
+
+    .btn-secondary:hover {
+        background: #d8dadc;
+    }
+
+    /* Responsive */
+    @@media (max-width: 1200px) {
+        .content-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .consultations-section,
+        .prediction-section {
+            grid-column: span 2;
+        }
+    }
+
+    @@media (max-width: 768px) {
+        .content-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .hero-card,
+        .consultations-section,
+        .book-visit-card,
+        .upcoming-section,
+        .health-pulse-card,
+        .prediction-section {
+            grid-column: span 1;
+        }
+    }
+</style>

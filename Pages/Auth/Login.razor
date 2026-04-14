@@ -1,0 +1,522 @@
+@page "/auth/login"
+@page "/auth/signup"
+@layout Components.Layout.EmptyLayout
+
+<PageTitle>Login - AI Clinic</PageTitle>
+
+<link rel="stylesheet" href="/css/stitch-design-system.css" />
+
+<div class="login-page">
+    <div class="login-container">
+        <!-- Left Side: Brand & Visual -->
+        <div class="brand-section">
+            <div class="brand-content">
+                <div class="brand-header">
+                    <h1 class="brand-logo">AI Clinic</h1>
+                </div>
+                
+                <div class="brand-tagline">
+                    <p class="tagline-text">The Clinical Sanctuary: Reimagining healthcare through empathetic intelligence.</p>
+                </div>
+                
+                <div class="medical-illustration">
+                    <div class="illustration-container">
+                        <div class="illustration-placeholder">
+                            <div class="beaker beaker-1"></div>
+                            <div class="beaker beaker-2"></div>
+                            <div class="beaker beaker-3"></div>
+                            <div class="plant-icon"></div>
+                            <div class="geometric-shape shape-1"></div>
+                            <div class="geometric-shape shape-2"></div>
+                        </div>
+                        <div class="status-indicator">
+                            <span class="status-dot"></span>
+                            <span class="status-text">AI systems online & encrypted</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right Side: Login Form -->
+        <div class="form-section">
+            <div class="form-wrapper">
+                <div class="form-card">
+                    <h2 class="form-title">Welcome to AI Clinic</h2>
+                    <p class="form-subtitle">Access your medical sanctuary. Secure, private, and precise.</p>
+                    
+                    <EditForm Model="@authModel" OnValidSubmit="@HandleSubmit">
+                        <DataAnnotationsValidator />
+                        
+                        <div class="form-group">
+                            <label class="form-label">EMAIL OR PHONE NUMBER</label>
+                            <div class="input-wrapper">
+                                <InputText @bind-value="authModel.Credential" class="form-input" placeholder="Enter your credentials" />
+                                <i data-lucide="lock" class="input-icon"></i>
+                            </div>
+                            <ValidationMessage For="@(() => authModel.Credential)" />
+                        </div>
+                        
+                        <button type="submit" class="btn-send-code">Send Code</button>
+                    </EditForm>
+                    
+                    <div class="new-patient-section">
+                        <p class="new-patient-label">NEW PATIENT?</p>
+                        <p class="new-patient-text">
+                            First visit? Enter your info above to <a href="/auth/signup" class="signup-link">create an account</a>.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private AuthModel authModel = new();
+
+    private async Task HandleSubmit()
+    {
+        // TODO: Implement OTP authentication with Supabase
+        // Send verification code to email/phone
+        NavigationManager.NavigateTo("/patient/dashboard");
+    }
+
+    public class AuthModel
+    {
+        public string Credential { get; set; } = "";
+    }
+}
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    .login-page {
+        min-height: 100vh;
+        background: #f7f9fb;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    .login-container {
+        display: grid;
+        grid-template-columns: 40% 60%;
+        min-height: 100vh;
+    }
+
+    /* Left Side - Brand Section */
+    .brand-section {
+        background: linear-gradient(135deg, #f0f4f8 0%, #e6eef5 100%);
+        padding: 3rem;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+    }
+
+    .brand-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .brand-header {
+        margin-bottom: 2rem;
+    }
+
+    .brand-logo {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #0052cc;
+        font-family: 'Manrope', sans-serif;
+    }
+
+    .brand-tagline {
+        margin-bottom: 3rem;
+    }
+
+    .tagline-text {
+        font-size: 1.125rem;
+        line-height: 1.6;
+        color: #5a6c7d;
+        max-width: 400px;
+    }
+
+    .medical-illustration {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 2rem 0;
+    }
+
+    .illustration-container {
+        width: 100%;
+        max-width: 450px;
+        position: relative;
+    }
+
+    .illustration-placeholder {
+        background: linear-gradient(135deg, #1a4d4d 0%, #0d3333 100%);
+        border-radius: 24px;
+        padding: 3rem;
+        min-height: 400px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 20px 60px rgba(0, 82, 204, 0.15);
+    }
+
+    /* 3D Medical Elements */
+    .beaker {
+        position: absolute;
+        background: linear-gradient(135deg, rgba(89, 218, 209, 0.3) 0%, rgba(118, 243, 234, 0.2) 100%);
+        border: 2px solid rgba(89, 218, 209, 0.4);
+        border-radius: 8px;
+    }
+
+    .beaker-1 {
+        width: 80px;
+        height: 120px;
+        bottom: 20%;
+        left: 15%;
+        transform: rotate(-5deg);
+    }
+
+    .beaker-2 {
+        width: 60px;
+        height: 100px;
+        bottom: 25%;
+        left: 40%;
+        background: linear-gradient(135deg, rgba(89, 218, 209, 0.5) 0%, rgba(118, 243, 234, 0.3) 100%);
+    }
+
+    .beaker-3 {
+        width: 70px;
+        height: 110px;
+        bottom: 20%;
+        right: 20%;
+        transform: rotate(5deg);
+    }
+
+    .plant-icon {
+        position: absolute;
+        top: 15%;
+        right: 15%;
+        width: 60px;
+        height: 80px;
+        background: linear-gradient(135deg, rgba(89, 218, 209, 0.4) 0%, rgba(118, 243, 234, 0.2) 100%);
+        border-radius: 50% 50% 0 0;
+    }
+
+    .geometric-shape {
+        position: absolute;
+        background: linear-gradient(135deg, rgba(89, 218, 209, 0.2) 0%, rgba(118, 243, 234, 0.1) 100%);
+        border-radius: 50%;
+    }
+
+    .shape-1 {
+        width: 120px;
+        height: 120px;
+        top: 10%;
+        left: 10%;
+        opacity: 0.6;
+    }
+
+    .shape-2 {
+        width: 80px;
+        height: 80px;
+        bottom: 30%;
+        right: 10%;
+        opacity: 0.4;
+    }
+
+    .status-indicator {
+        position: absolute;
+        bottom: 1.5rem;
+        left: 1.5rem;
+        background: rgba(255, 255, 255, 0.95);
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .status-dot {
+        width: 8px;
+        height: 8px;
+        background: #00c853;
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+    }
+
+    @@keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+
+    .status-text {
+        color: #1a4d4d;
+        font-weight: 500;
+    }
+
+    .brand-footer {
+        margin-top: auto;
+        padding-top: 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        gap: 2rem;
+    }
+
+    .footer-left {
+        flex-shrink: 0;
+    }
+
+    .footer-title {
+        font-weight: 600;
+        color: #191c1e;
+        margin-bottom: 0.25rem;
+        font-size: 1rem;
+    }
+
+    .footer-copyright {
+        font-size: 0.75rem;
+        color: #a0a8b0;
+        letter-spacing: 0.5px;
+    }
+
+    .footer-right {
+        display: flex;
+        align-items: center;
+        gap: 2rem;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .footer-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1.5rem;
+        align-items: center;
+    }
+
+    .footer-link {
+        font-size: 0.875rem;
+        color: #5a6c7d;
+        text-decoration: none;
+        transition: color 0.3s;
+        white-space: nowrap;
+    }
+
+    .footer-link:hover {
+        color: #0052cc;
+    }
+
+    .encryption-badge {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #006a65;
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+    }
+
+    .encryption-dot {
+        width: 8px;
+        height: 8px;
+        background: #00c853;
+        border-radius: 50%;
+    }
+
+    /* Right Side - Form Section */
+    .form-section {
+        background: #ffffff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 3rem;
+    }
+
+    .form-wrapper {
+        width: 100%;
+        max-width: 480px;
+    }
+
+    .form-card {
+        background: #ffffff;
+        padding: 3rem;
+        border-radius: 16px;
+        box-shadow: 0 4px 24px rgba(25, 28, 30, 0.08);
+    }
+
+    .form-title {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #191c1e;
+        margin-bottom: 0.75rem;
+        font-family: 'Manrope', sans-serif;
+    }
+
+    .form-subtitle {
+        font-size: 1rem;
+        color: #5a6c7d;
+        margin-bottom: 2.5rem;
+        line-height: 1.5;
+    }
+
+    .form-group {
+        margin-bottom: 2rem;
+    }
+
+    .form-label {
+        display: block;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #5a6c7d;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        margin-bottom: 0.75rem;
+    }
+
+    .input-wrapper {
+        position: relative;
+    }
+
+    .form-input {
+        width: 100%;
+        padding: 1rem 3rem 1rem 1rem;
+        border: 1px solid #e0e3e5;
+        border-radius: 12px;
+        font-size: 1rem;
+        color: #191c1e;
+        background: #f7f9fb;
+        transition: all 0.3s;
+        font-family: 'Inter', sans-serif;
+    }
+
+    .form-input:focus {
+        outline: none;
+        border-color: #0052cc;
+        background: #ffffff;
+        box-shadow: 0 0 0 3px rgba(0, 82, 204, 0.1);
+    }
+
+    .form-input::placeholder {
+        color: #a0a8b0;
+    }
+
+    .input-icon {
+        position: absolute;
+        right: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 1.25rem;
+        opacity: 0.5;
+    }
+
+    .btn-send-code {
+        width: 100%;
+        padding: 1rem;
+        background: linear-gradient(135deg, #0052cc 0%, #003d9b 100%);
+        color: #ffffff;
+        border: none;
+        border-radius: 12px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        box-shadow: 0 4px 12px rgba(0, 82, 204, 0.2);
+    }
+
+    .btn-send-code:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 82, 204, 0.3);
+    }
+
+    .btn-send-code:active {
+        transform: translateY(0);
+    }
+
+    .new-patient-section {
+        margin-top: 2.5rem;
+        text-align: center;
+    }
+
+    .new-patient-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #a0a8b0;
+        letter-spacing: 1px;
+        margin-bottom: 1rem;
+    }
+
+    .new-patient-text {
+        font-size: 0.9375rem;
+        color: #5a6c7d;
+        line-height: 1.6;
+    }
+
+    .signup-link {
+        color: #0052cc;
+        text-decoration: none;
+        font-weight: 600;
+        transition: color 0.3s;
+    }
+
+    .signup-link:hover {
+        color: #003d9b;
+        text-decoration: underline;
+    }
+
+    /* Responsive */
+    @@media (max-width: 1024px) {
+        .login-container {
+            grid-template-columns: 1fr;
+        }
+
+        .brand-section {
+            display: none;
+        }
+
+        .form-section {
+            padding: 2rem 1rem;
+        }
+
+        .form-card {
+            padding: 2rem;
+        }
+    }
+
+    @@media (max-width: 768px) {
+        .brand-footer {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .footer-right {
+            width: 100%;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .footer-links {
+            flex-direction: column;
+            gap: 0.75rem;
+            align-items: flex-start;
+        }
+    }
+</style>
+
+    .input-icon {
+        width: 20px;
+        height: 20px;
+        opacity: 0.5;
+    }

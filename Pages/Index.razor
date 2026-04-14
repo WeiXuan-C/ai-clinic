@@ -1,0 +1,790 @@
+@page "/"
+@using Microsoft.AspNetCore.Components
+
+<PageTitle>AI Clinic - Your Health, Powered by AI and Human Expertise</PageTitle>
+
+<div class="landing-page">
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <div class="hero-badge">
+                    <i data-lucide="sparkles" class="badge-icon"></i>
+                    <span class="badge-text">AI-Powered Personal Sanctuary</span>
+                </div>
+                <h1 class="display-lg">Your Health, Powered by <span class="text-primary">AI</span> and Human <span class="text-secondary">Expertise.</span></h1>
+                <p class="body-lg">Experience the next evolution of healthcare. A clinical sanctuary where cutting-edge artificial intelligence meets the world's most compassionate specialists.</p>
+                <div class="hero-actions">
+                    <a href="/auth/login" class="btn btn-primary">Get Started</a>
+                    <a href="#features" class="btn btn-secondary">
+                        <i data-lucide="play" class="btn-icon"></i>
+                        How it works
+                    </a>
+                </div>
+            </div>
+            <div class="hero-visual">
+                <div class="hero-card glass">
+                    <div class="ai-pulse"></div>
+                    <i data-lucide="heart-pulse" class="hero-icon"></i>
+                    <div class="ai-status">
+                        <i data-lucide="bot" class="status-icon"></i>
+                        <div class="status-text">
+                            <div class="status-label">AI INSIGHT ACTIVE</div>
+                            <div class="status-desc">Reviewing latest clinical documentation...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="features">
+        <div class="container">
+            <h2 class="headline-lg section-title">Clinical precision, human warmth.</h2>
+            <p class="body-lg section-subtitle">We bridge the gap between advanced technology and personal care through three core pillars.</p>
+            
+            <div class="features-grid">
+                <div class="feature-card card">
+                    <div class="feature-icon primary">
+                        <i data-lucide="zap"></i>
+                    </div>
+                    <h3 class="headline-sm">AI Assistant</h3>
+                    <p class="body-md">Instant answers extracted from verified official medical documents. No generic search results—only clinical truths.</p>
+                    <div class="feature-tags">
+                        <span class="tag">HIPAA Compliant</span>
+                        <span class="tag">Real-time Analysis</span>
+                        <span class="tag">Document Grounding</span>
+                    </div>
+                </div>
+                
+                <div class="feature-card card placeholder">
+                    <div class="placeholder-content"></div>
+                </div>
+                
+                <div class="feature-card card featured">
+                    <div class="feature-icon secondary">
+                        <i data-lucide="users"></i>
+                    </div>
+                    <h3 class="headline-sm">Real Doctors</h3>
+                    <p class="body-md">Direct access to elite specialists across a global network of premier healthcare organizations.</p>
+                    <a href="/general/doctors" class="feature-link">Browse Specialists →</a>
+                </div>
+                
+                <div class="feature-card card">
+                    <div class="feature-icon tertiary">
+                        <i data-lucide="refresh-cw"></i>
+                    </div>
+                    <h3 class="headline-sm">Hybrid Care</h3>
+                    <p class="body-md">Seamlessly transition between AI diagnostics and human consultations without losing context.</p>
+                </div>
+                
+                <div class="feature-card card image-card">
+                    <div class="card-image"></div>
+                    <div class="card-overlay">
+                        <p class="overlay-text">Bridging the gap with Intelligence.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Journey Section -->
+    <section class="journey">
+        <div class="container">
+            <div class="journey-header">
+                <div class="journey-intro">
+                    <h2 class="headline-lg">The Clinical Journey</h2>
+                    <p class="body-md">We've reimagined the patient experience from the ground up to be frictionless, fast, and focused on you.</p>
+                </div>
+                <div class="journey-steps">
+                    <div class="journey-step">
+                        <div class="step-number">01</div>
+                        <div class="step-content">
+                            <h3 class="headline-sm">Initial AI Screening</h3>
+                            <p class="body-md">Our clinical AI analyzes your symptoms against millions of verified medical records to provide immediate context and urgency assessment.</p>
+                        </div>
+                    </div>
+                    <div class="journey-step">
+                        <div class="step-number">02</div>
+                        <div class="step-content">
+                            <h3 class="headline-sm">Specialist Matching</h3>
+                            <p class="body-md">If human intervention is needed, our system matches you with a doctor who specializes in your specific health profile and history.</p>
+                        </div>
+                    </div>
+                    <div class="journey-step">
+                        <div class="step-number">03</div>
+                        <div class="step-content">
+                            <h3 class="headline-sm">Continuous Monitoring</h3>
+                            <p class="body-md">Post-visit care is managed by our hybrid system, ensuring you're never alone in your recovery or ongoing health management.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Network Section -->
+    <section class="network">
+        <div class="container">
+            <div class="network-header">
+                <h2 class="headline-lg">Our Network</h2>
+                <p class="body-md">Top-tier professionals from leading global institutions.</p>
+                <a href="/general/doctors" class="view-all">View Full Directory →</a>
+            </div>
+            <div class="doctors-grid">
+                <div class="doctor-card card">
+                    <div class="doctor-avatar cardiology"></div>
+                    <span class="doctor-specialty">CARDIOLOGY</span>
+                    <h3 class="headline-sm">Dr. Sarah Chen</h3>
+                    <p class="body-md">Stanford University Medical Center</p>
+                    <div class="doctor-rating">
+                        <i data-lucide="star" class="rating-star"></i>
+                        <span class="rating-text">4.9/5 (2k+ Reviews)</span>
+                    </div>
+                </div>
+                <div class="doctor-card card">
+                    <div class="doctor-avatar neurology"></div>
+                    <span class="doctor-specialty">NEUROLOGY</span>
+                    <h3 class="headline-sm">Dr. Julian Vance</h3>
+                    <p class="body-md">Mayo Clinic, Rochester</p>
+                    <div class="doctor-rating">
+                        <i data-lucide="star" class="rating-star"></i>
+                        <span class="rating-text">5.0/5 (1.5k+ Reviews)</span>
+                    </div>
+                </div>
+                <div class="doctor-card card">
+                    <div class="doctor-avatar oncology"></div>
+                    <span class="doctor-specialty">ONCOLOGY</span>
+                    <h3 class="headline-sm">Dr. Maya Rodriguez</h3>
+                    <p class="body-md">Johns Hopkins Hospital</p>
+                    <div class="doctor-rating">
+                        <i data-lucide="star" class="rating-star"></i>
+                        <span class="rating-text">4.8/5 (900+ Reviews)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials Section -->
+    <section class="testimonials">
+        <div class="container">
+            <h2 class="headline-lg section-title">The Sanctuary Experience</h2>
+            <div class="testimonials-grid">
+                <div class="testimonial-card card">
+                    <div class="quote-icon">"</div>
+                    <p class="testimonial-text">"The AI was able to identify a rare reaction I was having before I even spoke to a human. The handoff to Dr. Vance was seamless. I've never felt more safe."</p>
+                    <div class="testimonial-author">
+                        <div class="author-avatar patient"></div>
+                        <div class="author-info">
+                            <div class="author-name">Elena Moretti</div>
+                            <div class="author-role">VERIFIED PATIENT</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="testimonial-card card">
+                    <div class="quote-icon">"</div>
+                    <p class="testimonial-text">"As a specialist, the data the AI prepares for me is incredible. I spend less time on charts and more time actually talking to my patients. It's a game changer."</p>
+                    <div class="testimonial-author">
+                        <div class="author-avatar doctor"></div>
+                        <div class="author-info">
+                            <div class="author-name">Dr. Marcus Thorne</div>
+                            <div class="author-role">CLINICAL CONTRIBUTOR</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Final CTA Section -->
+    <section class="final-cta">
+        <div class="container">
+            <div class="cta-card card">
+                <i data-lucide="shield-check" class="cta-icon"></i>
+                <h2 class="headline-lg">Enter the Sanctuary.</h2>
+                <p class="body-lg">Join thousands of patients who have already upgraded their clinical experience. Your health deserves the best of both worlds.</p>
+                <a href="/auth/login" class="btn btn-primary btn-large">Get Started Now</a>
+            </div>
+        </div>
+    </section>
+</div>
+
+
+<style>
+    .landing-page {
+        min-height: 100vh;
+    }
+
+    /* Hero Section */
+    .hero {
+        padding: 8rem 0 6rem;
+        background: linear-gradient(135deg, var(--surface) 0%, var(--surface-container-low) 100%);
+    }
+
+    .hero .container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4rem;
+        align-items: center;
+    }
+
+    .hero-content {
+        max-width: 650px;
+    }
+
+    .hero-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        background: var(--secondary-container);
+        border-radius: var(--radius-full);
+        margin-bottom: 2rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
+    .badge-icon {
+        font-size: 1rem;
+        width: 1rem;
+        height: 1rem;
+    }
+
+    .hero-content h1 {
+        margin-bottom: 1.5rem;
+    }
+
+    .text-primary {
+        color: var(--primary-container);
+    }
+
+    .text-secondary {
+        color: var(--secondary);
+    }
+
+    .hero-content p {
+        margin-bottom: 2rem;
+        color: var(--on-surface-variant);
+    }
+
+    .hero-actions {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+    }
+
+    .btn-icon {
+        margin-right: 0.5rem;
+        width: 1rem;
+        height: 1rem;
+    }
+
+    .hero-visual {
+        position: relative;
+        width: 100%;
+        height: 500px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .hero-card {
+        width: 100%;
+        max-width: 480px;
+        height: 420px;
+        background: linear-gradient(135deg, #1a3a52 0%, #0d1f2d 100%);
+        border-radius: var(--radius-2xl);
+        padding: 3rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .ai-pulse {
+        position: absolute;
+        width: 300px;
+        height: 300px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(32, 178, 170, 0.3) 0%, transparent 70%);
+        animation: pulse 3s ease-in-out infinite;
+    }
+
+    @@keyframes pulse {
+        0%, 100% { transform: scale(1); opacity: 0.5; }
+        50% { transform: scale(1.2); opacity: 0.8; }
+    }
+
+    .hero-icon {
+        font-size: 8rem;
+        margin: 2rem 0;
+        z-index: 1;
+        filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.3));
+        width: 8rem;
+        height: 8rem;
+        color: #ff6b9d;
+    }
+
+    .ai-status {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        background: rgba(255, 255, 255, 0.1);
+        padding: 1rem 1.5rem;
+        border-radius: var(--radius-lg);
+        backdrop-filter: blur(10px);
+        z-index: 1;
+    }
+
+    .status-icon {
+        font-size: 1.5rem;
+        width: 1.5rem;
+        height: 1.5rem;
+        color: var(--secondary-container);
+    }
+
+    .status-label {
+        font-size: 0.75rem;
+        color: var(--secondary-container);
+        font-weight: 600;
+        letter-spacing: 0.05em;
+    }
+
+    .status-desc {
+        font-size: 0.875rem;
+        color: rgba(255, 255, 255, 0.8);
+    }
+
+    /* Features Section */
+    .features {
+        padding: 6rem 0;
+        background: var(--background);
+    }
+
+    .section-title {
+        text-align: center;
+        margin-bottom: 1rem;
+    }
+
+    .section-subtitle {
+        text-align: center;
+        color: var(--on-surface-variant);
+        margin-bottom: 4rem;
+        max-width: 700px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .features-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 2rem;
+    }
+
+    .feature-card {
+        transition: transform 0.3s ease;
+    }
+
+    .feature-card:hover {
+        transform: translateY(-8px);
+    }
+
+    .feature-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: var(--radius-lg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .feature-icon i {
+        width: 2rem;
+        height: 2rem;
+        color: white;
+    }
+
+    .feature-icon.primary {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-container) 100%);
+    }
+
+    .feature-icon.secondary {
+        background: linear-gradient(135deg, var(--secondary) 0%, var(--secondary-container) 100%);
+    }
+
+    .feature-icon.tertiary {
+        background: var(--surface-container-high);
+    }
+
+    .feature-card h3 {
+        margin-bottom: 1rem;
+    }
+
+    .feature-card p {
+        color: var(--on-surface-variant);
+        margin-bottom: 1.5rem;
+    }
+
+    .feature-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .tag {
+        padding: 0.25rem 0.75rem;
+        background: var(--secondary-container);
+        border-radius: var(--radius-full);
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: var(--secondary);
+    }
+
+    .feature-card.placeholder {
+        background: var(--surface-container-low);
+    }
+
+    .placeholder-content {
+        width: 100%;
+        height: 200px;
+        background: linear-gradient(135deg, var(--surface-container) 0%, var(--surface-container-high) 100%);
+        border-radius: var(--radius-lg);
+    }
+
+    .feature-card.featured {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-container) 100%);
+        color: var(--on-primary);
+    }
+
+    .feature-card.featured h3,
+    .feature-card.featured p {
+        color: var(--on-primary);
+    }
+
+    .feature-link {
+        color: var(--on-primary);
+        text-decoration: none;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .feature-card.image-card {
+        position: relative;
+        overflow: hidden;
+        min-height: 300px;
+        padding: 0;
+    }
+
+    .card-image {
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, #4a90a4 0%, #2c5f6f 100%);
+    }
+
+    .card-overlay {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding: 2rem;
+        background: linear-gradient(to top, rgba(0, 0, 0, 0.8) 0%, transparent 100%);
+    }
+
+    .overlay-text {
+        color: white;
+        font-size: 1.25rem;
+        font-weight: 600;
+    }
+
+    /* Journey Section */
+    .journey {
+        padding: 6rem 0;
+        background: var(--surface-container-low);
+    }
+
+    .journey-header {
+        display: grid;
+        grid-template-columns: 1fr 2fr;
+        gap: 4rem;
+    }
+
+    .journey-intro h2 {
+        margin-bottom: 1rem;
+    }
+
+    .journey-intro p {
+        color: var(--on-surface-variant);
+    }
+
+    .journey-steps {
+        display: flex;
+        flex-direction: column;
+        gap: 3rem;
+    }
+
+    .journey-step {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 2rem;
+        align-items: start;
+    }
+
+    .step-number {
+        font-size: 4rem;
+        font-weight: 700;
+        color: var(--outline-variant);
+        line-height: 1;
+    }
+
+    .step-content h3 {
+        margin-bottom: 0.75rem;
+    }
+
+    .step-content p {
+        color: var(--on-surface-variant);
+    }
+
+    /* Network Section */
+    .network {
+        padding: 6rem 0;
+    }
+
+    .network-header {
+        text-align: center;
+        margin-bottom: 3rem;
+    }
+
+    .network-header h2 {
+        margin-bottom: 0.5rem;
+    }
+
+    .network-header p {
+        color: var(--on-surface-variant);
+        margin-bottom: 1rem;
+    }
+
+    .view-all {
+        color: var(--primary-container);
+        text-decoration: none;
+        font-weight: 600;
+    }
+
+    .doctors-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 2rem;
+    }
+
+    .doctor-card {
+        text-align: center;
+        transition: transform 0.3s ease;
+    }
+
+    .doctor-card:hover {
+        transform: translateY(-8px);
+    }
+
+    .doctor-avatar {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        margin: 0 auto 1rem;
+    }
+
+    .doctor-avatar.cardiology {
+        background: linear-gradient(135deg, #e8f4f8 0%, #b8d4e0 100%);
+    }
+
+    .doctor-avatar.neurology {
+        background: linear-gradient(135deg, #2c5f6f 0%, #1a3a52 100%);
+    }
+
+    .doctor-avatar.oncology {
+        background: linear-gradient(135deg, #76f3ea 0%, #59dad1 100%);
+    }
+
+    .doctor-specialty {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        background: var(--secondary-container);
+        border-radius: var(--radius-full);
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--secondary);
+        margin-bottom: 0.75rem;
+    }
+
+    .doctor-card h3 {
+        margin-bottom: 0.5rem;
+    }
+
+    .doctor-card p {
+        color: var(--on-surface-variant);
+        margin-bottom: 1rem;
+    }
+
+    .doctor-rating {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        color: var(--secondary);
+        font-weight: 600;
+    }
+
+    /* Testimonials Section */
+    .testimonials {
+        padding: 6rem 0;
+        background: var(--surface-container-low);
+    }
+
+    .testimonials-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 2rem;
+        margin-top: 3rem;
+    }
+
+    .testimonial-card {
+        position: relative;
+    }
+
+    .quote-icon {
+        font-size: 4rem;
+        color: var(--primary-container);
+        line-height: 1;
+        margin-bottom: 1rem;
+    }
+
+    .testimonial-text {
+        font-size: 1.125rem;
+        font-style: italic;
+        color: var(--on-surface-variant);
+        margin-bottom: 2rem;
+        line-height: 1.6;
+    }
+
+    .testimonial-author {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .author-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: var(--surface-container-high);
+    }
+
+    .author-avatar.patient {
+        background: linear-gradient(135deg, var(--secondary) 0%, var(--secondary-container) 100%);
+    }
+
+    .author-avatar.doctor {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-container) 100%);
+    }
+
+    .author-name {
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+
+    .author-role {
+        font-size: 0.75rem;
+        color: var(--on-surface-variant);
+        letter-spacing: 0.05em;
+    }
+
+    /* Final CTA Section */
+    .final-cta {
+        padding: 6rem 0;
+    }
+
+    .cta-card {
+        text-align: center;
+        padding: 4rem;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-container) 100%);
+        color: var(--on-primary);
+    }
+
+    .cta-icon {
+        font-size: 4rem;
+        margin-bottom: 1.5rem;
+        filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.2));
+        width: 4rem;
+        height: 4rem;
+        color: var(--on-primary);
+    }
+
+    .cta-card h2 {
+        color: var(--on-primary);
+        margin-bottom: 1rem;
+    }
+
+    .cta-card p {
+        color: var(--on-primary);
+        margin-bottom: 2rem;
+        max-width: 700px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .btn-large {
+        padding: 1rem 3rem;
+        font-size: 1.125rem;
+        background: var(--surface-container-lowest);
+        color: var(--primary);
+    }
+
+    .btn-large:hover {
+        transform: scale(1.05);
+    }
+
+    /* Responsive */
+    @@media (max-width: 1024px) {
+        .hero .container,
+        .journey-header {
+            grid-template-columns: 1fr;
+        }
+
+        .features-grid,
+        .doctors-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .testimonials-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @@media (max-width: 768px) {
+        .features-grid,
+        .doctors-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .hero-visual {
+            height: 400px;
+        }
+
+        .hero-card {
+            height: 350px;
+        }
+    }
+</style>
+
+    .rating-star {
+        width: 1rem;
+        height: 1rem;
+        color: #f59e0b;
+        fill: #f59e0b;
+    }
