@@ -1,36 +1,35 @@
-using AiClinic.Application.Commands;
 using AiClinic.Application.DTOs;
+using AiClinic.Application.Services;
 using AiClinic.Presentation.State;
 
 namespace AiClinic.Presentation.Controllers;
 
 // Adapter Pattern - Adapts application services to presentation layer
+// Authentication is handled by Supabase Auth
 public class AuthController
 {
-    private readonly ICommandHandler<SendOtpCommand, bool> _sendOtpHandler;
-    private readonly ICommandHandler<VerifyOtpCommand, AuthResponse> _verifyOtpHandler;
+    private readonly IAuthService _authService;
     private readonly AppState _appState;
 
     public AuthController(
-        ICommandHandler<SendOtpCommand, bool> sendOtpHandler,
-        ICommandHandler<VerifyOtpCommand, AuthResponse> verifyOtpHandler,
+        IAuthService authService,
         AppState appState)
     {
-        _sendOtpHandler = sendOtpHandler;
-        _verifyOtpHandler = verifyOtpHandler;
+        _authService = authService;
         _appState = appState;
     }
 
-    public async Task<bool> RequestOtpAsync(string email)
+    public async Task<AuthResponse> SignInWithOtpAsync(string email)
     {
-        var command = new SendOtpCommand { Email = email };
-        return await _sendOtpHandler.HandleAsync(command);
+        // Supabase handles OTP generation and sending
+        var response = await _authService.SignInWithOtpAsync(email);
+        return response;
     }
 
-    public async Task<AuthResponse> VerifyOtpAsync(string email, string code)
+    public async Task<AuthResponse> VerifyOtpAsync(string email, string token)
     {
-        var command = new VerifyOtpCommand { Email = email, Code = code };
-        var response = await _verifyOtpHandler.HandleAsync(command);
+        // Supabase handles OTP verification
+        var response = await _authService.VerifyOtpAsync(email, token);
 
         if (response.Success && response.Token != null && response.User != null)
         {
@@ -40,8 +39,9 @@ public class AuthController
         return response;
     }
 
-    public void Logout()
+    public async Task LogoutAsync()
     {
+        await _authService.SignOutAsync();
         _appState.ClearAuthData();
     }
 

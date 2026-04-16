@@ -36,7 +36,6 @@ public static class DependencyInjection
 
         // Infrastructure - Repositories
         services.AddScoped<IUserRepository, UserRepository>();
-        services.AddScoped<IOtpRepository, OtpRepository>();
         services.AddScoped<IConversationRepository, ConversationRepository>();
         services.AddScoped<IMessageRepository, MessageRepository>();
         services.AddScoped<IDoctorRepository, DoctorRepository>();
@@ -52,8 +51,6 @@ public static class DependencyInjection
         services.AddScoped<IMessageHandlerFactory, MessageHandlerFactory>();
 
         // Application - Command Handlers (Command Pattern)
-        services.AddScoped<ICommandHandler<SendOtpCommand, bool>, SendOtpCommandHandler>();
-        services.AddScoped<ICommandHandler<VerifyOtpCommand, AuthResponse>, VerifyOtpCommandHandler>();
         services.AddScoped<ICommandHandler<CreateConversationCommand, ConversationDto>, CreateConversationCommandHandler>();
         services.AddScoped<ICommandHandler<SendMessageCommand, MessageDto>, SendMessageCommandHandler>();
 
