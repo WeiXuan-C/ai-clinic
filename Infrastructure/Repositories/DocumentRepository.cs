@@ -59,7 +59,16 @@ public class DocumentRepository : IDocumentRepository
     {
         var response = await _context.Client
             .From<Document>()
-            .Where(d => d.PatientId == patientId)
+            .Where(d => d.UploadedByUserId == patientId)
+            .Get();
+        return response.Models;
+    }
+
+    public async Task<IEnumerable<Document>> GetByConversationIdAsync(Guid conversationId)
+    {
+        var response = await _context.Client
+            .From<Document>()
+            .Where(d => d.ConversationId == conversationId)
             .Get();
         return response.Models;
     }

@@ -55,7 +55,8 @@ public class AuthService : IAuthService
                 {
                     Id = Guid.Parse(session.User.Id),
                     Email = email,
-                    Role = UserRole.Patient,
+                    Role = "patient",
+                    IsActive = true,
                     CreatedAt = DateTime.UtcNow,
                     LastLoginAt = DateTime.UtcNow
                 };
@@ -68,7 +69,7 @@ public class AuthService : IAuthService
                 await _userRepository.UpdateAsync(user);
             }
 
-            var userDto = new UserDto(user.Id, user.Email, user.FullName, user.Role.ToString());
+            var userDto = new UserDto(user.Id, user.Email, null, user.Role);
             
             return new AuthResponse(true, session.AccessToken, "Login successful", userDto);
         }
@@ -95,6 +96,6 @@ public class AuthService : IAuthService
         if (user == null)
             return null;
 
-        return new UserDto(user.Id, user.Email, user.FullName, user.Role.ToString());
+        return new UserDto(user.Id, user.Email, null, user.Role);
     }
 }

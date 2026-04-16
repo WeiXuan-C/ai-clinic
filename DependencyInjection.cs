@@ -40,12 +40,17 @@ public static class DependencyInjection
         services.AddScoped<IMessageRepository, MessageRepository>();
         services.AddScoped<IDoctorRepository, DoctorRepository>();
         services.AddScoped<IDocumentRepository, DocumentRepository>();
+        services.AddScoped<IPatientProfileRepository, PatientProfileRepository>();
+        services.AddScoped<IDoctorRatingRepository, DoctorRatingRepository>();
+        services.AddScoped<IOrganizationRepository, OrganizationRepository>();
 
         // Application - Services
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IChatService, ChatService>();
         services.AddScoped<IDoctorAssignmentService, DoctorAssignmentService>();
         services.AddScoped<IAiService, AiService>();
+        services.AddScoped<IPatientService, PatientService>();
+        services.AddScoped<IDoctorService, DoctorService>();
 
         // Application - Factories (Abstract Factory Pattern)
         services.AddScoped<IMessageHandlerFactory, MessageHandlerFactory>();
@@ -60,6 +65,8 @@ public static class DependencyInjection
         // Presentation - Controllers (Adapter Pattern)
         services.AddScoped<AuthController>();
         services.AddScoped<ChatController>();
+        services.AddScoped<PatientController>();
+        services.AddScoped<DoctorController>();
 
         return services;
     }

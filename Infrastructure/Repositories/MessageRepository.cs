@@ -60,7 +60,7 @@ public class MessageRepository : IMessageRepository
         var response = await _context.Client
             .From<Message>()
             .Where(m => m.ConversationId == conversationId)
-            .Order("sent_at", Postgrest.Constants.Ordering.Ascending)
+            .Order("created_at", Postgrest.Constants.Ordering.Ascending)
             .Get();
         return response.Models;
     }

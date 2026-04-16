@@ -68,7 +68,7 @@ public class ConversationRepository : IConversationRepository
     {
         var response = await _context.Client
             .From<Conversation>()
-            .Where(c => c.DoctorId == doctorId)
+            .Where(c => c.AssignedDoctorId == doctorId)
             .Get();
         return response.Models;
     }
@@ -77,7 +77,7 @@ public class ConversationRepository : IConversationRepository
     {
         var response = await _context.Client
             .From<Conversation>()
-            .Where(c => c.PatientId == patientId && c.Status == ConversationStatus.Active)
+            .Where(c => c.PatientId == patientId && c.Status == "active")
             .Single();
         return response;
     }

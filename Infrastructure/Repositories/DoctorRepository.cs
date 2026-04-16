@@ -59,7 +59,7 @@ public class DoctorRepository : IDoctorRepository
     {
         var response = await _context.Client
             .From<Doctor>()
-            .Where(d => d.Status == DoctorStatus.Available)
+            .Where(d => d.AvailabilityStatus == "available")
             .Get();
         return response.Models;
     }
@@ -77,7 +77,7 @@ public class DoctorRepository : IDoctorRepository
     {
         var response = await _context.Client
             .From<Doctor>()
-            .Where(d => d.Specialization == specialization)
+            .Where(d => d.PrimarySpecialization == specialization)
             .Get();
         return response.Models;
     }

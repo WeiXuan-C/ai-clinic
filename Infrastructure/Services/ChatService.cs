@@ -29,10 +29,10 @@ public class ChatService : IChatService
     {
         var conversation = new Conversation
         {
-            Id = Guid.NewGuid(),
             PatientId = patientId,
-            Status = ConversationStatus.Active,
-            Type = ConversationType.AI,
+            Status = "active",
+            StartedAt = DateTime.UtcNow,
+            LastMessageAt = DateTime.UtcNow,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -41,9 +41,9 @@ public class ChatService : IChatService
         return new ConversationDto(
             conversation.Id,
             conversation.PatientId,
-            conversation.DoctorId,
-            conversation.Status.ToString(),
-            conversation.Type.ToString(),
+            conversation.AssignedDoctorId,
+            conversation.Status,
+            "AI",
             conversation.CreatedAt,
             new List<MessageDto>()
         );
@@ -55,8 +55,21 @@ public class ChatService : IChatService
         if (conversation == null)
             throw new InvalidOperationException("Conversation not found");
 
+        // Create and save message
+        var message = new Message
+        {
+            ConversationId = request.ConversationId,
+            SenderId = request.SenderId,
+            SenderType = request.SenderType,
+            Content = request.Content,
+            IsRead = false,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        message = await _messageRepository.AddAsync(message);
+
         // Chat routing logic
-        if (conversation.DoctorId.HasValue)
+        if (conversation.AssignedDoctorId.HasValue)
         {
             // Route to doctor
             var handler = _messageHandlerFactory.CreateHandler("doctor");
@@ -70,8 +83,7 @@ public class ChatService : IChatService
             if (doctor != null)
             {
                 // Assign doctor and route
-                await _doctorAssignmentService.AssignDoctorToConversationAsync(conversation.Id, doctor.Id);
-                conversation.Type = ConversationType.Doctor;
+                await _doctorAssignmentService.AssignDoctorToConversationAsync(conversation.Id, doctor.UserId);
                 await _conversationRepository.UpdateAsync(conversation);
                 
                 var handler = _messageHandlerFactory.CreateHandler("doctor");
@@ -96,17 +108,17 @@ public class ChatService : IChatService
         var messageDtos = messages.Select(m => new MessageDto(
             m.Id,
             m.Content,
-            m.SenderType.ToString(),
-            m.SentAt,
+            m.SenderType,
+            m.CreatedAt,
             m.IsRead
         )).ToList();
 
         return new ConversationDto(
             conversation.Id,
             conversation.PatientId,
-            conversation.DoctorId,
-            conversation.Status.ToString(),
-            conversation.Type.ToString(),
+            conversation.AssignedDoctorId,
+            conversation.Status,
+            conversation.AssignedDoctorId.HasValue ? "Doctor" : "AI",
             conversation.CreatedAt,
             messageDtos
         );
@@ -123,17 +135,17 @@ public class ChatService : IChatService
             var messageDtos = messages.Select(m => new MessageDto(
                 m.Id,
                 m.Content,
-                m.SenderType.ToString(),
-                m.SentAt,
+                m.SenderType,
+                m.CreatedAt,
                 m.IsRead
             )).ToList();
 
             result.Add(new ConversationDto(
                 conversation.Id,
                 conversation.PatientId,
-                conversation.DoctorId,
-                conversation.Status.ToString(),
-                conversation.Type.ToString(),
+                conversation.AssignedDoctorId,
+                conversation.Status,
+                conversation.AssignedDoctorId.HasValue ? "Doctor" : "AI",
                 conversation.CreatedAt,
                 messageDtos
             ));
