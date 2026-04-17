@@ -60,9 +60,10 @@ public class ChatService : IChatService
         {
             ConversationId = request.ConversationId,
             SenderId = request.SenderId,
-            SenderType = request.SenderType,
+            SenderType = Enum.Parse<MessageSenderType>(request.SenderType, true),
             Content = request.Content,
             IsRead = false,
+            SentAt = DateTime.UtcNow,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -108,8 +109,8 @@ public class ChatService : IChatService
         var messageDtos = messages.Select(m => new MessageDto(
             m.Id,
             m.Content,
-            m.SenderType,
-            m.CreatedAt,
+            m.SenderType.ToString().ToLower(),
+            m.SentAt,
             m.IsRead
         )).ToList();
 
@@ -135,8 +136,8 @@ public class ChatService : IChatService
             var messageDtos = messages.Select(m => new MessageDto(
                 m.Id,
                 m.Content,
-                m.SenderType,
-                m.CreatedAt,
+                m.SenderType.ToString().ToLower(),
+                m.SentAt,
                 m.IsRead
             )).ToList();
 

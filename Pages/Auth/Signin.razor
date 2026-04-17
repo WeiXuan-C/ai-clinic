@@ -1,8 +1,12 @@
+@page "/auth/signin"
 @page "/auth/login"
-@page "/auth/signup"
 @layout Components.Layout.EmptyLayout
+@using AiClinic.Presentation.Controllers
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Components.Web
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 
-<PageTitle>Login - AI Clinic</PageTitle>
+<PageTitle>Sign In - AI Clinic</PageTitle>
 
 <link rel="stylesheet" href="/css/stitch-design-system.css" />
 
@@ -45,25 +49,67 @@
                     <h2 class="form-title">Welcome to AI Clinic</h2>
                     <p class="form-subtitle">Access your medical sanctuary. Secure, private, and precise.</p>
                     
-                    <EditForm Model="@authModel" OnValidSubmit="@HandleSubmit">
+                    <EditForm Model="@authModel" OnValidSubmit="@HandleSubmit" FormName="SigninForm">
                         <DataAnnotationsValidator />
                         
                         <div class="form-group">
-                            <label class="form-label">EMAIL OR PHONE NUMBER</label>
+                            <label class="form-label">EMAIL ADDRESS</label>
                             <div class="input-wrapper">
-                                <InputText @bind-value="authModel.Credential" class="form-input" placeholder="Enter your credentials" />
-                                <i data-lucide="lock" class="input-icon"></i>
+                                <InputText @bind-Value="authModel.Credential" class="form-input" placeholder="Enter your email" type="email" />
+                                <i data-lucide="mail" class="input-icon"></i>
                             </div>
                             <ValidationMessage For="@(() => authModel.Credential)" />
                         </div>
                         
-                        <button type="submit" class="btn-send-code">Send Code</button>
+                        @if (!string.IsNullOrEmpty(errorMessage))
+                        {
+                            <div class="error-message">@errorMessage</div>
+                        }
+                        
+                        @if (!string.IsNullOrEmpty(successMessage))
+                        {
+                            <div class="success-message">@successMessage</div>
+                        }
+                        
+                        @if (showOtpInput)
+                        {
+                            <div class="form-group">
+                                <label class="form-label">VERIFICATION CODE</label>
+                                <div class="input-wrapper">
+                                    <InputText @bind-Value="authModel.OtpCode" class="form-input" placeholder="Enter 8-digit code from email" maxlength="8" />
+                                    <i data-lucide="shield-check" class="input-icon"></i>
+                                </div>
+                            </div>
+                            <button type="button" @onclick="HandleVerifyOtp" class="btn-send-code" disabled="@isLoading">
+                                @if (isLoading)
+                                {
+                                    <span>Verifying...</span>
+                                }
+                                else
+                                {
+                                    <span>Verify Code</span>
+                                }
+                            </button>
+                        }
+                        else
+                        {
+                            <button type="submit" class="btn-send-code" disabled="@isLoading">
+                                @if (isLoading)
+                                {
+                                    <span>Sending...</span>
+                                }
+                                else
+                                {
+                                    <span>Send Code</span>
+                                }
+                            </button>
+                        }
                     </EditForm>
                     
                     <div class="new-patient-section">
-                        <p class="new-patient-label">NEW PATIENT?</p>
+                        <p class="new-patient-label">NOT YET HAVING AN ACCOUNT?</p>
                         <p class="new-patient-text">
-                            First visit? Enter your info above to <a href="/auth/signup" class="signup-link">create an account</a>.
+                            First visit? <a href="/auth/signup" class="signup-link">Create an account</a> to get started.
                         </p>
                     </div>
                 </div>
@@ -73,18 +119,99 @@
 </div>
 
 @code {
-    private AuthModel authModel = new();
+    [SupplyParameterFromForm]
+    private AuthModel authModel { get; set; } = new();
+    
+    private bool showOtpInput = false;
+    private bool isLoading = false;
+    private string errorMessage = "";
+    private string successMessage = "";
+    
+    [Inject]
+    private AuthController AuthController { get; set; } = default!;
 
     private async Task HandleSubmit()
     {
-        // Supabase Auth handles OTP sending and verification
-        // Implementation will use Supabase client directly
-        NavigationManager.NavigateTo("/patient/dashboard");
+        errorMessage = "";
+        successMessage = "";
+        isLoading = true;
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(authModel.Credential))
+            {
+                errorMessage = "Please enter your email address";
+                return;
+            }
+
+            // Send OTP via Supabase
+            var response = await AuthController.SignInWithOtpAsync(authModel.Credential);
+            
+            if (response.Success)
+            {
+                successMessage = response.Message ?? "Verification code sent! Check your email.";
+                showOtpInput = true;
+            }
+            else
+            {
+                errorMessage = response.Message ?? "Failed to send verification code";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task HandleVerifyOtp()
+    {
+        errorMessage = "";
+        successMessage = "";
+        isLoading = true;
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(authModel.OtpCode))
+            {
+                errorMessage = "Please enter the verification code";
+                return;
+            }
+
+            // Verify OTP via Supabase
+            var response = await AuthController.VerifyOtpAsync(authModel.Credential, authModel.OtpCode);
+            
+            if (response.Success)
+            {
+                successMessage = "Login successful! Redirecting...";
+                await Task.Delay(1000);
+                NavigationManager.NavigateTo("/patient/dashboard");
+            }
+            else
+            {
+                errorMessage = response.Message ?? "Invalid or expired verification code";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
     }
 
     public class AuthModel
     {
+        [Required(ErrorMessage = "Email is required")]
+        [EmailAddress(ErrorMessage = "Invalid email format")]
         public string Credential { get; set; } = "";
+        
+        public string OtpCode { get; set; } = "";
     }
 }
 
@@ -475,6 +602,27 @@
         text-decoration: underline;
     }
 
+    /* Error and Success Messages */
+    .error-message {
+        padding: 1rem;
+        background: #fee;
+        border: 1px solid #fcc;
+        border-radius: 8px;
+        color: #c33;
+        font-size: 0.875rem;
+        margin-bottom: 1rem;
+    }
+
+    .success-message {
+        padding: 1rem;
+        background: #e6f7f1;
+        border: 1px solid #76f3ea;
+        border-radius: 8px;
+        color: #006a65;
+        font-size: 0.875rem;
+        margin-bottom: 1rem;
+    }
+
     /* Responsive */
     @@media (max-width: 1024px) {
         .login-container {
@@ -514,9 +662,3 @@
         }
     }
 </style>
-
-    .input-icon {
-        width: 20px;
-        height: 20px;
-        opacity: 0.5;
-    }

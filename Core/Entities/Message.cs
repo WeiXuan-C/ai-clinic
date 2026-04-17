@@ -16,7 +16,7 @@ public class Message : BaseModel
     public Guid? SenderId { get; set; }
     
     [Column("sender_type")]
-    public string SenderType { get; set; } = "patient";
+    public MessageSenderType SenderType { get; set; } = MessageSenderType.Patient;
     
     [Column("content")]
     public string Content { get; set; } = string.Empty;
@@ -35,6 +35,9 @@ public class Message : BaseModel
     
     [Column("read_at")]
     public DateTime? ReadAt { get; set; }
+    
+    [Column("sent_at")]
+    public DateTime SentAt { get; set; } = DateTime.UtcNow;
     
     [Column("created_at")]
     public DateTime CreatedAt { get; set; }

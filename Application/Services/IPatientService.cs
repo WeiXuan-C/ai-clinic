@@ -8,4 +8,5 @@ public interface IPatientService
     Task<PatientProfileDto> UpdateProfileAsync(Guid userId, UpdatePatientProfileRequest request);
     Task<IEnumerable<ConversationDto>> GetConversationsAsync(Guid patientId);
     Task<ConversationDto?> GetActiveConversationAsync(Guid patientId);
+    Task<bool> CheckEmailExistsAsync(string email);
 }

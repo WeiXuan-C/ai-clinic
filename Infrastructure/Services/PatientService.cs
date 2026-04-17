@@ -9,15 +9,18 @@ public class PatientService : IPatientService
     private readonly IPatientProfileRepository _patientProfileRepository;
     private readonly IConversationRepository _conversationRepository;
     private readonly IMessageRepository _messageRepository;
+    private readonly IUserRepository _userRepository;
 
     public PatientService(
         IPatientProfileRepository patientProfileRepository,
         IConversationRepository conversationRepository,
-        IMessageRepository messageRepository)
+        IMessageRepository messageRepository,
+        IUserRepository userRepository)
     {
         _patientProfileRepository = patientProfileRepository;
         _conversationRepository = conversationRepository;
         _messageRepository = messageRepository;
+        _userRepository = userRepository;
     }
 
     public async Task<PatientProfileDto?> GetProfileAsync(Guid userId)
@@ -87,8 +90,8 @@ public class PatientService : IPatientService
             var messageDtos = messages.Select(m => new MessageDto(
                 m.Id,
                 m.Content,
-                m.SenderType,
-                m.CreatedAt,
+                m.SenderType.ToString().ToLower(),
+                m.SentAt,
                 m.IsRead
             )).ToList();
 
@@ -116,8 +119,8 @@ public class PatientService : IPatientService
         var messageDtos = messages.Select(m => new MessageDto(
             m.Id,
             m.Content,
-            m.SenderType,
-            m.CreatedAt,
+            m.SenderType.ToString().ToLower(),
+            m.SentAt,
             m.IsRead
         )).ToList();
 
@@ -130,5 +133,11 @@ public class PatientService : IPatientService
             conversation.CreatedAt,
             messageDtos
         );
+    }
+    
+    public async Task<bool> CheckEmailExistsAsync(string email)
+    {
+        var user = await _userRepository.GetByEmailAsync(email);
+        return user != null;
     }
 }

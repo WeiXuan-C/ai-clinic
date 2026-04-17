@@ -74,8 +74,8 @@ public class DoctorService : IDoctorService
             var messageDtos = messages.Select(m => new MessageDto(
                 m.Id,
                 m.Content,
-                m.SenderType,
-                m.CreatedAt,
+                m.SenderType.ToString().ToLower(),
+                m.SentAt,
                 m.IsRead
             )).ToList();
 

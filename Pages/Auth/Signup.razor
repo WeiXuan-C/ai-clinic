@@ -1,0 +1,778 @@
+@page "/auth/signup"
+@layout Components.Layout.EmptyLayout
+@using AiClinic.Presentation.Controllers
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Components.Web
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
+<PageTitle>Sign Up - AI Clinic</PageTitle>
+
+<link rel="stylesheet" href="/css/stitch-design-system.css" />
+
+<div class="login-page">
+    <div class="login-container">
+        <!-- Left Side: Brand & Visual -->
+        <div class="brand-section">
+            <div class="brand-content">
+                <div class="brand-header">
+                    <h1 class="brand-logo">AI Clinic</h1>
+                </div>
+                
+                <div class="brand-tagline">
+                    <p class="tagline-text">Join our clinical sanctuary. Create your account to access personalized healthcare.</p>
+                </div>
+                
+                <div class="medical-illustration">
+                    <div class="illustration-container">
+                        <div class="illustration-placeholder">
+                            <div class="beaker beaker-1"></div>
+                            <div class="beaker beaker-2"></div>
+                            <div class="beaker beaker-3"></div>
+                            <div class="plant-icon"></div>
+                            <div class="geometric-shape shape-1"></div>
+                            <div class="geometric-shape shape-2"></div>
+                        </div>
+                        <div class="status-indicator">
+                            <span class="status-dot"></span>
+                            <span class="status-text">Secure registration process</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right Side: Signup Form -->
+        <div class="form-section">
+            <div class="form-wrapper">
+                <div class="form-card">
+                    <h2 class="form-title">Create Your Account</h2>
+                    <p class="form-subtitle">@GetStepDescription()</p>
+                    
+                    <EditForm Model="@signupModel" OnValidSubmit="@HandleSubmit" FormName="SignupForm">
+                        @* Only validate fields for current step *@
+                        
+                        @if (currentStep == SignupStep.EnterEmail)
+                        {
+                            <div class="form-group">
+                                <label class="form-label">EMAIL ADDRESS</label>
+                                <div class="input-wrapper">
+                                    <InputText @bind-Value="signupModel.Email" class="form-input" placeholder="Enter your email" type="email" />
+                                    <i data-lucide="mail" class="input-icon"></i>
+                                </div>
+                                <ValidationMessage For="@(() => signupModel.Email)" />
+                            </div>
+                        }
+                        
+                        @if (currentStep == SignupStep.VerifyOtp)
+                        {
+                            <div class="form-group">
+                                <label class="form-label">VERIFICATION CODE</label>
+                                <div class="input-wrapper">
+                                    <InputText @bind-Value="signupModel.OtpCode" class="form-input" placeholder="Enter 8-digit code from email" maxlength="8" />
+                                    <i data-lucide="shield-check" class="input-icon"></i>
+                                </div>
+                                <ValidationMessage For="@(() => signupModel.OtpCode)" />
+                            </div>
+                        }
+                        
+                        @if (currentStep == SignupStep.SelectRole)
+                        {
+                            <div class="form-group">
+                                <label class="form-label">ACCOUNT TYPE</label>
+                                <div class="role-selection">
+                                    <div class="role-card @(signupModel.Role == "patient" ? "selected" : "")" 
+                                         @onclick="@(() => signupModel.Role = "patient")">
+                                        <i data-lucide="user" class="role-icon"></i>
+                                        <h3>Patient</h3>
+                                        <p>Access consultations, medical records, and AI-powered health insights</p>
+                                    </div>
+                                    <div class="role-card @(signupModel.Role == "doctor" ? "selected" : "")" 
+                                         @onclick="@(() => signupModel.Role = "doctor")">
+                                        <i data-lucide="stethoscope" class="role-icon"></i>
+                                        <h3>Doctor</h3>
+                                        <p>Manage patients, provide consultations, and access clinical tools</p>
+                                    </div>
+                                </div>
+                                <ValidationMessage For="@(() => signupModel.Role)" />
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">FULL NAME</label>
+                                <div class="input-wrapper">
+                                    <InputText @bind-Value="signupModel.FullName" class="form-input" placeholder="Enter your full name" />
+                                    <i data-lucide="user-circle" class="input-icon"></i>
+                                </div>
+                                <ValidationMessage For="@(() => signupModel.FullName)" />
+                            </div>
+                        }
+                        
+                        @if (!string.IsNullOrEmpty(errorMessage))
+                        {
+                            <div class="error-message">@errorMessage</div>
+                        }
+                        
+                        @if (!string.IsNullOrEmpty(successMessage))
+                        {
+                            <div class="success-message">@successMessage</div>
+                        }
+                        
+                        <button type="submit" class="btn-send-code" disabled="@isLoading">
+                            @if (isLoading)
+                            {
+                                <span>Processing...</span>
+                            }
+                            else
+                            {
+                                <span>@GetButtonText()</span>
+                            }
+                        </button>
+                        
+                        @if (currentStep == SignupStep.VerifyOtp)
+                        {
+                            <button type="button" class="btn-resend" @onclick="ResendOtp" disabled="@isLoading">
+                                Resend Code
+                            </button>
+                        }
+                    </EditForm>
+                    
+                    <div class="new-patient-section">
+                        <p class="new-patient-label">ALREADY HAVE AN ACCOUNT?</p>
+                        <p class="new-patient-text">
+                            <a href="/auth/signin" class="signup-link">Sign in here</a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    private SignupModel signupModel { get; set; } = new();
+    
+    private SignupStep currentStep = SignupStep.EnterEmail;
+    private bool isLoading = false;
+    private string errorMessage = "";
+    private string successMessage = "";
+    
+    [Inject]
+    private AuthController AuthController { get; set; } = default!;
+    
+    [Inject]
+    private PatientController PatientController { get; set; } = default!;
+
+    private enum SignupStep
+    {
+        EnterEmail,
+        VerifyOtp,
+        SelectRole
+    }
+
+    private string GetStepDescription()
+    {
+        return currentStep switch
+        {
+            SignupStep.EnterEmail => "Enter your email to get started",
+            SignupStep.VerifyOtp => "Check your email for the verification code",
+            SignupStep.SelectRole => "Complete your profile",
+            _ => ""
+        };
+    }
+
+    private string GetButtonText()
+    {
+        return currentStep switch
+        {
+            SignupStep.EnterEmail => "Send Verification Code",
+            SignupStep.VerifyOtp => "Verify Code",
+            SignupStep.SelectRole => "Complete Registration",
+            _ => "Continue"
+        };
+    }
+
+    private async Task HandleSubmit()
+    {
+        errorMessage = "";
+        successMessage = "";
+        isLoading = true;
+        StateHasChanged(); // Force UI update
+
+        try
+        {
+            switch (currentStep)
+            {
+                case SignupStep.EnterEmail:
+                    await HandleEmailSubmit();
+                    break;
+                case SignupStep.VerifyOtp:
+                    await HandleOtpVerification();
+                    break;
+                case SignupStep.SelectRole:
+                    await HandleRegistrationComplete();
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged(); // Force UI update
+        }
+    }
+
+    private async Task HandleEmailSubmit()
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(signupModel.Email))
+            {
+                errorMessage = "Please enter your email address";
+                return;
+            }
+
+            // Check if email is already registered
+            var existingUser = await PatientController.CheckEmailExistsAsync(signupModel.Email);
+            if (existingUser)
+            {
+                errorMessage = "This email is already registered. Please sign in instead.";
+                return;
+            }
+
+            // Send OTP via Supabase
+            var response = await AuthController.SignUpWithOtpAsync(signupModel.Email);
+            
+            if (response.Success)
+            {
+                successMessage = "Verification code sent! Check your email.";
+                currentStep = SignupStep.VerifyOtp;
+            }
+            else
+            {
+                errorMessage = response.Message ?? "Failed to send verification code. Please configure Supabase SMTP settings.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error sending code: {ex.Message}";
+        }
+    }
+
+    private async Task HandleOtpVerification()
+    {
+        if (string.IsNullOrWhiteSpace(signupModel.OtpCode))
+        {
+            errorMessage = "Please enter the verification code";
+            return;
+        }
+
+        // Verify OTP via Supabase
+        var response = await AuthController.VerifyOtpAsync(signupModel.Email, signupModel.OtpCode);
+        
+        if (response.Success)
+        {
+            successMessage = "Email verified! Please complete your profile.";
+            currentStep = SignupStep.SelectRole;
+        }
+        else
+        {
+            errorMessage = response.Message ?? "Invalid or expired verification code";
+        }
+    }
+
+    private async Task HandleRegistrationComplete()
+    {
+        if (string.IsNullOrWhiteSpace(signupModel.Role))
+        {
+            errorMessage = "Please select an account type";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(signupModel.FullName))
+        {
+            errorMessage = "Please enter your full name";
+            return;
+        }
+
+        // Complete registration
+        var response = await AuthController.CompleteRegistrationAsync(
+            signupModel.Email, 
+            signupModel.FullName, 
+            signupModel.Role);
+        
+        if (response.Success)
+        {
+            successMessage = "Registration successful! Redirecting to sign in...";
+            await Task.Delay(2000);
+            NavigationManager.NavigateTo("/auth/signin");
+        }
+        else
+        {
+            errorMessage = response.Message ?? "Registration failed";
+        }
+    }
+
+    private async Task ResendOtp()
+    {
+        errorMessage = "";
+        successMessage = "";
+        isLoading = true;
+
+        try
+        {
+            var response = await AuthController.SignUpWithOtpAsync(signupModel.Email);
+            
+            if (response.Success)
+            {
+                successMessage = "New verification code sent!";
+            }
+            else
+            {
+                errorMessage = "Failed to resend code";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    public class SignupModel
+    {
+        public string Email { get; set; } = "";
+        
+        public string OtpCode { get; set; } = "";
+        
+        public string Role { get; set; } = "patient";
+        
+        public string FullName { get; set; } = "";
+    }
+}
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    .login-page {
+        min-height: 100vh;
+        background: #f7f9fb;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    .login-container {
+        display: grid;
+        grid-template-columns: 40% 60%;
+        min-height: 100vh;
+    }
+
+    /* Left Side - Brand Section */
+    .brand-section {
+        background: linear-gradient(135deg, #f0f4f8 0%, #e6eef5 100%);
+        padding: 3rem;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+    }
+
+    .brand-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .brand-header {
+        margin-bottom: 2rem;
+    }
+
+    .brand-logo {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #0052cc;
+        font-family: 'Manrope', sans-serif;
+    }
+
+    .brand-tagline {
+        margin-bottom: 3rem;
+    }
+
+    .tagline-text {
+        font-size: 1.125rem;
+        line-height: 1.6;
+        color: #5a6c7d;
+        max-width: 400px;
+    }
+
+    .medical-illustration {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 2rem 0;
+    }
+
+    .illustration-container {
+        width: 100%;
+        max-width: 450px;
+        position: relative;
+    }
+
+    .illustration-placeholder {
+        background: linear-gradient(135deg, #1a4d4d 0%, #0d3333 100%);
+        border-radius: 24px;
+        padding: 3rem;
+        min-height: 400px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 20px 60px rgba(0, 82, 204, 0.15);
+    }
+
+    .beaker {
+        position: absolute;
+        background: linear-gradient(135deg, rgba(89, 218, 209, 0.3) 0%, rgba(118, 243, 234, 0.2) 100%);
+        border: 2px solid rgba(89, 218, 209, 0.4);
+        border-radius: 8px;
+    }
+
+    .beaker-1 {
+        width: 80px;
+        height: 120px;
+        bottom: 20%;
+        left: 15%;
+        transform: rotate(-5deg);
+    }
+
+    .beaker-2 {
+        width: 60px;
+        height: 100px;
+        bottom: 25%;
+        left: 40%;
+        background: linear-gradient(135deg, rgba(89, 218, 209, 0.5) 0%, rgba(118, 243, 234, 0.3) 100%);
+    }
+
+    .beaker-3 {
+        width: 70px;
+        height: 110px;
+        bottom: 20%;
+        right: 20%;
+        transform: rotate(5deg);
+    }
+
+    .plant-icon {
+        position: absolute;
+        top: 15%;
+        right: 15%;
+        width: 60px;
+        height: 80px;
+        background: linear-gradient(135deg, rgba(89, 218, 209, 0.4) 0%, rgba(118, 243, 234, 0.2) 100%);
+        border-radius: 50% 50% 0 0;
+    }
+
+    .geometric-shape {
+        position: absolute;
+        background: linear-gradient(135deg, rgba(89, 218, 209, 0.2) 0%, rgba(118, 243, 234, 0.1) 100%);
+        border-radius: 50%;
+    }
+
+    .shape-1 {
+        width: 120px;
+        height: 120px;
+        top: 10%;
+        left: 10%;
+        opacity: 0.6;
+    }
+
+    .shape-2 {
+        width: 80px;
+        height: 80px;
+        bottom: 30%;
+        right: 10%;
+        opacity: 0.4;
+    }
+
+    .status-indicator {
+        position: absolute;
+        bottom: 1.5rem;
+        left: 1.5rem;
+        background: rgba(255, 255, 255, 0.95);
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .status-dot {
+        width: 8px;
+        height: 8px;
+        background: #00c853;
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+    }
+
+    @@keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+
+    .status-text {
+        color: #1a4d4d;
+        font-weight: 500;
+    }
+
+    /* Right Side - Form Section */
+    .form-section {
+        background: #ffffff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 3rem;
+    }
+
+    .form-wrapper {
+        width: 100%;
+        max-width: 480px;
+    }
+
+    .form-card {
+        background: #ffffff;
+        padding: 3rem;
+        border-radius: 16px;
+        box-shadow: 0 4px 24px rgba(25, 28, 30, 0.08);
+    }
+
+    .form-title {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #191c1e;
+        margin-bottom: 0.75rem;
+        font-family: 'Manrope', sans-serif;
+    }
+
+    .form-subtitle {
+        font-size: 1rem;
+        color: #5a6c7d;
+        margin-bottom: 2.5rem;
+        line-height: 1.5;
+    }
+
+    .form-group {
+        margin-bottom: 2rem;
+    }
+
+    .form-label {
+        display: block;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #5a6c7d;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        margin-bottom: 0.75rem;
+    }
+
+    .input-wrapper {
+        position: relative;
+    }
+
+    .form-input {
+        width: 100%;
+        padding: 1rem 3rem 1rem 1rem;
+        border: 1px solid #e0e3e5;
+        border-radius: 12px;
+        font-size: 1rem;
+        color: #191c1e;
+        background: #f7f9fb;
+        transition: all 0.3s;
+        font-family: 'Inter', sans-serif;
+    }
+
+    .form-input:focus {
+        outline: none;
+        border-color: #0052cc;
+        background: #ffffff;
+        box-shadow: 0 0 0 3px rgba(0, 82, 204, 0.1);
+    }
+
+    .input-icon {
+        position: absolute;
+        right: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 1.25rem;
+        opacity: 0.5;
+    }
+
+    /* Role Selection */
+    .role-selection {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .role-card {
+        padding: 1.5rem;
+        border: 2px solid #e0e3e5;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.3s;
+        text-align: center;
+    }
+
+    .role-card:hover {
+        border-color: #0052cc;
+        background: #f7f9fb;
+    }
+
+    .role-card.selected {
+        border-color: #0052cc;
+        background: #e6f2ff;
+    }
+
+    .role-icon {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+        color: #0052cc;
+    }
+
+    .role-card h3 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #191c1e;
+        margin-bottom: 0.5rem;
+    }
+
+    .role-card p {
+        font-size: 0.875rem;
+        color: #5a6c7d;
+        line-height: 1.4;
+    }
+
+    .btn-send-code {
+        width: 100%;
+        padding: 1rem;
+        background: linear-gradient(135deg, #0052cc 0%, #003d9b 100%);
+        color: #ffffff;
+        border: none;
+        border-radius: 12px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        box-shadow: 0 4px 12px rgba(0, 82, 204, 0.2);
+    }
+
+    .btn-send-code:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 82, 204, 0.3);
+    }
+
+    .btn-send-code:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .btn-resend {
+        width: 100%;
+        padding: 0.75rem;
+        background: transparent;
+        color: #0052cc;
+        border: 1px solid #0052cc;
+        border-radius: 12px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        margin-top: 1rem;
+    }
+
+    .btn-resend:hover {
+        background: #f7f9fb;
+    }
+
+    .new-patient-section {
+        margin-top: 2.5rem;
+        text-align: center;
+    }
+
+    .new-patient-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #a0a8b0;
+        letter-spacing: 1px;
+        margin-bottom: 1rem;
+    }
+
+    .new-patient-text {
+        font-size: 0.9375rem;
+        color: #5a6c7d;
+        line-height: 1.6;
+    }
+
+    .signup-link {
+        color: #0052cc;
+        text-decoration: none;
+        font-weight: 600;
+        transition: color 0.3s;
+    }
+
+    .signup-link:hover {
+        color: #003d9b;
+        text-decoration: underline;
+    }
+
+    .error-message {
+        padding: 1rem;
+        background: #fee;
+        border: 1px solid #fcc;
+        border-radius: 8px;
+        color: #c33;
+        font-size: 0.875rem;
+        margin-bottom: 1rem;
+    }
+
+    .success-message {
+        padding: 1rem;
+        background: #e6f7f1;
+        border: 1px solid #76f3ea;
+        border-radius: 8px;
+        color: #006a65;
+        font-size: 0.875rem;
+        margin-bottom: 1rem;
+    }
+
+    /* Responsive */
+    @@media (max-width: 1024px) {
+        .login-container {
+            grid-template-columns: 1fr;
+        }
+
+        .brand-section {
+            display: none;
+        }
+
+        .form-section {
+            padding: 2rem 1rem;
+        }
+
+        .form-card {
+            padding: 2rem;
+        }
+
+        .role-selection {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>

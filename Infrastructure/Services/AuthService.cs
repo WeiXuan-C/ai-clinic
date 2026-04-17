@@ -23,14 +23,37 @@ public class AuthService : IAuthService
     {
         try
         {
-            // Supabase Auth handles OTP generation and email sending
-            await _context.Client.Auth.SignIn(Supabase.Gotrue.Constants.SignInType.Email, email);
+            // Initialize Supabase client if needed
+            await _context.Client.InitializeAsync();
             
-            return new AuthResponse(true, null, "OTP sent to your email", null);
+            // Use SendMagicLink for email OTP
+            var result = await _context.Client.Auth.SendMagicLink(email);
+            
+            return new AuthResponse(true, null, "Verification code sent to your email", null);
         }
         catch (Exception ex)
         {
-            return new AuthResponse(false, null, $"Failed to send OTP: {ex.Message}", null);
+            var friendlyMessage = ParseSupabaseError(ex.Message);
+            return new AuthResponse(false, null, friendlyMessage, null);
+        }
+    }
+    
+    public async Task<AuthResponse> SignUpWithOtpAsync(string email)
+    {
+        try
+        {
+            // Initialize Supabase client if needed
+            await _context.Client.InitializeAsync();
+            
+            // Use SendMagicLink for email OTP (Supabase handles auto-registration)
+            var result = await _context.Client.Auth.SendMagicLink(email);
+            
+            return new AuthResponse(true, null, "Verification code sent to your email", null);
+        }
+        catch (Exception ex)
+        {
+            var friendlyMessage = ParseSupabaseError(ex.Message);
+            return new AuthResponse(false, null, friendlyMessage, null);
         }
     }
 
@@ -38,12 +61,24 @@ public class AuthService : IAuthService
     {
         try
         {
-            // Supabase Auth handles OTP verification
-            var session = await _context.Client.Auth.VerifyOTP(email, token, Supabase.Gotrue.Constants.EmailOtpType.Email);
+            // Try different OTP types - MagicLink is for links, but when template shows {{ .Token }}
+            // we might need to try Signup type
+            Supabase.Gotrue.Session? session = null;
+            
+            try
+            {
+                // First try with MagicLink type
+                session = await _context.Client.Auth.VerifyOTP(email, token, Supabase.Gotrue.Constants.EmailOtpType.MagicLink);
+            }
+            catch
+            {
+                // If that fails, try with Signup type (works for both signup and signin with OTP)
+                session = await _context.Client.Auth.VerifyOTP(email, token, Supabase.Gotrue.Constants.EmailOtpType.Signup);
+            }
             
             if (session?.User == null)
             {
-                return new AuthResponse(false, null, "Invalid or expired OTP", null);
+                return new AuthResponse(false, null, "Invalid or expired verification code. Please request a new one.", null);
             }
 
             // Check if user exists in our database, if not create (auto-registration)
@@ -53,7 +88,7 @@ public class AuthService : IAuthService
             {
                 user = new User
                 {
-                    Id = Guid.Parse(session.User.Id),
+                    Id = Guid.Parse(session.User.Id ?? Guid.NewGuid().ToString()),
                     Email = email,
                     Role = "patient",
                     IsActive = true,
@@ -75,7 +110,145 @@ public class AuthService : IAuthService
         }
         catch (Exception ex)
         {
-            return new AuthResponse(false, null, $"Verification failed: {ex.Message}", null);
+            var friendlyMessage = ParseSupabaseError(ex.Message);
+            return new AuthResponse(false, null, friendlyMessage, null);
+        }
+    }
+
+    private string ParseSupabaseError(string errorMessage)
+    {
+        // Parse JSON error from Supabase
+        if (errorMessage.Contains("over_email_send_rate_limit"))
+        {
+            // Extract seconds if available
+            var match = System.Text.RegularExpressions.Regex.Match(errorMessage, @"after (\d+) seconds");
+            if (match.Success)
+            {
+                var seconds = match.Groups[1].Value;
+                return $"Please wait {seconds} seconds before requesting another code. This helps keep your account secure.";
+            }
+            return "You've requested too many codes. Please wait a moment before trying again.";
+        }
+        
+        if (errorMessage.Contains("429") || errorMessage.Contains("rate_limit"))
+        {
+            return "Too many requests. Please wait a moment and try again.";
+        }
+        
+        if (errorMessage.Contains("invalid_credentials") || errorMessage.Contains("Invalid login") || errorMessage.Contains("invalid token"))
+        {
+            return "Invalid verification code. Please check the code and try again.";
+        }
+        
+        if (errorMessage.Contains("Token has expired") || errorMessage.Contains("otp_expired") || errorMessage.Contains("expired"))
+        {
+            return "Your verification code has expired. Please request a new one.";
+        }
+        
+        if (errorMessage.Contains("email_not_confirmed"))
+        {
+            return "Please verify your email address first.";
+        }
+        
+        if (errorMessage.Contains("user_not_found"))
+        {
+            return "No account found with this email address.";
+        }
+        
+        if (errorMessage.Contains("invalid_grant"))
+        {
+            return "Invalid or expired verification code. Please request a new one.";
+        }
+        
+        if (errorMessage.Contains("smtp") || errorMessage.Contains("email") && errorMessage.Contains("send"))
+        {
+            return "Unable to send email. Please contact support or try again later.";
+        }
+        
+        if (errorMessage.Contains("400") || errorMessage.Contains("Bad Request"))
+        {
+            return "Invalid request. Please check your input and try again.";
+        }
+        
+        // Default fallback for unknown errors
+        if (errorMessage.Length > 200)
+        {
+            return "Something went wrong. Please try again or contact support.";
+        }
+        
+        return errorMessage;
+    }
+
+    public async Task<AuthResponse> CompleteRegistrationAsync(string email, string fullName, string role)
+    {
+        try
+        {
+            // Get the current authenticated user from Supabase
+            var supabaseUser = _context.Client.Auth.CurrentUser;
+            
+            if (supabaseUser == null || supabaseUser.Email != email)
+            {
+                return new AuthResponse(false, null, "Session expired. Please verify your email again.", null);
+            }
+
+            // Check if user already exists in our database
+            var existingUser = await _userRepository.GetByEmailAsync(email);
+            
+            if (existingUser != null)
+            {
+                return new AuthResponse(false, null, "This account is already registered.", null);
+            }
+
+            // Create user in our database
+            var user = new User
+            {
+                Id = Guid.Parse(supabaseUser.Id ?? Guid.NewGuid().ToString()),
+                Email = email,
+                Role = role.ToLower(),
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                LastLoginAt = DateTime.UtcNow
+            };
+            
+            user = await _userRepository.AddAsync(user);
+
+            // Create patient or doctor profile based on role
+            if (role.ToLower() == "patient")
+            {
+                var patientProfile = new PatientProfile
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = user.Id,
+                    FullName = fullName,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                // You'll need to add this to patient repository
+            }
+            else if (role.ToLower() == "doctor")
+            {
+                var doctor = new Doctor
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = user.Id,
+                    FullName = fullName,
+                    LicenseNumber = "", // Will be filled later
+                    PrimarySpecialization = "", // Will be filled later
+                    AvailabilityStatus = "offline",
+                    IsActive = true,
+                    IsVerified = false,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                // You'll need to add this to doctor repository
+            }
+
+            return new AuthResponse(true, null, "Registration completed successfully", null);
+        }
+        catch (Exception ex)
+        {
+            var friendlyMessage = ParseSupabaseError(ex.Message);
+            return new AuthResponse(false, null, friendlyMessage, null);
         }
     }
 

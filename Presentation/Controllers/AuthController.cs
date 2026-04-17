@@ -25,6 +25,13 @@ public class AuthController
         var response = await _authService.SignInWithOtpAsync(email);
         return response;
     }
+    
+    public async Task<AuthResponse> SignUpWithOtpAsync(string email)
+    {
+        // Supabase handles OTP generation and sending for new users
+        var response = await _authService.SignUpWithOtpAsync(email);
+        return response;
+    }
 
     public async Task<AuthResponse> VerifyOtpAsync(string email, string token)
     {
@@ -36,6 +43,13 @@ public class AuthController
             _appState.SetAuthData(response.Token, response.User);
         }
 
+        return response;
+    }
+    
+    public async Task<AuthResponse> CompleteRegistrationAsync(string email, string fullName, string role)
+    {
+        // Complete user registration with additional details
+        var response = await _authService.CompleteRegistrationAsync(email, fullName, role);
         return response;
     }
 

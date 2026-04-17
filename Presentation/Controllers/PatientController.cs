@@ -48,4 +48,9 @@ public class PatientController
     {
         return await _chatService.SendMessageAsync(request);
     }
+    
+    public async Task<bool> CheckEmailExistsAsync(string email)
+    {
+        return await _patientService.CheckEmailExistsAsync(email);
+    }
 }
