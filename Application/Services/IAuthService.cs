@@ -12,4 +12,11 @@ public interface IAuthService
     
     Task SignOutAsync();
     Task<UserDto?> GetCurrentUserAsync();
+    
+    // Check if user is signed in using Supabase GetUser
+    Task<bool> IsSignedInAsync();
+    Task<(bool isSignedIn, UserDto? user)> CheckAuthenticationAsync();
+    
+    // Get current session token
+    string? GetCurrentSessionToken();
 }

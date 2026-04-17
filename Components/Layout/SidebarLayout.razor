@@ -1,7 +1,13 @@
 @using Microsoft.AspNetCore.Components.Web
 @using Microsoft.AspNetCore.Components.Routing
+@using AiClinic.Presentation.State
+@using AiClinic.Presentation.Controllers
 @inherits LayoutComponentBase
 @inject IJSRuntime JSRuntime
+@inject AppState AppState
+@inject PatientController PatientController
+@inject AuthController AuthController
+@inject NavigationManager Navigation
 
 <link rel="stylesheet" href="/css/stitch-design-system.css" />
 
@@ -12,11 +18,18 @@
             <a href="/patient/profile" class="profile-section-link">
                 <div class="profile-section">
                     <div class="avatar">
-                        <i data-lucide="user"></i>
+                        @if (!string.IsNullOrEmpty(userInitials))
+                        {
+                            <span class="avatar-text">@userInitials</span>
+                        }
+                        else
+                        {
+                            <i data-lucide="user"></i>
+                        }
                     </div>
                     <div class="profile-info">
-                        <h3 class="headline-sm">Welcome back</h3>
-                        <p class="body-sm">Clinical Sanctuary</p>
+                        <h3 class="headline-sm">@(userName ?? "Welcome back")</h3>
+                        <p class="body-sm">@(userEmail ?? "Clinical Sanctuary")</p>
                         <span class="status-badge">Active</span>
                     </div>
                 </div>
@@ -50,7 +63,7 @@
                 <i data-lucide="settings" class="nav-icon"></i>
                 <span>Settings</span>
             </a>
-            <a href="/" class="nav-item">
+            <a @onclick="HandleLogout" class="nav-item" style="cursor: pointer;">
                 <i data-lucide="log-out" class="nav-icon"></i>
                 <span>Logout</span>
             </a>
@@ -64,6 +77,40 @@
 </div>
 
 @code {
+    private string? userName;
+    private string? userEmail;
+    private string? userInitials;
+    private bool _isLoadingUserInfo = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Subscribe to state changes
+        AppState.OnStateChanged += HandleStateChanged;
+        AppState.OnPatientProfileChanged += HandleStateChanged;
+
+        // Check authentication and sync with AppState if needed
+        await InitializeAuthentication();
+        
+        // Load user info
+        await LoadUserInfo();
+    }
+
+    private async Task InitializeAuthentication()
+    {
+        try
+        {
+            // If AppState doesn't have user data, try to sync from Supabase session
+            if (AppState.CurrentUser == null)
+            {
+                await AuthController.CheckAndSyncAuthenticationAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error initializing authentication: {ex.Message}");
+        }
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         await JSRuntime.InvokeVoidAsync("eval", "if (window.lucide) lucide.createIcons();");
@@ -83,6 +130,120 @@
                 });
             })();
         ");
+    }
+
+    private async Task LoadUserInfo()
+    {
+        // Prevent infinite loop - don't check auth if already checking
+        if (_isLoadingUserInfo)
+            return;
+
+        _isLoadingUserInfo = true;
+
+        try
+        {
+            // Check if user is authenticated
+            if (AppState.CurrentUser != null)
+            {
+                userEmail = AppState.CurrentUser.Email;
+
+                // Try to get patient profile for full name
+                if (AppState.CurrentPatientProfile != null)
+                {
+                    userName = AppState.CurrentPatientProfile.FullName;
+                }
+                else
+                {
+                    // Try to load profile
+                    try
+                    {
+                        var profile = await PatientController.GetProfileAsync(AppState.CurrentUser.Id);
+                        if (profile != null)
+                        {
+                            userName = profile.FullName;
+                            AppState.UpdatePatientProfile(profile);
+                        }
+                    }
+                    catch
+                    {
+                        // Ignore profile load errors
+                    }
+                }
+
+                // Generate initials
+                if (!string.IsNullOrEmpty(userName))
+                {
+                    userInitials = GetInitials(userName);
+                }
+                else if (!string.IsNullOrEmpty(userEmail))
+                {
+                    userInitials = userEmail.Substring(0, 1).ToUpper();
+                }
+            }
+            else
+            {
+                // Clear user info
+                userName = null;
+                userEmail = null;
+                userInitials = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading user info: {ex.Message}");
+        }
+        finally
+        {
+            _isLoadingUserInfo = false;
+        }
+    }
+
+    private void HandleStateChanged()
+    {
+        // Reload user info when state changes
+        InvokeAsync(async () =>
+        {
+            await LoadUserInfo();
+            StateHasChanged();
+        });
+    }
+
+    private async Task HandleLogout()
+    {
+        try
+        {
+            await AuthController.LogoutAsync();
+            Navigation.NavigateTo("/auth/signin");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error during logout: {ex.Message}");
+        }
+    }
+
+    private string GetInitials(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return "?";
+
+        var parts = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        
+        if (parts.Length >= 2)
+        {
+            return $"{parts[0][0]}{parts[^1][0]}".ToUpper();
+        }
+        else if (parts.Length == 1)
+        {
+            return parts[0].Substring(0, Math.Min(2, parts[0].Length)).ToUpper();
+        }
+
+        return "?";
+    }
+
+    public void Dispose()
+    {
+        AppState.OnStateChanged -= HandleStateChanged;
+        AppState.OnPatientProfileChanged -= HandleStateChanged;
     }
 }
 
@@ -166,6 +327,14 @@
         align-items: center;
         justify-content: center;
         font-size: 24px;
+        color: white;
+    }
+
+    .avatar-text {
+        font-size: 18px;
+        font-weight: 600;
+        color: white;
+        user-select: none;
     }
 
     .profile-info h3 {

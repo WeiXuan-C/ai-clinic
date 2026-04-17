@@ -23,6 +23,9 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseAntiforgery();
 
+// Enable WebSockets for Blazor Server
+app.UseWebSockets();
+
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 

@@ -135,6 +135,22 @@
                         }
                     </EditForm>
                     
+                    @if (showSuccessDialog)
+                    {
+                        <div class="dialog-overlay" @onclick="@(() => {})">
+                            <div class="dialog-content" @onclick:stopPropagation="true">
+                                <div class="dialog-icon">
+                                    <i data-lucide="check-circle" class="success-icon"></i>
+                                </div>
+                                <h3 class="dialog-title">Registration Successful!</h3>
+                                <p class="dialog-message">Your account has been created successfully. Welcome to AI Clinic!</p>
+                                <button type="button" class="btn-dialog-ok" @onclick="HandleSuccessDialogOk">
+                                    OK
+                                </button>
+                            </div>
+                        </div>
+                    }
+                    
                     <div class="new-patient-section">
                         <p class="new-patient-label">ALREADY HAVE AN ACCOUNT?</p>
                         <p class="new-patient-text">
@@ -155,6 +171,7 @@
     private bool isLoading = false;
     private string errorMessage = "";
     private string successMessage = "";
+    private bool showSuccessDialog = false;
     
     [Inject]
     private AuthController AuthController { get; set; } = default!;
@@ -274,6 +291,14 @@
         
         if (response.Success)
         {
+            // Check if user already exists (returning user)
+            if (response.User != null)
+            {
+                errorMessage = "This account is already registered. Please sign in instead.";
+                return;
+            }
+            
+            // New user - proceed to profile completion
             successMessage = "Email verified! Please complete your profile.";
             currentStep = SignupStep.SelectRole;
         }
@@ -305,14 +330,18 @@
         
         if (response.Success)
         {
-            successMessage = "Registration successful! Redirecting to sign in...";
-            await Task.Delay(2000);
-            NavigationManager.NavigateTo("/auth/signin");
+            showSuccessDialog = true;
         }
         else
         {
             errorMessage = response.Message ?? "Registration failed";
         }
+    }
+    
+    private void HandleSuccessDialogOk()
+    {
+        showSuccessDialog = false;
+        NavigationManager.NavigateTo("/patient/dashboard", forceLoad: true);
     }
 
     private async Task ResendOtp()
@@ -731,6 +760,92 @@
     .signup-link:hover {
         color: #003d9b;
         text-decoration: underline;
+    }
+
+    /* Success Dialog */
+    .dialog-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        animation: fadeIn 0.3s;
+    }
+
+    @@keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    .dialog-content {
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 2.5rem;
+        max-width: 400px;
+        width: 90%;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        text-align: center;
+        animation: slideUp 0.3s;
+    }
+
+    @@keyframes slideUp {
+        from {
+            transform: translateY(20px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    .dialog-icon {
+        margin-bottom: 1.5rem;
+    }
+
+    .success-icon {
+        width: 64px;
+        height: 64px;
+        color: #00c853;
+    }
+
+    .dialog-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #191c1e;
+        margin-bottom: 1rem;
+        font-family: 'Manrope', sans-serif;
+    }
+
+    .dialog-message {
+        font-size: 1rem;
+        color: #5a6c7d;
+        line-height: 1.6;
+        margin-bottom: 2rem;
+    }
+
+    .btn-dialog-ok {
+        width: 100%;
+        padding: 1rem;
+        background: linear-gradient(135deg, #0052cc 0%, #003d9b 100%);
+        color: #ffffff;
+        border: none;
+        border-radius: 12px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        box-shadow: 0 4px 12px rgba(0, 82, 204, 0.2);
+    }
+
+    .btn-dialog-ok:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 82, 204, 0.3);
     }
 
     .error-message {

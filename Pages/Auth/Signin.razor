@@ -129,6 +129,9 @@
     
     [Inject]
     private AuthController AuthController { get; set; } = default!;
+    
+    [Inject]
+    private PatientController PatientController { get; set; } = default!;
 
     private async Task HandleSubmit()
     {
@@ -141,6 +144,14 @@
             if (string.IsNullOrWhiteSpace(authModel.Credential))
             {
                 errorMessage = "Please enter your email address";
+                return;
+            }
+
+            // Check if email is registered before sending OTP
+            var emailExists = await PatientController.CheckEmailExistsAsync(authModel.Credential);
+            if (!emailExists)
+            {
+                errorMessage = "This email is not registered. Please sign up first.";
                 return;
             }
 
@@ -186,8 +197,19 @@
             
             if (response.Success)
             {
+                // Check if user has completed profile
+                if (response.User == null)
+                {
+                    errorMessage = "Please complete your registration first.";
+                    return;
+                }
+                
                 successMessage = "Login successful! Redirecting...";
+                
+                // Wait a bit to show success message
                 await Task.Delay(1000);
+                
+                // Navigate without force reload to preserve state
                 NavigationManager.NavigateTo("/patient/dashboard");
             }
             else

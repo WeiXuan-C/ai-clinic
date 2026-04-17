@@ -9,13 +9,19 @@ namespace AiClinic.Infrastructure.Services;
 public class AuthService : IAuthService
 {
     private readonly IUserRepository _userRepository;
+    private readonly IPatientProfileRepository _patientProfileRepository;
+    private readonly IDoctorRepository _doctorRepository;
     private readonly SupabaseContext _context;
 
     public AuthService(
         IUserRepository userRepository,
+        IPatientProfileRepository patientProfileRepository,
+        IDoctorRepository doctorRepository,
         SupabaseContext context)
     {
         _userRepository = userRepository;
+        _patientProfileRepository = patientProfileRepository;
+        _doctorRepository = doctorRepository;
         _context = context;
     }
 
@@ -81,32 +87,23 @@ public class AuthService : IAuthService
                 return new AuthResponse(false, null, "Invalid or expired verification code. Please request a new one.", null);
             }
 
-            // Check if user exists in our database, if not create (auto-registration)
+            // Check if user exists in our database
             var user = await _userRepository.GetByEmailAsync(email);
             
-            if (user == null)
+            if (user != null)
             {
-                user = new User
-                {
-                    Id = Guid.Parse(session.User.Id ?? Guid.NewGuid().ToString()),
-                    Email = email,
-                    Role = "patient",
-                    IsActive = true,
-                    CreatedAt = DateTime.UtcNow,
-                    LastLoginAt = DateTime.UtcNow
-                };
-                user = await _userRepository.AddAsync(user);
-            }
-            else
-            {
-                // Update last login
+                // Existing user - update last login
                 user.LastLoginAt = DateTime.UtcNow;
                 await _userRepository.UpdateAsync(user);
+                
+                var userDto = new UserDto(user.Id, user.Email, null, user.Role);
+                return new AuthResponse(true, session.AccessToken, "Login successful", userDto);
             }
-
-            var userDto = new UserDto(user.Id, user.Email, null, user.Role);
             
-            return new AuthResponse(true, session.AccessToken, "Login successful", userDto);
+            // New user - DO NOT create user record yet
+            // Just verify the OTP and return success without user data
+            // User will be created when they complete registration with role and full name
+            return new AuthResponse(true, session.AccessToken, "Email verified successfully", null);
         }
         catch (Exception ex)
         {
@@ -223,7 +220,7 @@ public class AuthService : IAuthService
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 };
-                // You'll need to add this to patient repository
+                await _patientProfileRepository.AddAsync(patientProfile);
             }
             else if (role.ToLower() == "doctor")
             {
@@ -240,7 +237,7 @@ public class AuthService : IAuthService
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 };
-                // You'll need to add this to doctor repository
+                await _doctorRepository.AddAsync(doctor);
             }
 
             return new AuthResponse(true, null, "Registration completed successfully", null);
@@ -270,5 +267,83 @@ public class AuthService : IAuthService
             return null;
 
         return new UserDto(user.Id, user.Email, null, user.Role);
+    }
+
+    public async Task<bool> IsSignedInAsync()
+    {
+        try
+        {
+            // Get current session
+            var session = _context.Client.Auth.CurrentSession;
+            
+            if (session == null || string.IsNullOrEmpty(session.AccessToken))
+            {
+                return false;
+            }
+
+            // Use Supabase GetUser with JWT to check if the user is authenticated
+            var supabaseUser = await _context.Client.Auth.GetUser(session.AccessToken);
+            
+            // Check if user exists and has a valid session
+            return supabaseUser != null && !string.IsNullOrEmpty(supabaseUser.Id);
+        }
+        catch
+        {
+            // If GetUser throws an exception, user is not signed in
+            return false;
+        }
+    }
+
+    public async Task<(bool isSignedIn, UserDto? user)> CheckAuthenticationAsync()
+    {
+        try
+        {
+            // Get current session
+            var session = _context.Client.Auth.CurrentSession;
+            
+            if (session == null || string.IsNullOrEmpty(session.AccessToken))
+            {
+                return (false, null);
+            }
+
+            // Use Supabase GetUser with JWT to get the current authenticated user
+            var supabaseUser = await _context.Client.Auth.GetUser(session.AccessToken);
+            
+            if (supabaseUser == null || string.IsNullOrEmpty(supabaseUser.Id))
+            {
+                return (false, null);
+            }
+
+            // Get user from our database
+            var user = await _userRepository.GetByEmailAsync(supabaseUser.Email ?? "");
+            
+            if (user == null)
+            {
+                // User is authenticated in Supabase but not in our database
+                // This means they verified email but didn't complete registration
+                return (true, null);
+            }
+
+            var userDto = new UserDto(user.Id, user.Email, null, user.Role);
+            return (true, userDto);
+        }
+        catch
+        {
+            // If GetUser throws an exception, user is not signed in
+            return (false, null);
+        }
+    }
+
+    public string? GetCurrentSessionToken()
+    {
+        try
+        {
+            var session = _context.Client.Auth.CurrentSession;
+            return session?.AccessToken;
+        }
+        catch
+        {
+            return null;
+        }
     }
 }

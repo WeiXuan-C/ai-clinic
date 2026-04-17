@@ -29,6 +29,23 @@ public class User : BaseModel
     
     [Column("last_login_at")]
     public DateTime? LastLoginAt { get; set; }
+    
+    // Privacy settings
+    [Column("data_sharing_enabled")]
+    public bool DataSharingEnabled { get; set; } = false;
+    
+    [Column("ai_analysis_enabled")]
+    public bool AiAnalysisEnabled { get; set; } = true;
+    
+    [Column("activity_tracking_enabled")]
+    public bool ActivityTrackingEnabled { get; set; } = true;
+    
+    // Account status
+    [Column("is_deactivated")]
+    public bool IsDeactivated { get; set; } = false;
+    
+    [Column("deactivated_at")]
+    public DateTime? DeactivatedAt { get; set; }
 }
 
 public enum UserRole

@@ -10,6 +10,8 @@ public class AppState
 
     private UserDto? _currentUser;
     private string? _authToken;
+    private PatientProfileDto? _currentPatientProfile;
+    private List<ActivityLogDto> _recentActivityLogs = new();
 
     private AppState() { }
 
@@ -48,10 +50,38 @@ public class AppState
         }
     }
 
+    public PatientProfileDto? CurrentPatientProfile
+    {
+        get => _currentPatientProfile;
+        set
+        {
+            _currentPatientProfile = value;
+            OnPatientProfileChanged?.Invoke();
+            OnStateChanged?.Invoke();
+        }
+    }
+
+    public List<ActivityLogDto> RecentActivityLogs
+    {
+        get => _recentActivityLogs;
+        set
+        {
+            _recentActivityLogs = value;
+            OnActivityLogsChanged?.Invoke();
+            OnStateChanged?.Invoke();
+        }
+    }
+
     public bool IsAuthenticated => CurrentUser != null && !string.IsNullOrEmpty(AuthToken);
 
-    public event Action? OnStateChanged;
+    public bool HasPatientProfile => CurrentPatientProfile != null;
 
+    // Events
+    public event Action? OnStateChanged;
+    public event Action? OnPatientProfileChanged;
+    public event Action? OnActivityLogsChanged;
+
+    // Auth Methods
     public void SetAuthData(string token, UserDto user)
     {
         _authToken = token;
@@ -63,6 +93,49 @@ public class AppState
     {
         _authToken = null;
         _currentUser = null;
+        _currentPatientProfile = null;
+        _recentActivityLogs.Clear();
+        OnStateChanged?.Invoke();
+    }
+
+    // Patient Profile Methods
+    public void UpdatePatientProfile(PatientProfileDto profile)
+    {
+        _currentPatientProfile = profile;
+        OnPatientProfileChanged?.Invoke();
+        OnStateChanged?.Invoke();
+    }
+
+    public void ClearPatientProfile()
+    {
+        _currentPatientProfile = null;
+        OnPatientProfileChanged?.Invoke();
+        OnStateChanged?.Invoke();
+    }
+
+    // Activity Log Methods
+    public void AddActivityLog(ActivityLogDto log)
+    {
+        _recentActivityLogs.Insert(0, log);
+        if (_recentActivityLogs.Count > 50)
+        {
+            _recentActivityLogs = _recentActivityLogs.Take(50).ToList();
+        }
+        OnActivityLogsChanged?.Invoke();
+        OnStateChanged?.Invoke();
+    }
+
+    public void SetActivityLogs(IEnumerable<ActivityLogDto> logs)
+    {
+        _recentActivityLogs = logs.ToList();
+        OnActivityLogsChanged?.Invoke();
+        OnStateChanged?.Invoke();
+    }
+
+    public void ClearActivityLogs()
+    {
+        _recentActivityLogs.Clear();
+        OnActivityLogsChanged?.Invoke();
         OnStateChanged?.Invoke();
     }
 }

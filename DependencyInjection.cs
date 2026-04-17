@@ -7,6 +7,7 @@ using AiClinic.Infrastructure.Data;
 using AiClinic.Infrastructure.Repositories;
 using AiClinic.Infrastructure.Services;
 using AiClinic.Presentation.Controllers;
+using AiClinic.Presentation.Services;
 using AiClinic.Presentation.State;
 using Supabase;
 
@@ -16,8 +17,8 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddApplicationServices(this IServiceCollection services, IConfiguration configuration)
     {
-        // Supabase Client
-        services.AddScoped<Client>(provider =>
+        // Supabase Client - Singleton to persist session across requests
+        services.AddSingleton<Client>(provider =>
         {
             var url = configuration["Supabase:Url"] ?? throw new InvalidOperationException("Supabase URL not configured");
             var key = configuration["Supabase:Key"] ?? throw new InvalidOperationException("Supabase Key not configured");
@@ -25,7 +26,8 @@ public static class DependencyInjection
             var options = new SupabaseOptions
             {
                 AutoRefreshToken = true,
-                AutoConnectRealtime = true
+                AutoConnectRealtime = true,
+                SessionHandler = new SupabaseSessionHandler() // Enable session persistence
             };
             
             return new Client(url, key, options);
@@ -43,6 +45,7 @@ public static class DependencyInjection
         services.AddScoped<IPatientProfileRepository, PatientProfileRepository>();
         services.AddScoped<IDoctorRatingRepository, DoctorRatingRepository>();
         services.AddScoped<IOrganizationRepository, OrganizationRepository>();
+        services.AddScoped<IActivityLogRepository, ActivityLogRepository>();
 
         // Application - Services
         services.AddScoped<IAuthService, AuthService>();
@@ -62,11 +65,18 @@ public static class DependencyInjection
         // Presentation - State (Singleton Pattern)
         services.AddSingleton<AppState>(AppState.Instance);
 
+        // Presentation - Services
+        services.AddScoped<AuthenticationStateService>();
+        services.AddScoped<BrowserStorageService>();
+
         // Presentation - Controllers (Adapter Pattern)
         services.AddScoped<AuthController>();
         services.AddScoped<ChatController>();
         services.AddScoped<PatientController>();
         services.AddScoped<DoctorController>();
+        
+        // HTTP Context Accessor for request metadata
+        services.AddHttpContextAccessor();
 
         return services;
     }
