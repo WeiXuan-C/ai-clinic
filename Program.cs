@@ -1,4 +1,3 @@
-using ai_clinic.Components;
 using AiClinic;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -26,7 +25,7 @@ app.UseAntiforgery();
 // Enable WebSockets for Blazor Server
 app.UseWebSockets();
 
-app.MapRazorComponents<App>()
+app.MapRazorComponents<ai_clinic.UI.Components.App>()
     .AddInteractiveServerRenderMode();
 
 app.Run();

@@ -1,0 +1,702 @@
+@page "/patient/profile"
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@layout Components.Layout.SidebarLayout
+@inject AuthController AuthController
+@inject AuthState AuthState
+@inject PatientController PatientController
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Profile - AI Medical Clinic</PageTitle>
+
+<link rel="stylesheet" href="/css/stitch-design-system.css" />
+
+@if (!AuthState.IsAuthenticated)
+{
+    <div class="auth-checking">
+        <div class="spinner"></div>
+        <p>Checking authentication...</p>
+    </div>
+}
+else
+{
+@if (isLoading)
+{
+    <div class="loading-container">
+        <div class="spinner"></div>
+        <p>Loading profile...</p>
+    </div>
+}
+else if (errorMessage != null)
+{
+    <div class="error-container">
+        <p class="error-message">@errorMessage</p>
+        <button class="btn btn-primary" @onclick="LoadProfile">Retry</button>
+    </div>
+}
+else
+{
+    <!-- Header -->
+    <header class="content-header">
+        <div class="header-left">
+            <h1>My Profile</h1>
+            <p class="body-md" style="margin: 0.5rem;">
+                Manage your personal and medical information
+            </p>
+        </div>
+        <div class="header-right">
+            @if (isEditing)
+            {
+                <button type="button" class="btn btn-discard" @onclick="CancelEdit">
+                    <i data-lucide="x"></i>
+                    Discard
+                </button>
+                <button type="button" class="btn btn-save" @onclick="SaveChanges" disabled="@isSaving">
+                    <i data-lucide="check"></i>
+                    @(isSaving ? "Saving..." : "Save")
+                </button>
+            }
+            else
+            {
+                <button type="button" class="btn btn-primary" @onclick="EnableEdit">
+                    <i data-lucide="edit-2"></i>
+                    Edit Profile
+                </button>
+            }
+        </div>
+    </header>
+
+    @if (successMessage != null)
+    {
+        <div class="success-message">
+            @successMessage
+        </div>
+    }
+
+    <!-- Content Grid -->
+    <div class="content-grid">
+        <!-- Profile Photo Section -->
+        <section class="profile-photo-card">
+            <div class="photo-container">
+                <div class="avatar-large">
+                    <i data-lucide="user"></i>
+                </div>
+                @if (isEditing)
+                {
+                    <button type="button" class="photo-upload-btn">
+                        <i data-lucide="camera"></i>
+                    </button>
+                }
+            </div>
+            <div class="photo-info">
+                <h3 class="headline-sm">@(profile?.FullName ?? "No Name")</h3>
+                <p class="body-md">@AuthState.CurrentUser?.Email</p>
+                <p class="body-sm">Member since @(profile?.CreatedAt.ToString("MMMM yyyy") ?? "N/A")</p>
+            </div>
+        </section>
+
+        <!-- Personal Information -->
+        <section class="info-card">
+            <div class="section-header">
+                <h2 class="headline-md">Personal Information</h2>
+            </div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="body-sm">Full Name</label>
+                    <input type="text" class="form-input" @bind="fullName" disabled="@(!isEditing)" />
+                </div>
+                <div class="form-group">
+                    <label class="body-sm">Date of Birth</label>
+                    <input type="date" class="form-input" @bind="dateOfBirth" disabled="@(!isEditing)" />
+                </div>
+                <div class="form-group">
+                    <label class="body-sm">Email Address</label>
+                    <input type="email" class="form-input" value="@AuthState.CurrentUser?.Email" disabled />
+                </div>
+                <div class="form-group">
+                    <label class="body-sm">Gender</label>
+                    <select class="form-input" @bind="gender" disabled="@(!isEditing)">
+                        <option value="">Select Gender</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                        <option value="Prefer not to say">Prefer not to say</option>
+                    </select>
+                </div>
+                <div class="form-group full-width">
+                    <label class="body-sm">Address</label>
+                    <textarea class="form-input" rows="2" @bind="address" disabled="@(!isEditing)"></textarea>
+                </div>
+            </div>
+        </section>
+
+        <!-- Medical Information -->
+        <section class="info-card">
+            <div class="section-header">
+                <h2 class="headline-md">Medical Information</h2>
+            </div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="body-sm">Blood Type</label>
+                    <select class="form-input" @bind="bloodType" disabled="@(!isEditing)">
+                        <option value="">Select Blood Type</option>
+                        <option value="O+">O+</option>
+                        <option value="O-">O-</option>
+                        <option value="A+">A+</option>
+                        <option value="A-">A-</option>
+                        <option value="B+">B+</option>
+                        <option value="B-">B-</option>
+                        <option value="AB+">AB+</option>
+                        <option value="AB-">AB-</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <!-- Placeholder for future fields -->
+                </div>
+                <div class="form-group full-width">
+                    <label class="body-sm">Allergies (comma-separated)</label>
+                    <textarea class="form-input" rows="3" @bind="allergiesInput" disabled="@(!isEditing)" 
+                              placeholder="e.g., Penicillin, Peanuts, Shellfish"></textarea>
+                </div>
+                <div class="form-group full-width">
+                    <label class="body-sm">Current Medications (comma-separated)</label>
+                    <textarea class="form-input" rows="3" @bind="currentMedicationsInput" disabled="@(!isEditing)"
+                              placeholder="e.g., Lisinopril 10mg daily, Metformin 500mg"></textarea>
+                </div>
+                <div class="form-group full-width">
+                    <label class="body-sm">Chronic Conditions (comma-separated)</label>
+                    <textarea class="form-input" rows="3" @bind="chronicConditionsInput" disabled="@(!isEditing)"
+                              placeholder="e.g., Type 2 Diabetes, Hypertension"></textarea>
+                </div>
+            </div>
+        </section>
+
+        <!-- Emergency Contact -->
+        <section class="info-card">
+            <div class="section-header">
+                <h2 class="headline-md">Emergency Contact</h2>
+            </div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="body-sm">Contact Name</label>
+                    <input type="text" class="form-input" @bind="emergencyContactName" disabled="@(!isEditing)" />
+                </div>
+                <div class="form-group">
+                    <label class="body-sm">Phone Number</label>
+                    <input type="tel" class="form-input" @bind="emergencyContactPhone" disabled="@(!isEditing)" />
+                </div>
+            </div>
+        </section>
+    </div>
+}
+}
+
+@code {
+    private bool isLoading = true;
+    private bool isEditing = false;
+    private bool isSaving = false;
+    private string? errorMessage;
+    private string? successMessage;
+
+    private PatientProfile? profile;
+    private PatientProfile? originalProfile;
+
+    // Form fields
+    private string? fullName;
+    private DateTime? dateOfBirth;
+    private string? gender;
+    private string? address;
+    private string? emergencyContactName;
+    private string? emergencyContactPhone;
+    private string? bloodType;
+    private string? allergiesInput;
+    private string? chronicConditionsInput;
+    private string? currentMedicationsInput;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Check authentication first
+        if (!AuthState.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/auth/signin");
+            return;
+        }
+        
+        await LoadProfile();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("eval", "if (window.lucide) lucide.createIcons();");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error initializing Lucide icons: {ex.Message}");
+            }
+        }
+    }
+
+    private async Task LoadProfile()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+
+            if (AuthState.CurrentUser == null)
+            {
+                // TODO: Implement authentication check
+                var isAuthenticated = false; // await AuthController.CheckAndSyncAuthenticationAsync();
+                
+                if (!isAuthenticated || AuthState.CurrentUser == null)
+                {
+                    errorMessage = "Please sign in to view your profile.";
+                    await Task.Delay(1500);
+                    Navigation.NavigateTo("/auth/signin");
+                    return;
+                }
+            }
+
+            profile = await PatientController.GetProfileAsync(AuthState.CurrentUser.Id);
+
+            if (profile != null)
+            {
+                originalProfile = profile;
+                PopulateFormFields(profile);
+                // AuthState.UpdatePatientProfile(profile);
+            }
+            else
+            {
+                errorMessage = "Profile not found. Please create your profile first.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading profile: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void PopulateFormFields(PatientProfile profileData)
+    {
+        fullName = profileData.FullName;
+        dateOfBirth = profileData.DateOfBirth;
+        gender = profileData.Gender;
+        address = profileData.Address;
+        emergencyContactName = profileData.EmergencyContactName;
+        emergencyContactPhone = profileData.EmergencyContactPhone;
+        bloodType = profileData.BloodType;
+        allergiesInput = profileData.Allergies != null ? string.Join(", ", profileData.Allergies) : null;
+        chronicConditionsInput = profileData.ChronicConditions != null ? string.Join(", ", profileData.ChronicConditions) : null;
+        currentMedicationsInput = profileData.CurrentMedications != null ? string.Join(", ", profileData.CurrentMedications) : null;
+    }
+
+    private void EnableEdit()
+    {
+        isEditing = true;
+        successMessage = null;
+        
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(100);
+            await JSRuntime.InvokeVoidAsync("eval", "if (window.lucide) lucide.createIcons();");
+        });
+    }
+
+    private void CancelEdit()
+    {
+        isEditing = false;
+        successMessage = null;
+        errorMessage = null;
+        
+        if (originalProfile != null)
+        {
+            PopulateFormFields(originalProfile);
+        }
+        
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(100);
+            await JSRuntime.InvokeVoidAsync("eval", "if (window.lucide) lucide.createIcons();");
+        });
+    }
+
+    private async Task SaveChanges()
+    {
+        try
+        {
+            isSaving = true;
+            errorMessage = null;
+            successMessage = null;
+
+            if (AuthState.CurrentUser == null)
+            {
+                errorMessage = "User not authenticated";
+                return;
+            }
+
+            var request = new UpdatePatientProfileRequest(
+                FullName: fullName,
+                DateOfBirth: dateOfBirth,
+                Gender: gender,
+                Address: address,
+                EmergencyContactName: emergencyContactName,
+                EmergencyContactPhone: emergencyContactPhone,
+                BloodType: bloodType,
+                Allergies: ParseCommaSeparated(allergiesInput),
+                ChronicConditions: ParseCommaSeparated(chronicConditionsInput),
+                CurrentMedications: ParseCommaSeparated(currentMedicationsInput)
+            );
+
+            profile = await PatientController.UpdateProfileAsync(AuthState.CurrentUser.Id, request);
+            originalProfile = profile;
+            
+            // AuthState.UpdatePatientProfile(profile);
+
+            successMessage = "Profile updated successfully!";
+            isEditing = false;
+            
+            await Task.Delay(100);
+            await JSRuntime.InvokeVoidAsync("eval", "if (window.lucide) lucide.createIcons();");
+
+            await Task.Delay(3000);
+            successMessage = null;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error saving profile: {ex.Message}";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private string[]? ParseCommaSeparated(string? input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+            return null;
+
+        return input.Split(',')
+            .Select(s => s.Trim())
+            .Where(s => !string.IsNullOrEmpty(s))
+            .ToArray();
+    }
+}
+
+<style>
+    .loading-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 400px;
+        gap: 1rem;
+    }
+
+    .spinner {
+        width: 48px;
+        height: 48px;
+        border: 4px solid #e6e8ea;
+        border-top-color: #0052cc;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @@keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .error-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 400px;
+        gap: 1rem;
+    }
+
+    .error-message {
+        color: #d32f2f;
+        background: #ffebee;
+        padding: 1rem 1.5rem;
+        border-radius: 8px;
+        border-left: 4px solid #d32f2f;
+    }
+
+    .success-message {
+        color: #2e7d32;
+        background: #e8f5e9;
+        padding: 1rem 1.5rem;
+        border-radius: 8px;
+        border-left: 4px solid #2e7d32;
+        margin-bottom: 1.5rem;
+        animation: slideDown 0.3s ease-out;
+    }
+
+    @@keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .content-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 2rem;
+    }
+
+    .header-left h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #191c1e;
+        margin: 0.5rem;
+        font-family: 'Manrope', sans-serif;
+    }
+
+    .header-left p {
+        color: #434654;
+    }
+
+    .header-right {
+        display: flex;
+        gap: 1rem;
+    }
+
+    .content-grid {
+        display: grid;
+        grid-template-columns: 1fr 2fr;
+        gap: 2rem;
+    }
+
+    .profile-photo-card {
+        grid-column: span 1;
+        background: white;
+        padding: 2rem;
+        border-radius: 16px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        height: fit-content;
+    }
+
+    .photo-container {
+        position: relative;
+        margin-bottom: 1.5rem;
+    }
+
+    .avatar-large {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #76f3ea, #006a65);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 3rem;
+        color: white;
+    }
+
+    .photo-upload-btn {
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: #0052cc;
+        color: white;
+        border: 3px solid white;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .photo-info h3 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #191c1e;
+        margin-bottom: 0.5rem;
+    }
+
+    .photo-info p {
+        color: #434654;
+        margin-bottom: 0.25rem;
+    }
+
+    .info-card {
+        grid-column: span 2;
+        background: white;
+        padding: 2rem;
+        border-radius: 16px;
+    }
+
+    .info-card:first-of-type {
+        grid-column: 2;
+        grid-row: 1;
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.75rem;
+    }
+
+    .section-header h2 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #191c1e;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.5rem;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .form-group.full-width {
+        grid-column: span 2;
+    }
+
+    .form-group label {
+        color: #434654;
+        font-weight: 500;
+    }
+
+    .form-input {
+        padding: 0.875rem 1rem;
+        border: 1px solid #e6e8ea;
+        border-radius: 8px;
+        font-size: 0.9375rem;
+        font-family: 'Inter', sans-serif;
+        transition: all 0.2s;
+    }
+
+    .form-input:focus {
+        outline: none;
+        border-color: #0052cc;
+        box-shadow: 0 0 0 3px rgba(0, 82, 204, 0.1);
+    }
+
+    .form-input:disabled {
+        background-color: #f5f5f5;
+        cursor: not-allowed;
+    }
+
+    textarea.form-input {
+        resize: vertical;
+        min-height: 80px;
+    }
+
+    select.form-input {
+        cursor: pointer;
+    }
+
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: none;
+        font-size: 0.875rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn-primary {
+        background: #0052cc;
+        color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+        background: #003d9b;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 82, 204, 0.3);
+    }
+
+    .btn-primary:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+    }
+
+    .btn-save {
+        background: #2e7d32;
+        color: white;
+    }
+
+    .btn-save:hover:not(:disabled) {
+        background: #1b5e20;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(46, 125, 50, 0.3);
+    }
+
+    .btn-save:disabled {
+        background: #a5d6a7;
+        cursor: not-allowed;
+    }
+
+    .btn-discard {
+        background: #d32f2f;
+        color: white;
+    }
+
+    .btn-discard:hover {
+        background: #b71c1c;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(211, 47, 47, 0.3);
+    }
+
+    @@media (max-width: 1024px) {
+        .content-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .profile-photo-card,
+        .info-card,
+        .info-card:first-of-type {
+            grid-column: span 1;
+            grid-row: auto;
+        }
+    }
+
+    @@media (max-width: 768px) {
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .form-group.full-width {
+            grid-column: span 1;
+        }
+
+        .header-right {
+            flex-direction: column;
+        }
+    }
+</style>
+
+

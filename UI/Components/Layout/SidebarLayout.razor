@@ -1,0 +1,442 @@
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Components.Routing
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject IJSRuntime JSRuntime
+@inject AuthState AuthState
+@inject AuthController AuthController
+@inject NavigationManager Navigation
+
+<link rel="stylesheet" href="/css/stitch-design-system.css" />
+
+<div class="dashboard-layout">
+    <!-- Left Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <a href="/patient/profile" class="profile-section-link">
+                <div class="profile-section">
+                    <div class="avatar">
+                        @if (!string.IsNullOrEmpty(userInitials))
+                        {
+                            <span class="avatar-text">@userInitials</span>
+                        }
+                        else
+                        {
+                            <i data-lucide="user"></i>
+                        }
+                    </div>
+                    <div class="profile-info">
+                        <h3 class="headline-sm">@(userName ?? "Welcome back")</h3>
+                        <p class="body-sm">@(userEmail ?? "Clinical Sanctuary")</p>
+                        <span class="status-badge">Active</span>
+                    </div>
+                </div>
+            </a>
+            <a href="/patient/consultation" class="btn btn-primary btn-block">
+                + Start New Chat
+            </a>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="/patient/dashboard" class="nav-item">
+                <i data-lucide="layout-dashboard" class="nav-icon"></i>
+                <span>Overview</span>
+            </a>
+            <a href="/patient/consultation" class="nav-item">
+                <i data-lucide="message-circle" class="nav-icon"></i>
+                <span>Consultations</span>
+            </a>
+            <a href="/patient/records" class="nav-item">
+                <i data-lucide="clipboard-list" class="nav-icon"></i>
+                <span>Records</span>
+            </a>
+            <a href="/patient/support" class="nav-item">
+                <i data-lucide="life-buoy" class="nav-icon"></i>
+                <span>Support</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <a href="/patient/settings" class="nav-item">
+                <i data-lucide="settings" class="nav-icon"></i>
+                <span>Settings</span>
+            </a>
+            <a @onclick="HandleLogout" class="nav-item" style="cursor: pointer;">
+                <i data-lucide="log-out" class="nav-icon"></i>
+                <span>Logout</span>
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        @Body
+    </main>
+</div>
+
+@code {
+    private string? userName;
+    private string? userEmail;
+    private string? userInitials;
+    private bool _isLoadingUserInfo = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Subscribe to state changes
+        AuthState.OnChange += HandleStateChanged;
+        // AuthState.OnPatientProfileChanged += HandleStateChanged;
+
+        // Check authentication and sync with AuthState if needed
+        await InitializeAuthentication();
+        
+        // Load user info
+        await LoadUserInfo();
+    }
+
+    private async Task InitializeAuthentication()
+    {
+        try
+        {
+            // If AuthState doesn't have user data, try to sync from Supabase session
+            if (AuthState.CurrentUser == null)
+            {
+                // await AuthController.CheckAndSyncAuthenticationAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error initializing authentication: {ex.Message}");
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await JSRuntime.InvokeVoidAsync("eval", "if (window.lucide) lucide.createIcons();");
+        
+        // Add active class to current nav item
+        await JSRuntime.InvokeVoidAsync("eval", @"
+            (function() {
+                const currentPath = window.location.pathname;
+                const navItems = document.querySelectorAll('.sidebar-nav .nav-item');
+                
+                navItems.forEach(item => {
+                    item.classList.remove('active');
+                    const href = item.getAttribute('href');
+                    if (href && currentPath.includes(href)) {
+                        item.classList.add('active');
+                    }
+                });
+            })();
+        ");
+    }
+
+    private async Task LoadUserInfo()
+    {
+        // Prevent infinite loop - don't check auth if already checking
+        if (_isLoadingUserInfo)
+            return;
+
+        _isLoadingUserInfo = true;
+
+        try
+        {
+            // Check if user is authenticated
+            if (AuthState.CurrentUser != null)
+            {
+                userEmail = AuthState.CurrentUser.Email;
+
+                // Try to get patient profile for full name
+                // TODO: Implement patient profile loading
+                // if (AuthState.CurrentPatientProfile != null)
+                // {
+                //     userName = AuthState.CurrentPatientProfile.FullName;
+                // }
+
+                // Generate initials
+                if (!string.IsNullOrEmpty(userName))
+                {
+                    userInitials = GetInitials(userName);
+                }
+                else if (!string.IsNullOrEmpty(userEmail))
+                {
+                    userInitials = userEmail.Substring(0, 1).ToUpper();
+                }
+            }
+            else
+            {
+                // Clear user info
+                userName = null;
+                userEmail = null;
+                userInitials = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading user info: {ex.Message}");
+        }
+        finally
+        {
+            _isLoadingUserInfo = false;
+        }
+    }
+
+    private void HandleStateChanged()
+    {
+        // Reload user info when state changes
+        InvokeAsync(async () =>
+        {
+            await LoadUserInfo();
+            StateHasChanged();
+        });
+    }
+
+    private async Task HandleLogout()
+    {
+        try
+        {
+            await AuthController.LogoutAsync();
+            Navigation.NavigateTo("/auth/signin");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error during logout: {ex.Message}");
+        }
+    }
+
+    private string GetInitials(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return "?";
+
+        var parts = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        
+        if (parts.Length >= 2)
+        {
+            return $"{parts[0][0]}{parts[^1][0]}".ToUpper();
+        }
+        else if (parts.Length == 1)
+        {
+            return parts[0].Substring(0, Math.Min(2, parts[0].Length)).ToUpper();
+        }
+
+        return "?";
+    }
+
+    public void Dispose()
+    {
+        AuthState.OnChange -= HandleStateChanged;
+        // AuthState.OnPatientProfileChanged -= HandleStateChanged;
+    }
+}
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    .dashboard-layout {
+        display: flex;
+        background: #f7f9fb;
+        font-family: 'Inter', sans-serif;
+    }
+
+    /* Sidebar */
+    .sidebar {
+        width: 280px;
+        min-height: 100vh;
+        max-height: 100vh;
+        background: #ffffff;
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        position: fixed;
+        left: 0;
+        top: 0;
+    }
+
+    .sidebar-header {
+        padding: 32px 24px 24px;
+        margin-bottom: 0;
+    }
+
+    .profile-section-link {
+        text-decoration: none;
+        color: inherit;
+        display: block;
+        margin-bottom: 24px;
+    }
+
+    .profile-section {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        position: relative;
+        cursor: pointer;
+        padding: 8px;
+        border-radius: 12px;
+        transition: background 0.2s;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+
+    .profile-section:hover {
+        background: #f2f4f6;
+    }
+
+    .profile-section:active {
+        transform: scale(0.98);
+    }
+
+    .profile-section * {
+        pointer-events: none;
+    }
+
+    /* Prevent Lucide SVG from blocking clicks */
+    svg {
+        pointer-events: none;
+    }
+
+    .avatar {
+        width: 48px;
+        height: 48px;
+        min-width: 48px;
+        min-height: 48px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #0052cc, #003d9b);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        color: white;
+    }
+
+    .avatar-text {
+        font-size: 18px;
+        font-weight: 600;
+        color: white;
+        user-select: none;
+    }
+
+    .profile-info h3 {
+        font-size: 14px;
+        font-weight: 600;
+        color: #191c1e;
+        margin-bottom: 4px;
+        line-height: 1.2;
+    }
+
+    .profile-info p {
+        font-size: 12px;
+        color: #434654;
+        margin-bottom: 8px;
+        line-height: 1.2;
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        background: #76f3ea;
+        color: #006a65;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 500;
+        line-height: 1.2;
+    }
+
+    .btn-block {
+        width: 100%;
+        padding: 14px 24px;
+        background: #0052cc;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        line-height: 1.2;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-family: 'Inter', sans-serif;
+        text-align: center;
+        white-space: nowrap;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .btn-block:hover {
+        background: #003d9b;
+        transform: translateY(-1px);
+    }
+
+    .sidebar-nav {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        padding: 0.5rem 0;
+    }
+
+    .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.875rem 1.5rem;
+        color: #434654;
+        text-decoration: none;
+        border-radius: 0;
+        transition: all 0.2s;
+        font-size: 0.875rem;
+    }
+
+    .nav-item:hover {
+        background: #f2f4f6;
+        color: #191c1e;
+    }
+
+    .nav-item.active {
+        background: #dae2ff;
+        color: #003d9b;
+        font-weight: 600;
+        border-left: 8px solid #0052cc;
+        padding-left: calc(1.5rem - 3px);
+    }
+
+    .nav-icon {
+        font-size: 1.25rem;
+    }
+
+    .sidebar-footer {
+        border-top: 1px solid #e0e3e5;
+        padding: 1rem 0 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    /* Main Content */
+    .main-content {
+        flex: 1;
+        margin-left: 280px;
+        padding: 2.5rem 3rem;
+        overflow-y: auto;
+    }
+
+    /* Responsive */
+    @@media (max-width: 768px) {
+        .dashboard-layout {
+            flex-direction: column;
+        }
+
+        .sidebar {
+            width: 100%;
+        }
+
+        .main-content {
+            padding: 1.5rem;
+        }
+    }
+</style>
+

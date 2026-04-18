@@ -1,0 +1,88 @@
+@inject AuthController AuthController
+@inject AuthState AuthState
+@inject NavigationManager Navigation
+
+@if (isChecking)
+{
+    <div class="auth-checking">
+        <div class="spinner"></div>
+    </div>
+}
+else if (isAuthenticated)
+{
+    @ChildContent
+}
+
+@code {
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter]
+    public string RedirectUrl { get; set; } = "/auth/signin";
+
+    private bool isChecking = true;
+    private bool isAuthenticated = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CheckAuthentication();
+    }
+
+    private async Task CheckAuthentication()
+    {
+        isChecking = true;
+        
+        try
+        {
+            // Check AuthState (fast, no API call)
+            if (AuthState.IsAuthenticated && AuthState.CurrentUser != null)
+            {
+                isAuthenticated = true;
+                isChecking = false;
+                return;
+            }
+
+            // If not authenticated, redirect to sign-in
+            isAuthenticated = AuthController.IsAuthenticated();
+            
+            if (!isAuthenticated)
+            {
+                var returnUrl = Uri.EscapeDataString(Navigation.Uri);
+                Navigation.NavigateTo($"{RedirectUrl}?returnUrl={returnUrl}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Authentication check failed: {ex.Message}");
+            isAuthenticated = false;
+            Navigation.NavigateTo(RedirectUrl);
+        }
+        finally
+        {
+            isChecking = false;
+        }
+    }
+}
+
+<style>
+    .auth-checking {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        background: #f7f9fb;
+    }
+
+    .spinner {
+        width: 48px;
+        height: 48px;
+        border: 4px solid #e6e8ea;
+        border-top-color: #0052cc;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @@keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+</style>

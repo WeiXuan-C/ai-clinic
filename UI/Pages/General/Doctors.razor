@@ -1,0 +1,771 @@
+@page "/general/doctors"
+@layout Components.Layout.MainLayout
+
+<PageTitle>Find Doctors - AI Medical Clinic</PageTitle>
+
+<div class="doctors-page">
+    <div class="container">
+        <!-- Header Section -->
+        <div class="page-header-section">            
+            <div class="search-row">
+                <div class="search-container">
+                    <i data-lucide="search" class="search-icon"></i>
+                    <input type="text" @bind="searchQuery" @bind:event="oninput" placeholder="Search by name, specialty, or condition..." class="search-input" />
+                </div>
+                <button class="btn-available-today" @onclick="FilterAvailableToday">
+                    <i data-lucide="calendar" class="calendar-icon"></i>
+                    Available Today
+                </button>
+            </div>
+        </div>
+
+        <!-- Filters Section -->
+        <section class="filters-section">
+            <div class="filter-buttons">
+                <button class="filter-btn" @onclick="ToggleSpecialtyFilter">
+                    Specialty <span class="dropdown-arrow">▼</span>
+                </button>
+                <button class="filter-btn" @onclick="ToggleOrganizationFilter">
+                    Organization <span class="dropdown-arrow">▼</span>
+                </button>
+                <button class="filter-btn" @onclick="ToggleRatingFilter">
+                    Rating <span class="dropdown-arrow">▼</span>
+                </button>
+                <button class="filter-btn" @onclick="ToggleInsuranceFilter">
+                    Insurance <span class="dropdown-arrow">▼</span>
+                </button>
+            </div>
+            <div class="results-count">@FilteredDoctors.Count() specialists found</div>
+        </section>
+
+        <!-- Doctors Grid -->
+        <section class="doctors-grid">
+            @foreach (var doctor in FilteredDoctors)
+            {
+                <div class="doctor-card">
+                    <button class="bookmark-btn" @onclick="@(() => ToggleBookmark(doctor.Id))">
+                        <i data-lucide="bookmark" class="bookmark-icon @(doctor.IsBookmarked ? "filled" : "")"></i>
+                    </button>
+                    
+                    <div class="doctor-card-header">
+                        <div class="doctor-photo">
+                            <div class="photo-placeholder" style="background: @doctor.PhotoColor;">
+                                @doctor.Name.Substring(0, 1)
+                            </div>
+                            @if (doctor.IsOnline)
+                            {
+                                <span class="online-badge"></span>
+                            }
+                        </div>
+                        
+                        <div class="doctor-info">
+                            <h3 class="doctor-name">@doctor.Name</h3>
+                            <div class="doctor-tags">
+                                <span class="specialty-tag">@doctor.Specialty.ToUpper()</span>
+                                <span class="organization-tag">@doctor.Organization.ToUpper()</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="doctor-rating">
+                        <div class="stars">
+                            @for (int i = 0; i < 5; i++)
+                            {
+                                <i data-lucide="star" class="star @(i < Math.Floor(doctor.Rating) ? "filled" : "")"></i>
+                            }
+                        </div>
+                        <span class="rating-text">@doctor.Rating.ToString("0.0") <span class="review-count">(@doctor.ReviewCount reviews)</span></span>
+                    </div>
+                    
+                    <div class="availability-card">
+                        <div class="availability-info">
+                            <i data-lucide="clock" class="clock-icon"></i>
+                            <div class="availability-text">
+                                <div class="availability-label">Next Available</div>
+                                <div class="availability-time">@doctor.NextAvailable</div>
+                            </div>
+                        </div>
+                        @if (doctor.IsAvailableToday)
+                        {
+                            <span class="availability-badge">✦ AVAILABILITY</span>
+                        }
+                        @if (doctor.IsOnline && !doctor.IsAvailableToday)
+                        {
+                            <span class="ai-assist-badge">✦ AI ASSIST READY</span>
+                        }
+                    </div>
+                </div>
+            }
+        </section>
+
+        @if (!FilteredDoctors.Any())
+        {
+            <div class="empty-state">
+                <p class="empty-message">No doctors found matching your criteria</p>
+                <button class="btn-primary" @onclick="ClearFilters">Clear Filters</button>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Inject]
+    public NavigationManager NavigationManager { get; set; } = default!;
+    
+    private string searchQuery = "";
+    private bool showAvailableOnly = false;
+    private int currentPage = 1;
+    private List<Doctor> doctors = new();
+
+    private IEnumerable<Doctor> FilteredDoctors =>
+        doctors.Where(d =>
+            (string.IsNullOrEmpty(searchQuery) || 
+             d.Name.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) || 
+             d.Specialty.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)) &&
+            (!showAvailableOnly || d.IsAvailableToday)
+        );
+
+    protected override void OnInitialized()
+    {
+        // TODO: Load from Supabase
+        doctors = new List<Doctor>
+        {
+            new Doctor
+            {
+                Id = 1,
+                Name = "Dr. Sarah Jenkins",
+                Specialty = "Cardiology",
+                Organization = "Mayo Clinic",
+                Rating = 4.8,
+                ReviewCount = 124,
+                NextAvailable = "Today, 2:30 PM",
+                IsAvailableToday = true,
+                PhotoColor = "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+            },
+            new Doctor
+            {
+                Id = 2,
+                Name = "Dr. Michael Chen",
+                Specialty = "Neurology",
+                Organization = "Stanford Med",
+                Rating = 5.0,
+                ReviewCount = 89,
+                NextAvailable = "Tue, Sep 12",
+                IsAvailableToday = false,
+                PhotoColor = "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)"
+            },
+            new Doctor
+            {
+                Id = 3,
+                Name = "Dr. Elena Rodriguez",
+                Specialty = "Pediatrics",
+                Organization = "Children's National",
+                Rating = 4.2,
+                ReviewCount = 278,
+                NextAvailable = "Today, 4:45 PM",
+                IsAvailableToday = true,
+                PhotoColor = "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)"
+            },
+            new Doctor
+            {
+                Id = 4,
+                Name = "Dr. James Wilson",
+                Specialty = "Psychiatry",
+                Organization = "Mindwell Inst.",
+                Rating = 4.9,
+                ReviewCount = 342,
+                NextAvailable = "Wed, Sep 13",
+                IsAvailableToday = false,
+                PhotoColor = "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)"
+            },
+            new Doctor
+            {
+                Id = 5,
+                Name = "Dr. Amara Okoro",
+                Specialty = "Dermatology",
+                Organization = "City Health",
+                Rating = 4.8,
+                ReviewCount = 196,
+                NextAvailable = "Tomorrow, 10:00 AM",
+                IsAvailableToday = false,
+                IsOnline = true,
+                PhotoColor = "linear-gradient(135deg, #fa709a 0%, #fee140 100%)"
+            },
+            new Doctor
+            {
+                Id = 6,
+                Name = "Dr. David Thorne",
+                Specialty = "Endocrinology",
+                Organization = "Mercy General",
+                Rating = 5.0,
+                ReviewCount = 67,
+                NextAvailable = "Mon, Sep 18",
+                IsAvailableToday = false,
+                PhotoColor = "linear-gradient(135deg, #30cfd0 0%, #330867 100%)"
+            }
+        };
+    }
+
+    private void FilterAvailableToday()
+    {
+        showAvailableOnly = !showAvailableOnly;
+    }
+
+    private void ToggleSpecialtyFilter() { }
+    private void ToggleOrganizationFilter() { }
+    private void ToggleRatingFilter() { }
+    private void ToggleInsuranceFilter() { }
+
+    private void ToggleBookmark(int doctorId)
+    {
+        var doctor = doctors.FirstOrDefault(d => d.Id == doctorId);
+        if (doctor != null)
+        {
+            doctor.IsBookmarked = !doctor.IsBookmarked;
+        }
+    }
+
+    private void BookAppointment(int doctorId)
+    {
+        NavigationManager.NavigateTo($"/book/{doctorId}");
+    }
+
+    private void ViewProfile(int doctorId)
+    {
+        NavigationManager.NavigateTo($"/doctor/{doctorId}");
+    }
+
+    private void ClearFilters()
+    {
+        searchQuery = "";
+        showAvailableOnly = false;
+    }
+
+    private void GoToPage(int page)
+    {
+        currentPage = page;
+    }
+
+    private void PreviousPage()
+    {
+        if (currentPage > 1) currentPage--;
+    }
+
+    private void NextPage()
+    {
+        if (currentPage < 12) currentPage++;
+    }
+
+    public class Doctor
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public string Specialty { get; set; } = "";
+        public string Organization { get; set; } = "";
+        public double Rating { get; set; }
+        public int ReviewCount { get; set; }
+        public string NextAvailable { get; set; } = "";
+        public bool IsAvailableToday { get; set; }
+        public bool IsOnline { get; set; }
+        public bool IsBookmarked { get; set; }
+        public string PhotoColor { get; set; } = "";
+    }
+}
+
+<style>
+    /* Header Section */
+    .page-header-section {
+        margin-bottom: 3rem;
+    }
+
+    .page-title {
+        font-family: var(--font-headline);
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: var(--on-surface);
+        margin-bottom: 2rem;
+    }
+
+    .search-row {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        margin: 3rem;
+    }
+
+    .search-container {
+        flex: 1;
+        position: relative;
+        display: flex;
+        align-items: center;
+        background: var(--surface-container-lowest);
+        border-radius: var(--radius-full);
+        padding: 0.75rem 1.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    }
+
+    .search-icon {
+        font-size: 1.25rem;
+        margin-right: 0.75rem;
+        opacity: 0.5;
+    }
+
+    .search-input {
+        flex: 1;
+        border: none;
+        background: transparent;
+        font-family: var(--font-body);
+        font-size: 1rem;
+        color: var(--on-surface);
+        outline: none;
+    }
+
+    .search-input::placeholder {
+        color: var(--on-surface-variant);
+    }
+
+    .btn-available-today {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.5rem;
+        background: var(--secondary-container);
+        color: var(--on-surface);
+        border: none;
+        border-radius: var(--radius-full);
+        font-family: var(--font-body);
+        font-size: 1rem;
+        font-weight: 500;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: all 0.3s ease;
+    }
+
+    .btn-available-today:hover {
+        background: var(--secondary);
+        color: var(--on-secondary);
+        transform: translateY(-2px);
+    }
+
+    .calendar-icon {
+        font-size: 1.125rem;
+    }
+
+    /* Filters Section */
+    .filters-section {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid var(--outline-variant);
+    }
+
+    .filter-buttons {
+        display: flex;
+        gap: 0.75rem;
+    }
+
+    .filter-btn {
+        padding: 0.625rem 1.25rem;
+        background: var(--surface-container-low);
+        color: var(--on-surface);
+        border: none;
+        border-radius: var(--radius-full);
+        font-family: var(--font-body);
+        font-size: 0.9375rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .filter-btn:hover {
+        background: var(--surface-container-high);
+    }
+
+    .dropdown-arrow {
+        font-size: 0.75rem;
+        opacity: 0.7;
+    }
+
+    .results-count {
+        color: var(--on-surface-variant);
+        font-size: 0.9375rem;
+    }
+
+    /* Doctors Grid */
+    .doctors-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.5rem;
+        margin-bottom: 3rem;
+    }
+
+    .doctor-card {
+        position: relative;
+        background: var(--surface-container-lowest);
+        border-radius: var(--radius-xl);
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+        transition: all 0.3s ease;
+        border: 1px solid var(--outline-variant);
+    }
+
+    .doctor-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        border-color: var(--primary-container);
+    }
+
+    .bookmark-btn {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        font-size: 1.25rem;
+        opacity: 0.3;
+        transition: opacity 0.3s ease;
+        z-index: 10;
+        padding: 0.25rem;
+    }
+
+    .bookmark-btn:hover {
+        opacity: 1;
+    }
+
+    .doctor-card-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .doctor-photo {
+        position: relative;
+        flex-shrink: 0;
+    }
+
+    .photo-placeholder {
+        width: 64px;
+        height: 64px;
+        border-radius: var(--radius-lg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: white;
+    }
+
+    .online-badge {
+        position: absolute;
+        bottom: 2px;
+        right: 2px;
+        width: 14px;
+        height: 14px;
+        background: #10b981;
+        border: 2px solid var(--surface-container-lowest);
+        border-radius: 50%;
+    }
+
+    .doctor-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .doctor-name {
+        font-family: var(--font-headline);
+        font-size: 1.125rem;
+        font-weight: 700;
+        color: var(--on-surface);
+        margin-bottom: 0.5rem;
+        line-height: 1.3;
+    }
+
+    .doctor-tags {
+        display: flex;
+        gap: 0.375rem;
+        flex-wrap: wrap;
+    }
+
+    .specialty-tag {
+        padding: 0.25rem 0.625rem;
+        background: #dbeafe;
+        color: #1e40af;
+        border-radius: var(--radius-md);
+        font-size: 0.6875rem;
+        font-weight: 600;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+    }
+
+    .organization-tag {
+        padding: 0.25rem 0.625rem;
+        background: #f3f4f6;
+        color: #6b7280;
+        border-radius: var(--radius-md);
+        font-size: 0.6875rem;
+        font-weight: 500;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+    }
+
+    .doctor-rating {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid var(--outline-variant);
+    }
+
+    .stars {
+        display: flex;
+        gap: 0.125rem;
+    }
+
+    .star {
+        font-size: 0.875rem;
+        filter: grayscale(100%);
+        opacity: 0.3;
+    }
+
+    .star.filled {
+        filter: grayscale(0%);
+        opacity: 1;
+        color: #0d9488;
+    }
+
+    .rating-text {
+        font-size: 0.9375rem;
+        font-weight: 700;
+        color: var(--on-surface);
+    }
+
+    .review-count {
+        font-weight: 400;
+        color: var(--on-surface-variant);
+        font-size: 0.8125rem;
+    }
+
+    .availability-card {
+        background: #f9fafb;
+        border-radius: var(--radius-lg);
+        padding: 0.875rem;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .availability-info {
+        display: flex;
+        align-items: center;
+        gap: 0.625rem;
+    }
+
+    .clock-icon {
+        font-size: 1.25rem;
+        opacity: 0.6;
+    }
+
+    .availability-text {
+        flex: 1;
+    }
+
+    .availability-label {
+        font-size: 0.6875rem;
+        color: var(--on-surface-variant);
+        font-weight: 500;
+        margin-bottom: 0.125rem;
+    }
+
+    .availability-time {
+        font-size: 0.875rem;
+        color: var(--on-surface);
+        font-weight: 700;
+    }
+
+    .availability-badge {
+        padding: 0.375rem 0.625rem;
+        background: #d1fae5;
+        color: #065f46;
+        border-radius: var(--radius-md);
+        font-size: 0.625rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        white-space: nowrap;
+    }
+
+    .ai-assist-badge {
+        padding: 0.375rem 0.625rem;
+        background: #e0e7ff;
+        color: #3730a3;
+        border-radius: var(--radius-md);
+        font-size: 0.625rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        white-space: nowrap;
+    }
+
+    .card-actions {
+        display: flex;
+        gap: 0.625rem;
+    }
+
+    .btn-view-profile {
+        flex: 1;
+        padding: 0.75rem 1rem;
+        background: #f3f4f6;
+        color: var(--on-surface);
+        border: none;
+        border-radius: var(--radius-lg);
+        font-family: var(--font-body);
+        font-size: 0.875rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .btn-view-profile:hover {
+        background: #e5e7eb;
+    }
+
+    .btn-book-consultation {
+        flex: 1;
+        padding: 0.75rem 1rem;
+        background: #1e40af;
+        color: white;
+        border: none;
+        border-radius: var(--radius-lg);
+        font-family: var(--font-body);
+        font-size: 0.875rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .btn-book-consultation:hover {
+        background: #1e3a8a;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(30, 64, 175, 0.3);
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        background: var(--surface-container-lowest);
+        border-radius: var(--radius-xl);
+    }
+
+    .empty-message {
+        color: var(--on-surface-variant);
+        font-size: 1.125rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .btn-primary {
+        padding: 0.75rem 2rem;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-container) 100%);
+        color: var(--on-primary);
+        border: none;
+        border-radius: var(--radius-full);
+        font-family: var(--font-body);
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 61, 155, 0.3);
+    }
+
+    /* Pagination */
+    .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 0.5rem;
+        margin-top: 3rem;
+    }
+
+    .page-btn {
+        min-width: 40px;
+        height: 40px;
+        padding: 0.5rem;
+        background: var(--surface-container-lowest);
+        color: var(--on-surface);
+        border: 1px solid var(--outline-variant);
+        border-radius: var(--radius-lg);
+        font-family: var(--font-body);
+        font-size: 0.9375rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .page-btn:hover:not(:disabled) {
+        background: var(--surface-container-high);
+        border-color: var(--primary-container);
+    }
+
+    .page-btn.active {
+        background: var(--primary-container);
+        color: var(--on-primary);
+        border-color: var(--primary-container);
+    }
+
+    .page-btn:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+    }
+
+    .page-dots {
+        color: var(--on-surface-variant);
+        padding: 0 0.5rem;
+    }
+
+    /* Responsive */
+    @@media (max-width: 1200px) {
+        .doctors-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @@media (max-width: 768px) {
+        .doctors-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .search-row {
+            flex-direction: column;
+        }
+
+        .btn-available-today {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .filters-section {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .filter-buttons {
+            flex-wrap: wrap;
+        }
+
+        .card-actions {
+            flex-direction: column;
+        }
+    }
+</style>

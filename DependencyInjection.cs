@@ -1,82 +1,60 @@
-using AiClinic.Application.Commands;
-using AiClinic.Application.DTOs;
-using AiClinic.Application.Factories;
-using AiClinic.Application.Services;
 using AiClinic.Core.Interfaces;
-using AiClinic.Infrastructure.Data;
-using AiClinic.Infrastructure.Repositories;
-using AiClinic.Infrastructure.Services;
-using AiClinic.Presentation.Controllers;
-using AiClinic.Presentation.Services;
-using AiClinic.Presentation.State;
+using AiClinic.DAOs;
+using AiClinic.Services;
+using AiClinic.Controller;
+using AiClinic.UI.State;
+using AiClinic.Factories;
 using Supabase;
 
 namespace AiClinic;
 
-public static class DependencyInjection
+/// <summary>
+/// Dependency Injection Configuration
+/// Registers all services, DAOs, controllers, and state with proper lifetimes
+/// </summary>
+public static class DependencyInjectionExtensions
 {
-    public static IServiceCollection AddApplicationServices(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddApplicationServices(
+        this IServiceCollection services,
+        IConfiguration configuration)
     {
-        // Supabase Client - Singleton to persist session across requests
-        services.AddSingleton<Client>(provider =>
-        {
-            var url = configuration["Supabase:Url"] ?? throw new InvalidOperationException("Supabase URL not configured");
-            var key = configuration["Supabase:Key"] ?? throw new InvalidOperationException("Supabase Key not configured");
-            
-            var options = new SupabaseOptions
-            {
-                AutoRefreshToken = true,
-                AutoConnectRealtime = true,
-                SessionHandler = new SupabaseSessionHandler() // Enable session persistence
-            };
-            
-            return new Client(url, key, options);
-        });
+        // Register Supabase Client
+        var supabaseUrl = configuration["Supabase:Url"] 
+            ?? throw new Exception("Supabase URL not configured");
+        var supabaseKey = configuration["Supabase:Key"] 
+            ?? throw new Exception("Supabase Key not configured");
 
-        // Infrastructure - Data
-        services.AddScoped<SupabaseContext>();
+        services.AddScoped<Client>(_ => 
+            new Client(supabaseUrl, supabaseKey));
 
-        // Infrastructure - Repositories
-        services.AddScoped<IUserRepository, UserRepository>();
-        services.AddScoped<IConversationRepository, ConversationRepository>();
-        services.AddScoped<IMessageRepository, MessageRepository>();
-        services.AddScoped<IDoctorRepository, DoctorRepository>();
-        services.AddScoped<IDocumentRepository, DocumentRepository>();
-        services.AddScoped<IPatientProfileRepository, PatientProfileRepository>();
-        services.AddScoped<IDoctorRatingRepository, DoctorRatingRepository>();
-        services.AddScoped<IOrganizationRepository, OrganizationRepository>();
-        services.AddScoped<IActivityLogRepository, ActivityLogRepository>();
+        // Register DAOs (Adapter Pattern) - Scoped lifetime
+        services.AddScoped<IUserRepository, UserDAO>();
+        services.AddScoped<IConversationRepository, ConversationDAO>();
+        services.AddScoped<IMessageRepository, MessageDAO>();
+        services.AddScoped<IDoctorRepository, DoctorDAO>();
+        services.AddScoped<IDocumentRepository, DocumentDAO>();
+        services.AddScoped<IPatientProfileRepository, PatientProfileDAO>();
 
-        // Application - Services
-        services.AddScoped<IAuthService, AuthService>();
-        services.AddScoped<IChatService, ChatService>();
-        services.AddScoped<IDoctorAssignmentService, DoctorAssignmentService>();
-        services.AddScoped<IAiService, AiService>();
-        services.AddScoped<IPatientService, PatientService>();
-        services.AddScoped<IDoctorService, DoctorService>();
+        // Register Services (Business Logic) - Scoped lifetime
+        services.AddScoped<AuthService>();
+        services.AddScoped<ChatService>();
+        services.AddScoped<DoctorService>();
+        services.AddScoped<PatientService>();
 
-        // Application - Factories (Abstract Factory Pattern)
-        services.AddScoped<IMessageHandlerFactory, MessageHandlerFactory>();
+        // Register Factories (Abstract Factory Pattern) - Scoped lifetime
+        services.AddScoped<IServiceFactory, ServiceFactory>();
 
-        // Application - Command Handlers (Command Pattern)
-        services.AddScoped<ICommandHandler<CreateConversationCommand, ConversationDto>, CreateConversationCommandHandler>();
-        services.AddScoped<ICommandHandler<SendMessageCommand, MessageDto>, SendMessageCommandHandler>();
-
-        // Presentation - State (Singleton Pattern)
-        services.AddSingleton<AppState>(AppState.Instance);
-
-        // Presentation - Services
-        services.AddScoped<AuthenticationStateService>();
-        services.AddScoped<BrowserStorageService>();
-
-        // Presentation - Controllers (Adapter Pattern)
+        // Register Controllers (Facade Pattern) - Scoped lifetime
         services.AddScoped<AuthController>();
         services.AddScoped<ChatController>();
-        services.AddScoped<PatientController>();
         services.AddScoped<DoctorController>();
-        
-        // HTTP Context Accessor for request metadata
-        services.AddHttpContextAccessor();
+        services.AddScoped<PatientController>();
+
+        // Register State (Singleton Pattern) - Singleton lifetime
+        // Single instance shared across entire application
+        services.AddSingleton<AuthState>();
+        services.AddSingleton<ChatState>();
+        services.AddSingleton<DoctorState>();
 
         return services;
     }
