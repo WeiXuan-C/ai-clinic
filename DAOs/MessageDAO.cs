@@ -53,6 +53,7 @@ public class MessageDAO : IMessageRepository
     {
         var response = await _supabase
             .From<Message>()
+            .Where(x => x.Id == entity.Id)
             .Update(entity);
         
         return response.Models.First();

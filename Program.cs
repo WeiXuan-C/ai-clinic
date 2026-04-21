@@ -6,6 +6,15 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
+// Configure SignalR for Blazor Server
+builder.Services.AddSignalR(options =>
+{
+    options.MaximumReceiveMessageSize = 102400000; // 100 MB
+    options.ClientTimeoutInterval = TimeSpan.FromSeconds(60);
+    options.HandshakeTimeout = TimeSpan.FromSeconds(30);
+    options.KeepAliveInterval = TimeSpan.FromSeconds(15);
+});
+
 // Add application services with dependency injection
 builder.Services.AddApplicationServices(builder.Configuration);
 
@@ -21,9 +30,6 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseAntiforgery();
-
-// Enable WebSockets for Blazor Server
-app.UseWebSockets();
 
 app.MapRazorComponents<ai_clinic.UI.Components.App>()
     .AddInteractiveServerRenderMode();

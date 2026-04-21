@@ -54,6 +54,7 @@ public class DoctorDAO : IDoctorRepository
         
         var response = await _supabase
             .From<Doctor>()
+            .Where(x => x.UserId == entity.UserId)
             .Update(entity);
         
         return response.Models.First();

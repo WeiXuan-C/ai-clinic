@@ -19,12 +19,19 @@ public class UserDAO : IUserRepository
 
     public async Task<User?> GetByIdAsync(Guid id)
     {
-        var response = await _supabase
-            .From<User>()
-            .Where(x => x.Id == id)
-            .Single();
-        
-        return response;
+        try
+        {
+            var response = await _supabase
+                .From<User>()
+                .Where(x => x.Id == id)
+                .Single();
+            
+            return response;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     public async Task<IEnumerable<User>> GetAllAsync()
@@ -54,6 +61,7 @@ public class UserDAO : IUserRepository
         
         var response = await _supabase
             .From<User>()
+            .Where(x => x.Id == entity.Id)
             .Update(entity);
         
         return response.Models.First();
@@ -78,17 +86,31 @@ public class UserDAO : IUserRepository
 
     public async Task<User?> GetByEmailAsync(string email)
     {
-        var response = await _supabase
-            .From<User>()
-            .Where(x => x.Email == email.ToLower())
-            .Single();
-        
-        return response;
+        try
+        {
+            var response = await _supabase
+                .From<User>()
+                .Where(x => x.Email == email.ToLower())
+                .Single();
+            
+            return response;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     public async Task<bool> ExistsAsync(string email)
     {
-        var user = await GetByEmailAsync(email);
-        return user != null;
+        try
+        {
+            var user = await GetByEmailAsync(email);
+            return user != null;
+        }
+        catch
+        {
+            return false;
+        }
     }
 }

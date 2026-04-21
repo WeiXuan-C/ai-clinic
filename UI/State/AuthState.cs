@@ -3,8 +3,8 @@ using AiClinic.Core.Entities;
 namespace AiClinic.UI.State;
 
 /// <summary>
-/// Singleton Pattern Implementation
-/// Global authentication state shared across the entire application
+/// Scoped Authentication State for Blazor
+/// Each user session gets its own instance
 /// </summary>
 public class AuthState
 {
@@ -13,6 +13,7 @@ public class AuthState
 
     /// <summary>
     /// Event triggered when authentication state changes
+    /// Components should subscribe to this and call StateHasChanged()
     /// </summary>
     public event Action? OnChange;
 

@@ -50,8 +50,7 @@ public static class DependencyInjectionExtensions
         services.AddScoped<DoctorController>();
         services.AddScoped<PatientController>();
 
-        // Register State (Singleton Pattern) - Singleton lifetime
-        // Single instance shared across entire application
+        // Register State - Singleton lifetime (system requirement)
         services.AddSingleton<AuthState>();
         services.AddSingleton<ChatState>();
         services.AddSingleton<DoctorState>();

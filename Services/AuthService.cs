@@ -1,105 +1,96 @@
 using AiClinic.Core.Entities;
 using AiClinic.Core.Interfaces;
+using SupabaseClient = Supabase.Client;
 
 namespace AiClinic.Services;
 
 /// <summary>
 /// Authentication Service - Business Logic Layer
-/// Handles OTP generation, validation, and user authentication
+/// Handles OTP generation, validation, and user authentication using Supabase Auth
 /// </summary>
 public class AuthService
 {
     private readonly IUserRepository _userRepository;
-    private readonly Dictionary<string, (string Otp, DateTime Expiration)> _otpStore;
+    private readonly SupabaseClient _supabase;
 
-    public AuthService(IUserRepository userRepository)
+    public AuthService(IUserRepository userRepository, SupabaseClient supabase)
     {
         _userRepository = userRepository;
-        _otpStore = new Dictionary<string, (string, DateTime)>();
+        _supabase = supabase;
     }
 
     /// <summary>
-    /// Generates and sends OTP to user's email
+    /// Sends OTP to user's email using Supabase Auth
     /// </summary>
     public async Task<bool> SendOtpAsync(string email)
     {
-        // Generate 6-digit OTP
-        var otp = GenerateOtp();
-        
-        // Store OTP with 5-minute expiration
-        var expiration = DateTime.UtcNow.AddMinutes(5);
-        _otpStore[email.ToLower()] = (otp, expiration);
-        
-        // TODO: Send OTP via email service
-        Console.WriteLine($"OTP for {email}: {otp}");
-        
-        return await Task.FromResult(true);
+        try
+        {
+            // Use Supabase Auth to send OTP email
+            var options = new Supabase.Gotrue.SignInWithPasswordlessEmailOptions(email);
+
+            await _supabase.Auth.SignInWithOtp(options);
+            
+            Console.WriteLine($"✅ OTP sent to {email} via Supabase Auth");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Error sending OTP: {ex.Message}");
+            return false;
+        }
     }
 
     /// <summary>
-    /// Verifies OTP and authenticates user (auto-registers if new user)
+    /// Verifies OTP using Supabase Auth and syncs with local database
     /// </summary>
     public async Task<(bool Success, User? User, string? Error)> VerifyOtpAsync(string email, string otp)
     {
-        email = email.ToLower();
-        
-        // Check if OTP exists
-        if (!_otpStore.ContainsKey(email))
+        try
         {
-            return (false, null, "Invalid OTP");
-        }
-        
-        var (storedOtp, expiration) = _otpStore[email];
-        
-        // Check if OTP is expired
-        if (DateTime.UtcNow > expiration)
-        {
-            _otpStore.Remove(email);
-            return (false, null, "OTP expired");
-        }
-        
-        // Verify OTP
-        if (storedOtp != otp)
-        {
-            return (false, null, "Invalid OTP");
-        }
-        
-        // Remove used OTP
-        _otpStore.Remove(email);
-        
-        // Check if user exists
-        var user = await _userRepository.GetByEmailAsync(email);
-        
-        if (user == null)
-        {
-            // Auto-register new user
-            user = new User
-            {
-                Email = email,
-                Role = "patient",
-                IsActive = true,
-                LastLoginAt = DateTime.UtcNow
-            };
+            email = email.ToLower();
             
-            user = await _userRepository.AddAsync(user);
-        }
-        else
-        {
-            // Update last login
-            user.LastLoginAt = DateTime.UtcNow;
-            await _userRepository.UpdateAsync(user);
-        }
-        
-        return (true, user, null);
-    }
+            // Verify OTP with Supabase Auth
+            var response = await _supabase.Auth.VerifyOTP(email, otp, Supabase.Gotrue.Constants.EmailOtpType.MagicLink);
+            
+            if (response?.User == null)
+            {
+                return (false, null, "Invalid OTP or verification failed");
+            }
 
-    /// <summary>
-    /// Generates a random 6-digit OTP
-    /// </summary>
-    private string GenerateOtp()
-    {
-        var random = new Random();
-        return random.Next(100000, 999999).ToString();
+            // Get or create user in local database
+            var user = await _userRepository.GetByEmailAsync(email);
+            
+            if (user == null)
+            {
+                // Create new user in local database
+                user = new User
+                {
+                    Email = email,
+                    Role = "patient",
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    LastLoginAt = DateTime.UtcNow
+                };
+                
+                user = await _userRepository.AddAsync(user);
+                Console.WriteLine($"✅ New user created: {email}");
+            }
+            else
+            {
+                // Update last login
+                user.LastLoginAt = DateTime.UtcNow;
+                await _userRepository.UpdateAsync(user);
+                Console.WriteLine($"✅ User logged in: {email}");
+            }
+            
+            return (true, user, null);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Error verifying OTP: {ex.Message}");
+            return (false, null, $"Verification failed: {ex.Message}");
+        }
     }
 
     /// <summary>

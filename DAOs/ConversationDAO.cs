@@ -56,6 +56,7 @@ public class ConversationDAO : IConversationRepository
         
         var response = await _supabase
             .From<Conversation>()
+            .Where(x => x.Id == entity.Id)
             .Update(entity);
         
         return response.Models.First();

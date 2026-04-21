@@ -19,12 +19,19 @@ public class PatientProfileDAO : IPatientProfileRepository
 
     public async Task<PatientProfile?> GetByIdAsync(Guid id)
     {
-        var response = await _supabase
-            .From<PatientProfile>()
-            .Where(x => x.Id == id)
-            .Single();
-        
-        return response;
+        try
+        {
+            var response = await _supabase
+                .From<PatientProfile>()
+                .Where(x => x.Id == id)
+                .Single();
+            
+            return response;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     public async Task<IEnumerable<PatientProfile>> GetAllAsync()
@@ -54,6 +61,7 @@ public class PatientProfileDAO : IPatientProfileRepository
         
         var response = await _supabase
             .From<PatientProfile>()
+            .Where(x => x.UserId == entity.UserId)
             .Update(entity);
         
         return response.Models.First();
@@ -78,11 +86,18 @@ public class PatientProfileDAO : IPatientProfileRepository
 
     public async Task<PatientProfile?> GetByUserIdAsync(Guid userId)
     {
-        var response = await _supabase
-            .From<PatientProfile>()
-            .Where(x => x.UserId == userId)
-            .Single();
-        
-        return response;
+        try
+        {
+            var response = await _supabase
+                .From<PatientProfile>()
+                .Where(x => x.UserId == userId)
+                .Single();
+            
+            return response;
+        }
+        catch
+        {
+            return null;
+        }
     }
 }

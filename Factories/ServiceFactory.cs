@@ -21,19 +21,22 @@ public class ServiceFactory : IServiceFactory
     private readonly IConversationRepository _conversationRepository;
     private readonly IDocumentRepository _documentRepository;
     private readonly IDoctorRepository _doctorRepository;
+    private readonly Supabase.Client _supabase;
 
     public ServiceFactory(
         IUserRepository userRepository,
         IMessageRepository messageRepository,
         IConversationRepository conversationRepository,
         IDocumentRepository documentRepository,
-        IDoctorRepository doctorRepository)
+        IDoctorRepository doctorRepository,
+        Supabase.Client supabase)
     {
         _userRepository = userRepository;
         _messageRepository = messageRepository;
         _conversationRepository = conversationRepository;
         _documentRepository = documentRepository;
         _doctorRepository = doctorRepository;
+        _supabase = supabase;
     }
 
     /// <summary>
@@ -41,7 +44,7 @@ public class ServiceFactory : IServiceFactory
     /// </summary>
     public AuthService CreateAuthService()
     {
-        return new AuthService(_userRepository);
+        return new AuthService(_userRepository, _supabase);
     }
 
     /// <summary>

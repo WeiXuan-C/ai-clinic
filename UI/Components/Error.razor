@@ -1,0 +1,22 @@
+@page "/Error"
+@using System.Diagnostics
+
+<PageTitle>Error</PageTitle>
+
+<div style="padding: 2rem; max-width: 600px; margin: 0 auto; text-align: center;">
+    <h1 style="color: #dc3545; margin-bottom: 1rem;">⚠️ Error</h1>
+    <p style="color: #666; margin-bottom: 2rem;">
+        An error occurred while processing your request.
+    </p>
+    
+    @if (Activity.Current?.Id != null)
+    {
+        <p style="font-size: 0.875rem; color: #999; margin-bottom: 1rem;">
+            Request ID: <code>@Activity.Current.Id</code>
+        </p>
+    }
+    
+    <a href="/" style="display: inline-block; padding: 0.75rem 1.5rem; background: #0052cc; color: white; text-decoration: none; border-radius: 8px;">
+        Return to Home
+    </a>
+</div>

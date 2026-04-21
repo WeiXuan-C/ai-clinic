@@ -52,6 +52,7 @@ public class DocumentDAO : IDocumentRepository
     {
         var response = await _supabase
             .From<Document>()
+            .Where(x => x.Id == entity.Id)
             .Update(entity);
         
         return response.Models.First();
