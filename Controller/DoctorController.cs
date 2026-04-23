@@ -62,6 +62,23 @@ public class DoctorController
     }
 
     /// <summary>
+    /// Creates a new doctor profile
+    /// </summary>
+    public async Task<(bool Success, string Message, Doctor? Doctor)> CreateDoctorProfileAsync(Guid userId, string fullName, string licenseNumber, string specialization)
+    {
+        try
+        {
+            var doctor = await _doctorService.CreateDoctorProfileAsync(userId, fullName, licenseNumber, specialization);
+            _doctorState.CurrentDoctor = doctor;
+            return (true, "Doctor profile created successfully", doctor);
+        }
+        catch (Exception ex)
+        {
+            return (false, $"Error creating profile: {ex.Message}", null);
+        }
+    }
+
+    /// <summary>
     /// Loads all available doctors
     /// Facade method that updates the available doctors list in state
     /// </summary>

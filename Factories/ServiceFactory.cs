@@ -1,5 +1,6 @@
 using AiClinic.Core.Interfaces;
 using AiClinic.Services;
+using Microsoft.Extensions.Configuration;
 
 namespace AiClinic.Factories;
 
@@ -22,6 +23,7 @@ public class ServiceFactory : IServiceFactory
     private readonly IDocumentRepository _documentRepository;
     private readonly IDoctorRepository _doctorRepository;
     private readonly Supabase.Client _supabase;
+    private readonly IConfiguration _configuration;
 
     public ServiceFactory(
         IUserRepository userRepository,
@@ -29,7 +31,8 @@ public class ServiceFactory : IServiceFactory
         IConversationRepository conversationRepository,
         IDocumentRepository documentRepository,
         IDoctorRepository doctorRepository,
-        Supabase.Client supabase)
+        Supabase.Client supabase,
+        IConfiguration configuration)
     {
         _userRepository = userRepository;
         _messageRepository = messageRepository;
@@ -37,6 +40,7 @@ public class ServiceFactory : IServiceFactory
         _documentRepository = documentRepository;
         _doctorRepository = doctorRepository;
         _supabase = supabase;
+        _configuration = configuration;
     }
 
     /// <summary>
@@ -44,7 +48,7 @@ public class ServiceFactory : IServiceFactory
     /// </summary>
     public AuthService CreateAuthService()
     {
-        return new AuthService(_userRepository, _supabase);
+        return new AuthService(_userRepository, _supabase, _configuration);
     }
 
     /// <summary>

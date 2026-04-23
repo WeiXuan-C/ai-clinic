@@ -21,6 +21,7 @@ public class AuthController
 
     /// <summary>
     /// Initiates login by sending OTP to user's email
+    /// Only works for users who are already registered
     /// Facade method that simplifies the OTP sending process
     /// </summary>
     public async Task<(bool Success, string Message)> InitiateLoginAsync(string email)
@@ -37,14 +38,22 @@ public class AuthController
                 return (false, "Invalid email format");
             }
 
-            var success = await _authService.SendOtpAsync(email);
+            // Check if user exists before sending OTP
+            var userExists = await _authService.GetUserByEmailAsync(email);
+            if (userExists == null)
+            {
+                return (false, "This email is not registered. Please sign up first.");
+            }
+
+            // Send OTP with shouldCreateUser = false (signin only)
+            var success = await _authService.SendOtpAsync(email, shouldCreateUser: false);
 
             if (success)
             {
-                return (true, "OTP sent successfully. Please check your email.");
+                return (true, "Verification code sent to your email. Please check your inbox.");
             }
 
-            return (false, "Failed to send OTP. Please try again.");
+            return (false, "Failed to send verification code. Please try again.");
         }
         catch (Exception ex)
         {
@@ -65,12 +74,12 @@ public class AuthController
                 return (false, "Email and OTP are required");
             }
 
-            var (success, user, error) = await _authService.VerifyOtpAsync(email, otp);
+            var (success, user, error, accessToken, refreshToken) = await _authService.VerifyOtpAsync(email, otp);
 
             if (success && user != null)
             {
-                // Update global auth state
-                _authState.CurrentUser = user;
+                // Update global auth state with tokens
+                _authState.SetAuthentication(user, accessToken, refreshToken);
 
                 return (true, "Login successful!");
             }
@@ -85,6 +94,7 @@ public class AuthController
 
     /// <summary>
     /// Initiates signup by sending OTP to user's email
+    /// Only works for new users who are not yet registered
     /// </summary>
     public async Task<AuthResponse> SignUpWithOtpAsync(string email)
     {
@@ -100,14 +110,22 @@ public class AuthController
                 return new AuthResponse { Success = false, Message = "Invalid email format" };
             }
 
-            var success = await _authService.SendOtpAsync(email);
+            // Check if user already exists
+            var existingUser = await _authService.GetUserByEmailAsync(email);
+            if (existingUser != null)
+            {
+                return new AuthResponse { Success = false, Message = "This email is already registered. Please sign in instead." };
+            }
+
+            // Send OTP with shouldCreateUser = true (signup)
+            var success = await _authService.SendOtpAsync(email, shouldCreateUser: true);
 
             if (success)
             {
-                return new AuthResponse { Success = true, Message = "OTP sent successfully. Please check your email." };
+                return new AuthResponse { Success = true, Message = "Verification code sent to your email. Please check your inbox." };
             }
 
-            return new AuthResponse { Success = false, Message = "Failed to send OTP. Please try again." };
+            return new AuthResponse { Success = false, Message = "Failed to send verification code. Please configure Supabase email settings." };
         }
         catch (Exception ex)
         {
@@ -127,10 +145,15 @@ public class AuthController
                 return new AuthResponse { Success = false, Message = "Email and OTP are required" };
             }
 
-            var (success, user, error) = await _authService.VerifyOtpAsync(email, otp);
+            var (success, user, error, accessToken, refreshToken) = await _authService.VerifyOtpAsync(email, otp);
 
             if (success)
             {
+                // Update auth state with tokens
+                _authState.SetAuthentication(user, accessToken, refreshToken);
+                
+                // If user exists, it's a returning user (signin)
+                // If user is null, it's a new user (signup - will be created after role selection)
                 return new AuthResponse { Success = true, Message = "OTP verified successfully", User = user };
             }
 
@@ -144,6 +167,7 @@ public class AuthController
 
     /// <summary>
     /// Completes registration after OTP verification
+    /// Creates user record and appropriate profile (patient or doctor)
     /// </summary>
     public async Task<AuthResponse> CompleteRegistrationAsync(string email, string fullName, string role)
     {
@@ -154,15 +178,32 @@ public class AuthController
                 return new AuthResponse { Success = false, Message = "All fields are required" };
             }
 
-            var user = await _authService.CreateUserAsync(email, fullName, role);
-            
-            if (user != null)
+            // Normalize role
+            role = role.ToLower();
+            if (role != "patient" && role != "doctor")
             {
-                _authState.CurrentUser = user;
-                return new AuthResponse { Success = true, Message = "Registration completed successfully", User = user };
+                return new AuthResponse { Success = false, Message = "Invalid role. Must be 'patient' or 'doctor'" };
             }
 
-            return new AuthResponse { Success = false, Message = "Failed to complete registration" };
+            // Check if user already exists
+            var existingUser = await _authService.GetUserByEmailAsync(email);
+            if (existingUser != null)
+            {
+                return new AuthResponse { Success = false, Message = "This account is already registered. Please sign in instead." };
+            }
+
+            // Create user record with role
+            var user = await _authService.CreateUserWithProfileAsync(email, fullName, role);
+            
+            if (user == null)
+            {
+                return new AuthResponse { Success = false, Message = "Failed to create user account" };
+            }
+
+            // Update auth state
+            _authState.CurrentUser = user;
+
+            return new AuthResponse { Success = true, Message = "Registration completed successfully", User = user };
         }
         catch (Exception ex)
         {
@@ -182,10 +223,10 @@ public class AuthController
     /// <summary>
     /// Logs out the current user (async version)
     /// </summary>
-    public Task LogoutAsync()
+    public async Task LogoutAsync()
     {
+        await _authService.SignOutAsync();
         _authState.Logout();
-        return Task.CompletedTask;
     }
 
     /// <summary>

@@ -54,6 +54,29 @@ public class DoctorService
     }
 
     /// <summary>
+    /// Creates a new doctor profile
+    /// </summary>
+    public async Task<Doctor> CreateDoctorProfileAsync(Guid userId, string fullName, string licenseNumber, string specialization)
+    {
+        var doctor = new Doctor
+        {
+            UserId = userId,
+            FullName = fullName,
+            LicenseNumber = licenseNumber,
+            PrimarySpecialization = specialization,
+            AvailabilityStatus = "offline",
+            CurrentActiveConversations = 0,
+            AverageRating = 0,
+            TotalConsultations = 0,
+            IsVerified = false,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        };
+        
+        return await _doctorRepository.AddAsync(doctor);
+    }
+
+    /// <summary>
     /// Calculates doctor score based on rating, workload, and experience
     /// </summary>
     private double CalculateDoctorScore(Doctor doctor)

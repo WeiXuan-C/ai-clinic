@@ -10,6 +10,8 @@ public class AuthState
 {
     private User? _currentUser;
     private bool _isAuthenticated;
+    private string? _accessToken;
+    private string? _refreshToken;
 
     /// <summary>
     /// Event triggered when authentication state changes
@@ -29,6 +31,24 @@ public class AuthState
             _isAuthenticated = value != null;
             NotifyStateChanged();
         }
+    }
+
+    /// <summary>
+    /// Access token for Supabase authentication
+    /// </summary>
+    public string? AccessToken
+    {
+        get => _accessToken;
+        set => _accessToken = value;
+    }
+
+    /// <summary>
+    /// Refresh token for Supabase authentication
+    /// </summary>
+    public string? RefreshToken
+    {
+        get => _refreshToken;
+        set => _refreshToken = value;
     }
 
     /// <summary>
@@ -79,6 +99,20 @@ public class AuthState
     {
         _currentUser = null;
         _isAuthenticated = false;
+        _accessToken = null;
+        _refreshToken = null;
+        NotifyStateChanged();
+    }
+
+    /// <summary>
+    /// Sets authentication state with tokens
+    /// </summary>
+    public void SetAuthentication(User user, string? accessToken, string? refreshToken)
+    {
+        _currentUser = user;
+        _isAuthenticated = true;
+        _accessToken = accessToken;
+        _refreshToken = refreshToken;
         NotifyStateChanged();
     }
 

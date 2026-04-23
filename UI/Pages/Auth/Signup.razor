@@ -58,7 +58,6 @@
                                     <InputText @bind-Value="signupModel.Email" class="form-input" placeholder="Enter your email" type="email" />
                                     <i data-lucide="mail" class="input-icon"></i>
                                 </div>
-                                <ValidationMessage For="@(() => signupModel.Email)" />
                             </div>
                         }
                         
@@ -70,7 +69,6 @@
                                     <InputText @bind-Value="signupModel.OtpCode" class="form-input" placeholder="Enter 8-digit code from email" maxlength="8" />
                                     <i data-lucide="shield-check" class="input-icon"></i>
                                 </div>
-                                <ValidationMessage For="@(() => signupModel.OtpCode)" />
                             </div>
                         }
                         
@@ -92,7 +90,6 @@
                                         <p>Manage patients, provide consultations, and access clinical tools</p>
                                     </div>
                                 </div>
-                                <ValidationMessage For="@(() => signupModel.Role)" />
                             </div>
                             
                             <div class="form-group">
@@ -101,7 +98,6 @@
                                     <InputText @bind-Value="signupModel.FullName" class="form-input" placeholder="Enter your full name" />
                                     <i data-lucide="user-circle" class="input-icon"></i>
                                 </div>
-                                <ValidationMessage For="@(() => signupModel.FullName)" />
                             </div>
                         }
                         
@@ -179,6 +175,9 @@
     public PatientController PatientController { get; set; } = default!;
     
     [Inject]
+    public DoctorController DoctorController { get; set; } = default!;
+    
+    [Inject]
     public NavigationManager NavigationManager { get; set; } = default!;
 
     private enum SignupStep
@@ -194,7 +193,7 @@
         {
             SignupStep.EnterEmail => "Enter your email to get started",
             SignupStep.VerifyOtp => "Check your email for the verification code",
-            SignupStep.SelectRole => "Complete your profile",
+            SignupStep.SelectRole => "Complete your profile to finish registration",
             _ => ""
         };
     }
@@ -253,15 +252,7 @@
                 return;
             }
 
-            // Check if email is already registered
-            var existingUser = await PatientController.CheckEmailExistsAsync(signupModel.Email);
-            if (existingUser)
-            {
-                errorMessage = "This email is already registered. Please sign in instead.";
-                return;
-            }
-
-            // Send OTP via Supabase
+            // Send OTP via Supabase - the controller will check if user exists
             var response = await AuthController.SignUpWithOtpAsync(signupModel.Email);
             
             if (response.Success)
@@ -271,7 +262,7 @@
             }
             else
             {
-                errorMessage = response.Message ?? "Failed to send verification code. Please configure Supabase SMTP settings.";
+                errorMessage = response.Message ?? "Failed to send verification code.";
             }
         }
         catch (Exception ex)
@@ -301,7 +292,12 @@
             }
             
             // New user - proceed to profile completion
-            successMessage = "Email verified! Please complete your profile.";
+            // Clear messages and OTP code
+            errorMessage = "";
+            successMessage = "";
+            signupModel.OtpCode = ""; // Clear OTP for security
+            
+            // Move to role selection
             currentStep = SignupStep.SelectRole;
         }
         else
@@ -324,26 +320,73 @@
             return;
         }
 
-        // Complete registration
+        // Step 1: Create user record with role
         var response = await AuthController.CompleteRegistrationAsync(
             signupModel.Email, 
             signupModel.FullName, 
             signupModel.Role);
         
-        if (response.Success)
-        {
-            showSuccessDialog = true;
-        }
-        else
+        if (!response.Success)
         {
             errorMessage = response.Message ?? "Registration failed";
+            return;
         }
+
+        if (response.User == null)
+        {
+            errorMessage = "User creation failed";
+            return;
+        }
+
+        // Step 2: Create appropriate profile based on role
+        if (signupModel.Role.ToLower() == "patient")
+        {
+            var profileResult = await PatientController.CreateProfileAsync(response.User.Id, signupModel.FullName);
+            if (!profileResult.Success)
+            {
+                errorMessage = $"User created but profile creation failed: {profileResult.Message}";
+                return;
+            }
+        }
+        else if (signupModel.Role.ToLower() == "doctor")
+        {
+            // For doctors, we need additional info (license, specialization)
+            // For now, create with placeholder values - they can complete profile later
+            var profileResult = await DoctorController.CreateDoctorProfileAsync(
+                response.User.Id, 
+                signupModel.FullName,
+                "PENDING", // License number to be filled later
+                "General Practice" // Default specialization
+            );
+            
+            if (!profileResult.Success)
+            {
+                errorMessage = $"User created but profile creation failed: {profileResult.Message}";
+                return;
+            }
+        }
+
+        // Success!
+        showSuccessDialog = true;
     }
     
     private void HandleSuccessDialogOk()
     {
         showSuccessDialog = false;
-        NavigationManager.NavigateTo("/patient/dashboard", forceLoad: true);
+        
+        // Navigate to appropriate dashboard based on role
+        if (signupModel.Role.ToLower() == "patient")
+        {
+            NavigationManager.NavigateTo("/patient/dashboard", forceLoad: true);
+        }
+        else if (signupModel.Role.ToLower() == "doctor")
+        {
+            NavigationManager.NavigateTo("/doctor/dashboard", forceLoad: true);
+        }
+        else
+        {
+            NavigationManager.NavigateTo("/", forceLoad: true);
+        }
     }
 
     private async Task ResendOtp()

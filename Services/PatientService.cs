@@ -29,6 +29,21 @@ public class PatientService
     }
 
     /// <summary>
+    /// Creates a new patient profile
+    /// </summary>
+    public async Task<PatientProfile> CreateProfileAsync(Guid userId, string fullName)
+    {
+        var profile = new PatientProfile
+        {
+            UserId = userId,
+            FullName = fullName,
+            CreatedAt = DateTime.UtcNow
+        };
+        
+        return await _patientProfileRepository.AddAsync(profile);
+    }
+
+    /// <summary>
     /// Updates patient profile
     /// </summary>
     public async Task<PatientProfile> UpdateProfileAsync(Guid userId, PatientProfile profile)

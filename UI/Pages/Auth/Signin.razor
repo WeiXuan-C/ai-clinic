@@ -4,6 +4,7 @@
 @layout Components.Layout.EmptyLayout
 @using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Components.Web
+@implements IDisposable
 
 <PageTitle>Sign In - AI Clinic</PageTitle>
 
@@ -78,6 +79,10 @@
                                     <InputText @bind-Value="authModel.OtpCode" class="form-input" placeholder="Enter 8-digit code from email" maxlength="8" />
                                     <i data-lucide="shield-check" class="input-icon"></i>
                                 </div>
+                                <div class="otp-hint">
+                                    <i data-lucide="info" style="width: 14px; height: 14px;"></i>
+                                    <span>Check your email for the verification code</span>
+                                </div>
                             </div>
                             <button type="button" @onclick="HandleVerifyOtp" class="btn-send-code" disabled="@isLoading">
                                 @if (isLoading)
@@ -87,6 +92,17 @@
                                 else
                                 {
                                     <span>Verify Code</span>
+                                }
+                            </button>
+                            
+                            <button type="button" @onclick="ResendOtp" class="btn-resend" disabled="@isLoading">
+                                @if (isLoading)
+                                {
+                                    <span>Sending...</span>
+                                }
+                                else
+                                {
+                                    <span>Resend Code</span>
                                 }
                             </button>
                         }
@@ -149,25 +165,17 @@
                 return;
             }
 
-            // Check if email is registered before sending OTP
-            var emailExists = await PatientController.CheckEmailExistsAsync(authModel.Credential);
-            if (!emailExists)
-            {
-                errorMessage = "This email is not registered. Please sign up first.";
-                return;
-            }
-
-            // Send OTP
+            // Send OTP - the controller will check if user exists
             var (success, message) = await AuthController.InitiateLoginAsync(authModel.Credential);
             
             if (success)
             {
-                successMessage = message;
+                successMessage = message + " Check your email and enter the code below.";
                 showOtpInput = true;
             }
             else
             {
-                errorMessage = message ?? "Failed to send verification code";
+                errorMessage = message;
             }
         }
         catch (Exception ex)
@@ -220,6 +228,39 @@
         {
             isLoading = false;
         }
+    }
+
+    private async Task ResendOtp()
+    {
+        errorMessage = "";
+        successMessage = "";
+        isLoading = true;
+
+        try
+        {
+            var (success, message) = await AuthController.InitiateLoginAsync(authModel.Credential);
+            
+            if (success)
+            {
+                successMessage = "New code sent! Check your email.";
+            }
+            else
+            {
+                errorMessage = message ?? "Failed to resend code";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    public void Dispose()
+    {
     }
 }
 
@@ -577,6 +618,39 @@
 
     .btn-send-code:active {
         transform: translateY(0);
+    }
+
+    .btn-resend {
+        width: 100%;
+        padding: 1rem;
+        background: transparent;
+        color: #0052cc;
+        border: 2px solid #0052cc;
+        border-radius: 12px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        margin-top: 1rem;
+    }
+
+    .btn-resend:hover {
+        background: #f0f4f8;
+        transform: translateY(-2px);
+    }
+
+    .btn-resend:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .otp-hint {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+        font-size: 0.875rem;
+        color: #5a6c7d;
     }
 
     .new-patient-section {

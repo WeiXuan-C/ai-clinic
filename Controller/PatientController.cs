@@ -28,6 +28,22 @@ public class PatientController
     }
 
     /// <summary>
+    /// Creates a new patient profile
+    /// </summary>
+    public async Task<(bool Success, string Message, PatientProfile? Profile)> CreateProfileAsync(Guid userId, string fullName)
+    {
+        try
+        {
+            var profile = await _patientService.CreateProfileAsync(userId, fullName);
+            return (true, "Patient profile created successfully", profile);
+        }
+        catch (Exception ex)
+        {
+            return (false, $"Error creating profile: {ex.Message}", null);
+        }
+    }
+
+    /// <summary>
     /// Updates patient profile
     /// </summary>
     public async Task<PatientProfile> UpdateProfileAsync(Guid userId, UpdatePatientProfileRequest request)
