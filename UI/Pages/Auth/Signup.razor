@@ -287,14 +287,14 @@
             // Check if user already exists (returning user)
             if (response.User != null)
             {
-                errorMessage = "This account is already registered. Please sign in instead.";
+                errorMessage = "This account has already been registered. Please sign in instead.";
                 return;
             }
             
             // New user - proceed to profile completion
             // Clear messages and OTP code
             errorMessage = "";
-            successMessage = "";
+            successMessage = "Email verified successfully! Please complete your profile.";
             signupModel.OtpCode = ""; // Clear OTP for security
             
             // Move to role selection
@@ -302,7 +302,7 @@
         }
         else
         {
-            errorMessage = response.Message ?? "Invalid or expired verification code";
+            errorMessage = response.Message ?? "Invalid or expired verification code. Please try again or click 'Resend Code'.";
         }
     }
 

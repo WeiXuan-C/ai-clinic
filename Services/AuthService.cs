@@ -107,7 +107,35 @@ public class AuthService
             if (!response.IsSuccessStatusCode)
             {
                 Console.WriteLine($"❌ OTP verification failed for {email}: {responseContent}");
-                return (false, null, "Invalid or expired OTP code. Please request a new code.", null, null);
+                
+                // Parse error response for better error messages
+                string errorMessage = "Invalid or expired OTP code. Please request a new code.";
+                try
+                {
+                    var errorDoc = System.Text.Json.JsonDocument.Parse(responseContent);
+                    if (errorDoc.RootElement.TryGetProperty("error_description", out var errorDesc))
+                    {
+                        var errorText = errorDesc.GetString()?.ToLower() ?? "";
+                        if (errorText.Contains("expired"))
+                        {
+                            errorMessage = "OTP code has expired. Please click 'Resend Code' to get a new one.";
+                        }
+                        else if (errorText.Contains("invalid") || errorText.Contains("not found"))
+                        {
+                            errorMessage = "Invalid OTP code. Please check your email and enter the correct code.";
+                        }
+                    }
+                    else if (errorDoc.RootElement.TryGetProperty("msg", out var msg))
+                    {
+                        errorMessage = msg.GetString() ?? errorMessage;
+                    }
+                }
+                catch
+                {
+                    // Use default error message if parsing fails
+                }
+                
+                return (false, null, errorMessage, null, null);
             }
             
             // Parse the response to get session info

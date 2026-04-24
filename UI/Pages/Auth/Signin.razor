@@ -217,7 +217,7 @@
             }
             else
             {
-                errorMessage = message;
+                errorMessage = message ?? "Invalid or expired verification code. Please try again or click 'Resend Code'.";
             }
         }
         catch (Exception ex)
