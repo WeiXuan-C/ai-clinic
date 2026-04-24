@@ -1,10 +1,14 @@
 using AiClinic;
+using MudBlazor.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+// Add MudBlazor services
+builder.Services.AddMudServices();
 
 // Configure SignalR for Blazor Server
 builder.Services.AddSignalR(options =>

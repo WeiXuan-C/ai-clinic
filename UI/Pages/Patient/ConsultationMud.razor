@@ -1,0 +1,410 @@
+@page "/patient/consultation-mud"
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@layout Components.Layout.SidebarLayout
+@inject AuthState AuthState
+@inject ChatController ChatController
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
+
+<PageTitle>AI Consultation - AI Medical Clinic</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4" Style="height: calc(100vh - 120px);">
+    @if (!AuthState.IsAuthenticated)
+    {
+        <MudPaper Class="pa-8 text-center">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+            <MudText Typo="Typo.body1" Class="mt-4">Checking authentication...</MudText>
+        </MudPaper>
+    }
+    else
+    {
+        <MudGrid Style="height: 100%;">
+            <!-- Chat Area -->
+            <MudItem xs="12" md="8" Style="height: 100%; display: flex; flex-direction: column;">
+                <MudPaper Class="d-flex flex-column" Style="height: 100%;" Elevation="2">
+                    <!-- Header -->
+                    <div class="pa-4" style="border-bottom: 1px solid #e0e0e0;">
+                        <div class="d-flex justify-space-between align-center">
+                            <div>
+                                <MudText Typo="Typo.h6">AI Medical Assistant</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                    <MudIcon Icon="@Icons.Material.Filled.Circle" Size="Size.Small" Color="Color.Success" /> Online
+                                </MudText>
+                            </div>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="StartNewConversation">
+                                New Conversation
+                            </MudButton>
+                        </div>
+                    </div>
+
+                    <!-- Messages Container -->
+                    <div class="flex-grow-1 overflow-auto pa-4" style="max-height: calc(100vh - 400px);" @ref="messagesContainer">
+                        @if (!messages.Any())
+                        {
+                            <div class="text-center pa-8">
+                                <MudIcon Icon="@Icons.Material.Filled.Chat" Size="Size.Large" Color="Color.Primary" Style="font-size: 4rem;" />
+                                <MudText Typo="Typo.h6" Class="mt-4">Start a conversation with AI Assistant</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Secondary">
+                                    Describe your symptoms or upload medical documents for analysis
+                                </MudText>
+                            </div>
+                        }
+                        else
+                        {
+                            @foreach (var message in messages)
+                            {
+                                <div class="@(message.IsFromUser ? "d-flex justify-end" : "d-flex justify-start") mb-4">
+                                    <MudPaper Class="pa-3" Style="@(message.IsFromUser ? "background: #e3f2fd; max-width: 70%;" : "background: #f5f5f5; max-width: 70%;")" Elevation="0">
+                                        <div class="d-flex align-start">
+                                            @if (!message.IsFromUser)
+                                            {
+                                                <MudAvatar Color="Color.Success" Size="Size.Small" Class="mr-2">
+                                                    <MudIcon Icon="@Icons.Material.Filled.SmartToy" />
+                                                </MudAvatar>
+                                            }
+                                            <div class="flex-grow-1">
+                                                @if (!message.IsFromUser)
+                                                {
+                                                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-1">AI Assistant</MudText>
+                                                }
+                                                <MudText Typo="Typo.body2">@message.Content</MudText>
+                                                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1">
+                                                    @message.Timestamp.ToString("HH:mm")
+                                                </MudText>
+                                            </div>
+                                            @if (message.IsFromUser)
+                                            {
+                                                <MudAvatar Color="Color.Primary" Size="Size.Small" Class="ml-2">
+                                                    <MudIcon Icon="@Icons.Material.Filled.Person" />
+                                                </MudAvatar>
+                                            }
+                                        </div>
+                                    </MudPaper>
+                                </div>
+                            }
+                            
+                            @if (isTyping)
+                            {
+                                <div class="d-flex justify-start mb-4">
+                                    <MudPaper Class="pa-3" Style="background: #f5f5f5;" Elevation="0">
+                                        <div class="d-flex align-center">
+                                            <MudProgressCircular Color="Color.Primary" Size="Size.Small" Indeterminate="true" />
+                                            <MudText Typo="Typo.body2" Class="ml-2">AI is thinking...</MudText>
+                                        </div>
+                                    </MudPaper>
+                                </div>
+                            }
+                        }
+                    </div>
+
+                    <!-- Input Area -->
+                    <div class="pa-4" style="border-top: 1px solid #e0e0e0;">
+                        @if (uploadedDocuments.Any())
+                        {
+                            <div class="mb-3">
+                                <MudChipSet T="string">
+                                    @foreach (var doc in uploadedDocuments)
+                                    {
+                                        <MudChip T="string" Text="@doc.Name" Icon="@Icons.Material.Filled.AttachFile" 
+                                                 OnClose="() => RemoveDocument(doc)" Color="Color.Primary" />
+                                    }
+                                </MudChipSet>
+                            </div>
+                        }
+                        
+                        <div class="d-flex align-center">
+                            <MudFileUpload T="IBrowserFile" OnFilesChanged="HandleDocumentUpload" Accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
+                                <CustomContent>
+                                    <MudIconButton Icon="@Icons.Material.Filled.AttachFile"
+                                                   Color="Color.Primary"
+                                                   OnClick="@context.OpenFilePickerAsync" />
+                                </CustomContent>
+                            </MudFileUpload>
+                            
+                            <MudTextField @bind-Value="messageInput" Label="Type your message..." Variant="Variant.Outlined" 
+                                          Class="flex-grow-1 mx-2" OnKeyDown="HandleKeyDown" />
+                            
+                            <MudIconButton Icon="@Icons.Material.Filled.Send" Color="Color.Primary" 
+                                           OnClick="SendMessage" Disabled="@(string.IsNullOrWhiteSpace(messageInput) || isSending)" />
+                        </div>
+                        
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">
+                            <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" /> 
+                            AI responses are for informational purposes only. Always consult with a healthcare professional.
+                        </MudText>
+                    </div>
+                </MudPaper>
+            </MudItem>
+
+            <!-- Context Sidebar -->
+            <MudItem xs="12" md="4" Style="height: 100%; display: flex; flex-direction: column;">
+                <MudPaper Class="pa-4" Style="height: 100%; overflow-y: auto;" Elevation="2">
+                    <MudText Typo="Typo.h6" Class="mb-4">Conversation Context</MudText>
+                    
+                    <!-- Uploaded Documents -->
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Uploaded Documents</MudText>
+                    @if (!contextDocuments.Any())
+                    {
+                        <MudAlert Severity="Severity.Info" Dense="true" Class="mb-4">
+                            No documents uploaded yet. Upload medical records, lab results, or prescriptions for better AI analysis.
+                        </MudAlert>
+                    }
+                    else
+                    {
+                        <MudList T="string" Dense="true" Class="mb-4">
+                            @foreach (var doc in contextDocuments)
+                            {
+                                <MudListItem T="string" Icon="@Icons.Material.Filled.Description" IconColor="Color.Primary">
+                                    <MudText Typo="Typo.body2">@doc.Name</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@doc.Size KB • @doc.UploadedAt.ToString("MMM dd")</MudText>
+                                </MudListItem>
+                            }
+                        </MudList>
+                    }
+                    
+                    <!-- Quick Suggestions -->
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Quick Suggestions</MudText>
+                    <MudStack Spacing="2" Class="mb-4">
+                        <MudChip T="string" Text="Check symptoms" OnClick='() => SetMessage("I have been experiencing headaches and fatigue")' />
+                        <MudChip T="string" Text="Medication info" OnClick='() => SetMessage("Can you tell me about this medication?")' />
+                        <MudChip T="string" Text="Lab results" OnClick='() => SetMessage("Help me understand my lab results")' />
+                        <MudChip T="string" Text="General health" OnClick='() => SetMessage("I want to improve my overall health")' />
+                    </MudStack>
+                    
+                    <!-- AI Insights -->
+                    @if (aiInsights.Any())
+                    {
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">AI Insights</MudText>
+                        @foreach (var insight in aiInsights)
+                        {
+                            <MudAlert Severity="Severity.Info" Dense="true" Class="mb-2">
+                                <MudText Typo="Typo.body2">@insight</MudText>
+                            </MudAlert>
+                        }
+                    }
+                    
+                    <!-- Export Options -->
+                    <MudDivider Class="my-4" />
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true" 
+                               StartIcon="@Icons.Material.Filled.Download" OnClick="ExportConversation">
+                        Export Conversation
+                    </MudButton>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    }
+</MudContainer>
+
+@code {
+    private ElementReference messagesContainer;
+    private string messageInput = string.Empty;
+    private bool isSending = false;
+    private bool isTyping = false;
+    
+    private List<ChatMessage> messages = new();
+    private List<DocumentInfo> uploadedDocuments = new();
+    private List<DocumentInfo> contextDocuments = new();
+    private List<string> aiInsights = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthState.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/auth/signin");
+            return;
+        }
+        
+        // Add welcome message
+        messages.Add(new ChatMessage
+        {
+            Content = "Hello! I'm your AI Medical Assistant. I can help you understand symptoms, analyze medical documents, and provide health information. How can I assist you today?",
+            IsFromUser = false,
+            Timestamp = DateTime.Now
+        });
+    }
+
+    private async Task HandleDocumentUpload(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file != null)
+        {
+            try
+            {
+                var doc = new DocumentInfo
+                {
+                    Name = file.Name,
+                    Size = file.Size / 1024, // Convert to KB
+                    UploadedAt = DateTime.Now
+                };
+                
+                uploadedDocuments.Add(doc);
+                contextDocuments.Add(doc);
+                
+                Snackbar.Add($"Document '{file.Name}' uploaded successfully", Severity.Success);
+                
+                // Simulate AI analysis
+                aiInsights.Add($"Analyzing document: {file.Name}...");
+                StateHasChanged();
+                
+                await Task.Delay(2000);
+                aiInsights.Clear();
+                aiInsights.Add($"Document '{file.Name}' has been analyzed and added to context.");
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error uploading document: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private void RemoveDocument(DocumentInfo doc)
+    {
+        uploadedDocuments.Remove(doc);
+        Snackbar.Add($"Document '{doc.Name}' removed", Severity.Info);
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !e.ShiftKey)
+        {
+            await SendMessage();
+        }
+    }
+
+    private async Task SendMessage()
+    {
+        if (string.IsNullOrWhiteSpace(messageInput))
+            return;
+
+        try
+        {
+            isSending = true;
+            
+            // Add user message
+            messages.Add(new ChatMessage
+            {
+                Content = messageInput,
+                IsFromUser = true,
+                Timestamp = DateTime.Now
+            });
+            
+            var userMessage = messageInput;
+            messageInput = string.Empty;
+            
+            // Clear uploaded documents after sending
+            uploadedDocuments.Clear();
+            
+            StateHasChanged();
+            await ScrollToBottom();
+            
+            // Simulate AI typing
+            isTyping = true;
+            StateHasChanged();
+            
+            await Task.Delay(2000); // Simulate processing time
+            
+            // Generate AI response (mock)
+            var aiResponse = GenerateAIResponse(userMessage);
+            
+            isTyping = false;
+            messages.Add(new ChatMessage
+            {
+                Content = aiResponse,
+                IsFromUser = false,
+                Timestamp = DateTime.Now
+            });
+            
+            StateHasChanged();
+            await ScrollToBottom();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error sending message: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSending = false;
+            isTyping = false;
+        }
+    }
+
+    private string GenerateAIResponse(string userMessage)
+    {
+        // Mock AI response - In production, this would call your AI service
+        var lowerMessage = userMessage.ToLower();
+        
+        if (lowerMessage.Contains("headache") || lowerMessage.Contains("pain"))
+        {
+            return "I understand you're experiencing headaches. Headaches can have various causes including stress, dehydration, lack of sleep, or underlying medical conditions. " +
+                   "I recommend: 1) Stay hydrated, 2) Get adequate rest, 3) Manage stress levels. " +
+                   "If headaches persist or worsen, please consult with a healthcare professional for proper diagnosis and treatment.";
+        }
+        else if (lowerMessage.Contains("medication") || lowerMessage.Contains("medicine"))
+        {
+            return "I can help you understand medications. Please upload a photo of your prescription or medication label, or tell me the name of the medication you'd like to know about. " +
+                   "Remember, always follow your doctor's instructions and never adjust medication dosages without consulting your healthcare provider.";
+        }
+        else if (lowerMessage.Contains("lab") || lowerMessage.Contains("test") || lowerMessage.Contains("results"))
+        {
+            return "I can help interpret lab results. Please upload your lab report, and I'll explain what the values mean. " +
+                   "Keep in mind that lab results should always be reviewed with your healthcare provider who knows your complete medical history.";
+        }
+        else
+        {
+            return "Thank you for your message. I'm here to help with health-related questions, symptom analysis, and understanding medical information. " +
+                   "Could you provide more details about what you'd like to know? You can also upload relevant medical documents for analysis.";
+        }
+    }
+
+    private void SetMessage(string message)
+    {
+        messageInput = message;
+    }
+
+    private void StartNewConversation()
+    {
+        messages.Clear();
+        contextDocuments.Clear();
+        uploadedDocuments.Clear();
+        aiInsights.Clear();
+        
+        messages.Add(new ChatMessage
+        {
+            Content = "Hello! I'm your AI Medical Assistant. I can help you understand symptoms, analyze medical documents, and provide health information. How can I assist you today?",
+            IsFromUser = false,
+            Timestamp = DateTime.Now
+        });
+        
+        Snackbar.Add("New conversation started", Severity.Info);
+    }
+
+    private async Task ExportConversation()
+    {
+        Snackbar.Add("Exporting conversation... (Feature coming soon)", Severity.Info);
+    }
+
+    private async Task ScrollToBottom()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("eval", 
+                "document.querySelector('.overflow-auto').scrollTop = document.querySelector('.overflow-auto').scrollHeight");
+        }
+        catch { }
+    }
+
+    private class ChatMessage
+    {
+        public string Content { get; set; } = string.Empty;
+        public bool IsFromUser { get; set; }
+        public DateTime Timestamp { get; set; }
+    }
+
+    private class DocumentInfo
+    {
+        public string Name { get; set; } = string.Empty;
+        public long Size { get; set; }
+        public DateTime UploadedAt { get; set; }
+    }
+}

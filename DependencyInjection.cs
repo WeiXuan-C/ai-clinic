@@ -34,6 +34,7 @@ public static class DependencyInjectionExtensions
         services.AddScoped<IDoctorRepository, DoctorDAO>();
         services.AddScoped<IDocumentRepository, DocumentDAO>();
         services.AddScoped<IPatientProfileRepository, PatientProfileDAO>();
+        services.AddScoped<ISupportTicketRepository, SupportTicketDAO>();
 
         // Register Services (Business Logic) - Scoped lifetime
         services.AddScoped<AuthService>();

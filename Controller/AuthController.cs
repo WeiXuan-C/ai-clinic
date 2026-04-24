@@ -76,15 +76,15 @@ public class AuthController
 
             var (success, user, error, accessToken, refreshToken) = await _authService.VerifyOtpAsync(email, otp);
 
-            if (success && user != null)
+            if (!success || user == null)
             {
-                // Update global auth state with tokens
-                _authState.SetAuthentication(user, accessToken, refreshToken);
-
-                return (true, "Login successful!");
+                return (false, error ?? "Invalid OTP");
             }
 
-            return (false, error ?? "Invalid OTP");
+            // Update global auth state with tokens
+            _authState.SetAuthentication(user, accessToken, refreshToken);
+
+            return (true, "Login successful!");
         }
         catch (Exception ex)
         {
@@ -147,17 +147,16 @@ public class AuthController
 
             var (success, user, error, accessToken, refreshToken) = await _authService.VerifyOtpAsync(email, otp);
 
-            if (success)
+            if (!success || user == null)
             {
-                // Update auth state with tokens
-                _authState.SetAuthentication(user, accessToken, refreshToken);
-                
-                // If user exists, it's a returning user (signin)
-                // If user is null, it's a new user (signup - will be created after role selection)
-                return new AuthResponse { Success = true, Message = "OTP verified successfully", User = user };
+                return new AuthResponse { Success = false, Message = error ?? "Invalid OTP" };
             }
 
-            return new AuthResponse { Success = false, Message = error ?? "Invalid OTP" };
+            // Update auth state with tokens
+            _authState.SetAuthentication(user, accessToken, refreshToken);
+            
+            // If user exists, it's a returning user (signin)
+            return new AuthResponse { Success = true, Message = "OTP verified successfully", User = user };
         }
         catch (Exception ex)
         {

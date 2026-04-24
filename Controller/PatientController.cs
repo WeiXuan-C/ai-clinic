@@ -6,7 +6,7 @@ namespace AiClinic.Controller;
 
 /// <summary>
 /// Patient Controller - Facade Pattern
-/// Simplifies patient profile operations
+/// Simplifies patient profile operations, settings, and support tickets
 /// </summary>
 public class PatientController
 {
@@ -74,6 +74,84 @@ public class PatientController
     {
         return await _patientService.CheckEmailExistsAsync(email);
     }
+
+    /// <summary>
+    /// Gets user settings
+    /// </summary>
+    public async Task<User?> GetUserSettingsAsync(Guid userId)
+    {
+        return await _patientService.GetUserSettingsAsync(userId);
+    }
+
+    /// <summary>
+    /// Updates user settings
+    /// </summary>
+    public async Task<(bool Success, string Message)> UpdateUserSettingsAsync(Guid userId, UpdateUserSettingsRequest request)
+    {
+        try
+        {
+            var user = await _patientService.GetUserSettingsAsync(userId);
+            if (user == null)
+            {
+                return (false, "User not found");
+            }
+
+            user.DataSharingEnabled = request.DataSharingEnabled;
+            user.AiAnalysisEnabled = request.AiAnalysisEnabled;
+            user.ActivityTrackingEnabled = request.ActivityTrackingEnabled;
+            user.UpdatedAt = DateTime.UtcNow;
+
+            await _patientService.UpdateUserSettingsAsync(user);
+            return (true, "Settings updated successfully");
+        }
+        catch (Exception ex)
+        {
+            return (false, $"Error updating settings: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Creates a support ticket
+    /// </summary>
+    public async Task<(bool Success, string Message, SupportTicket? Ticket)> CreateSupportTicketAsync(CreateSupportTicketRequest request)
+    {
+        try
+        {
+            var ticket = new SupportTicket
+            {
+                UserId = request.UserId,
+                Subject = request.Subject,
+                Description = request.Description,
+                Category = request.Category,
+                Priority = request.Priority,
+                Status = "open",
+                CreatedAt = DateTime.UtcNow
+            };
+
+            var createdTicket = await _patientService.CreateSupportTicketAsync(ticket);
+            return (true, "Support ticket created successfully", createdTicket);
+        }
+        catch (Exception ex)
+        {
+            return (false, $"Error creating support ticket: {ex.Message}", null);
+        }
+    }
+
+    /// <summary>
+    /// Gets all support tickets for a user
+    /// </summary>
+    public async Task<IEnumerable<SupportTicket>> GetUserSupportTicketsAsync(Guid userId)
+    {
+        return await _patientService.GetUserSupportTicketsAsync(userId);
+    }
+
+    /// <summary>
+    /// Gets a specific support ticket
+    /// </summary>
+    public async Task<SupportTicket?> GetSupportTicketAsync(Guid ticketId)
+    {
+        return await _patientService.GetSupportTicketAsync(ticketId);
+    }
 }
 
 /// <summary>
@@ -90,4 +168,24 @@ public record UpdatePatientProfileRequest(
     string[]? Allergies,
     string[]? ChronicConditions,
     string[]? CurrentMedications
+);
+
+/// <summary>
+/// Request model for updating user settings
+/// </summary>
+public record UpdateUserSettingsRequest(
+    bool DataSharingEnabled,
+    bool AiAnalysisEnabled,
+    bool ActivityTrackingEnabled
+);
+
+/// <summary>
+/// Request model for creating support ticket
+/// </summary>
+public record CreateSupportTicketRequest(
+    Guid UserId,
+    string Subject,
+    string Description,
+    string? Category,
+    string Priority
 );
