@@ -46,26 +46,21 @@ public class SupportTicketDAO : ISupportTicketRepository
 
     public async Task<SupportTicket> AddAsync(SupportTicket entity)
     {
-        entity.Id = Guid.NewGuid();
-        entity.CreatedAt = DateTime.UtcNow;
-        
         var response = await _supabase
             .From<SupportTicket>()
             .Insert(entity);
         
-        return response.Models.First();
+        return response.Models.FirstOrDefault() ?? entity;
     }
 
     public async Task<SupportTicket> UpdateAsync(SupportTicket entity)
     {
-        entity.UpdatedAt = DateTime.UtcNow;
-        
         var response = await _supabase
             .From<SupportTicket>()
             .Where(x => x.Id == entity.Id)
             .Update(entity);
         
-        return response.Models.First();
+        return response.Models.FirstOrDefault() ?? entity;
     }
 
     public async Task<bool> DeleteAsync(Guid id)

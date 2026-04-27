@@ -38,15 +38,11 @@ public class MessageDAO : IMessageRepository
 
     public async Task<Message> AddAsync(Message entity)
     {
-        entity.Id = Guid.NewGuid();
-        entity.CreatedAt = DateTime.UtcNow;
-        entity.SentAt = DateTime.UtcNow;
-        
         var response = await _supabase
             .From<Message>()
             .Insert(entity);
         
-        return response.Models.First();
+        return response.Models.FirstOrDefault() ?? entity;
     }
 
     public async Task<Message> UpdateAsync(Message entity)
@@ -56,7 +52,7 @@ public class MessageDAO : IMessageRepository
             .Where(x => x.Id == entity.Id)
             .Update(entity);
         
-        return response.Models.First();
+        return response.Models.FirstOrDefault() ?? entity;
     }
 
     public async Task<bool> DeleteAsync(Guid id)
@@ -116,9 +112,8 @@ public class MessageDAO : IMessageRepository
         var message = await GetByIdAsync(messageId);
         if (message != null)
         {
-            message.IsRead = true;
-            message.ReadAt = DateTime.UtcNow;
-            await UpdateAsync(message);
+            var updatedMessage = message.WithMarkedAsRead();
+            await UpdateAsync(updatedMessage);
         }
     }
 }

@@ -1,18 +1,18 @@
 using AiClinic.Core.Entities;
 using AiClinic.Core.Interfaces;
-using Supabase;
+using AiClinic.Database;
 
 namespace AiClinic.DAOs;
 
 /// <summary>
 /// Adapter Pattern Implementation
-/// Adapts Supabase client interface to IUserRepository interface
+/// Adapts Supabase HTTP client to IUserRepository interface
 /// </summary>
 public class UserDAO : IUserRepository
 {
-    private readonly Client _supabase;
+    private readonly SupabaseHttpClient _supabase;
 
-    public UserDAO(Client supabase)
+    public UserDAO(SupabaseHttpClient supabase)
     {
         _supabase = supabase;
     }
@@ -21,12 +21,7 @@ public class UserDAO : IUserRepository
     {
         try
         {
-            var response = await _supabase
-                .From<User>()
-                .Where(x => x.Id == id)
-                .Single();
-            
-            return response;
+            return await _supabase.GetSingleAsync<User>("users", $"id=eq.{id}");
         }
         catch
         {
@@ -36,67 +31,49 @@ public class UserDAO : IUserRepository
 
     public async Task<IEnumerable<User>> GetAllAsync()
     {
-        var response = await _supabase
-            .From<User>()
-            .Get();
-        
-        return response.Models;
+        return await _supabase.GetAsync<User>("users");
     }
 
     public async Task<User> AddAsync(User entity)
     {
-        entity.Id = Guid.NewGuid();
-        entity.CreatedAt = DateTime.UtcNow;
-        
-        var response = await _supabase
-            .From<User>()
-            .Insert(entity);
-        
-        return response.Models.First();
+        var result = await _supabase.PostAsync<User>("users", entity);
+        return result ?? entity;
     }
 
     public async Task<User> UpdateAsync(User entity)
     {
-        entity.UpdatedAt = DateTime.UtcNow;
-        
-        var response = await _supabase
-            .From<User>()
-            .Where(x => x.Id == entity.Id)
-            .Update(entity);
-        
-        return response.Models.First();
+        var result = await _supabase.PatchAsync<User>("users", $"id=eq.{entity.Id}", entity);
+        return result ?? entity;
     }
 
     public async Task<bool> DeleteAsync(Guid id)
     {
-        try
-        {
-            await _supabase
-                .From<User>()
-                .Where(x => x.Id == id)
-                .Delete();
-            
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
+        return await _supabase.DeleteAsync("users", $"id=eq.{id}");
     }
 
     public async Task<User?> GetByEmailAsync(string email)
     {
         try
         {
-            var response = await _supabase
-                .From<User>()
-                .Where(x => x.Email == email.ToLower())
-                .Single();
+            Console.WriteLine($"🔍 DATABASE: Querying users table for email: {email}");
             
-            return response;
+            var user = await _supabase.GetSingleAsync<User>("users", $"email=eq.{email.ToLower()}");
+            
+            if (user != null)
+            {
+                Console.WriteLine($"✅ DATABASE: User found - ID: {user.Id}, Email: {user.Email}, Role: {user.Role}");
+            }
+            else
+            {
+                Console.WriteLine($"❌ DATABASE: No user found for email: {email}");
+            }
+            
+            return user;
         }
-        catch
+        catch (Exception ex)
         {
+            Console.WriteLine($"❌ DATABASE ERROR: {ex.Message}");
+            Console.WriteLine($"❌ STACK TRACE: {ex.StackTrace}");
             return null;
         }
     }

@@ -28,16 +28,7 @@ public class ChatService
     /// </summary>
     public async Task<Conversation> CreateConversationAsync(Guid patientId, string? title = null)
     {
-        var conversation = new Conversation
-        {
-            PatientId = patientId,
-            Title = title ?? "New Consultation",
-            Status = "active",
-            TotalMessages = 0,
-            AiMessagesCount = 0,
-            DoctorMessagesCount = 0
-        };
-        
+        var conversation = Conversation.Create(patientId, title);
         return await _conversationRepository.AddAsync(conversation);
     }
 
@@ -46,15 +37,7 @@ public class ChatService
     /// </summary>
     public async Task<Message> SendToDoctorAsync(Guid conversationId, Guid senderId, string content)
     {
-        var message = new Message
-        {
-            ConversationId = conversationId,
-            SenderId = senderId,
-            SenderType = MessageSenderType.Patient,
-            Content = content,
-            IsRead = false
-        };
-        
+        var message = Message.CreatePatientMessage(conversationId, senderId, content);
         var savedMessage = await _messageRepository.AddAsync(message);
         
         // Update conversation stats
@@ -69,15 +52,7 @@ public class ChatService
     public async Task<Message> SendToAIAsync(Guid conversationId, Guid senderId, string content)
     {
         // Save patient message
-        var patientMessage = new Message
-        {
-            ConversationId = conversationId,
-            SenderId = senderId,
-            SenderType = MessageSenderType.Patient,
-            Content = content,
-            IsRead = true
-        };
-        
+        var patientMessage = Message.CreatePatientMessage(conversationId, senderId, content);
         await _messageRepository.AddAsync(patientMessage);
         
         // Get relevant documents for context
@@ -87,17 +62,7 @@ public class ChatService
         var aiResponse = await GenerateAIResponseAsync(content, documents);
         
         // Save AI message
-        var aiMessage = new Message
-        {
-            ConversationId = conversationId,
-            SenderId = null,
-            SenderType = MessageSenderType.AI,
-            Content = aiResponse,
-            AiModelUsed = "gpt-4",
-            AiConfidenceScore = 0.85m,
-            IsRead = false
-        };
-        
+        var aiMessage = Message.CreateAIMessage(conversationId, aiResponse, "gpt-4", 0.85m);
         var savedAiMessage = await _messageRepository.AddAsync(aiMessage);
         
         // Update conversation stats
@@ -118,8 +83,8 @@ public class ChatService
             throw new Exception("Conversation not found");
         }
         
-        conversation.AssignedDoctorId = doctorId;
-        return await _conversationRepository.UpdateAsync(conversation);
+        var updatedConversation = conversation.WithAssignedDoctor(doctorId);
+        return await _conversationRepository.UpdateAsync(updatedConversation);
     }
 
     /// <summary>
@@ -163,19 +128,9 @@ public class ChatService
         
         if (conversation != null)
         {
-            conversation.TotalMessages++;
-            conversation.LastMessageAt = DateTime.UtcNow;
-            
-            if (isAiMessage)
-            {
-                conversation.AiMessagesCount++;
-            }
-            else
-            {
-                conversation.DoctorMessagesCount++;
-            }
-            
-            await _conversationRepository.UpdateAsync(conversation);
+            var senderType = isAiMessage ? MessageSenderType.AI : MessageSenderType.Doctor;
+            var updatedConversation = conversation.WithAddedMessage(senderType);
+            await _conversationRepository.UpdateAsync(updatedConversation);
         }
     }
 

@@ -36,22 +36,15 @@ public class PatientService
     /// </summary>
     public async Task<PatientProfile> CreateProfileAsync(Guid userId, string fullName)
     {
-        var profile = new PatientProfile
-        {
-            UserId = userId,
-            FullName = fullName,
-            CreatedAt = DateTime.UtcNow
-        };
-        
+        var profile = PatientProfile.Create(userId, fullName);
         return await _patientProfileRepository.AddAsync(profile);
     }
 
     /// <summary>
     /// Updates patient profile
     /// </summary>
-    public async Task<PatientProfile> UpdateProfileAsync(Guid userId, PatientProfile profile)
+    public async Task<PatientProfile> UpdateProfileAsync(PatientProfile profile)
     {
-        profile.UserId = userId;
         return await _patientProfileRepository.UpdateAsync(profile);
     }
 

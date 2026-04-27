@@ -28,39 +28,50 @@ public class AuthService
 
     /// <summary>
     /// Sends OTP to user's email using Supabase Auth
-    /// Uses SendMagicLink which sends an OTP code when the email template contains {{ .Token }}
-    /// 
-    /// CRITICAL: Your Supabase Magic Link email template MUST contain ONLY {{ .Token }}
-    /// and NO {{ .ConfirmationURL }} or clickable links to avoid email prefetching issues
-    /// 
-    /// Email prefetching by security tools (like Microsoft Defender) will consume magic links
-    /// before users can click them, causing "invalid OTP" errors. Using OTP codes prevents this.
+    /// Always uses create_user=true because we control user existence via local database
     /// </summary>
-    public async Task<bool> SendOtpAsync(string email, bool shouldCreateUser = true)
+    public async Task<bool> SendOtpAsync(string email)
     {
         try
         {
-            // Use SendMagicLink - when email template contains only {{ .Token }}, it sends OTP code
-            // The key is that the email template must NOT have {{ .ConfirmationURL }}
-            var options = new Supabase.Gotrue.SignInOptions
+            email = email.ToLower();
+            
+            using var httpClient = new HttpClient();
+            httpClient.DefaultRequestHeaders.Add("apikey", _supabaseKey);
+            
+            // Use the OTP endpoint directly
+            var otpUrl = $"{_supabaseUrl}/auth/v1/otp";
+            
+            // Always create user in Supabase Auth - we control via local database
+            var requestBody = new
             {
-                // Don't set RedirectTo - we're using OTP codes, not magic links
-                RedirectTo = null
+                email = email,
+                create_user = true,  // Always true - local DB is source of truth
+                data = new { }
             };
             
-            // Note: C# library doesn't have shouldCreateUser option in SendMagicLink
-            // By default, it will create users if they don't exist
-            // For signin-only flow, we check user existence before calling this method
-            var result = await _supabase.Auth.SendMagicLink(email, options);
+            var content = new StringContent(
+                System.Text.Json.JsonSerializer.Serialize(requestBody),
+                System.Text.Encoding.UTF8,
+                "application/json"
+            );
             
-            Console.WriteLine($"✅ OTP sent to {email} via Supabase Auth");
-            Console.WriteLine($"⚠️  IMPORTANT: Ensure your Supabase Magic Link email template contains ONLY {{ .Token }} and NO {{ .ConfirmationURL }}!");
-            Console.WriteLine($"📧 Email template should be: <h2>Your verification code</h2><p>Enter this code: {{ .Token }}</p>");
-            return result;
+            var response = await httpClient.PostAsync(otpUrl, content);
+            var responseContent = await response.Content.ReadAsStringAsync();
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                Console.WriteLine($"❌ Failed to send OTP to {email}: {responseContent}");
+                return false;
+            }
+            
+            Console.WriteLine($"✅ OTP sent to {email}");
+            return true;
         }
         catch (Exception ex)
         {
             Console.WriteLine($"❌ Error sending OTP: {ex.Message}");
+            Console.WriteLine($"❌ Stack trace: {ex.StackTrace}");
             return false;
         }
     }
@@ -78,15 +89,14 @@ public class AuthService
         {
             email = email.ToLower();
             
-            // The C# library's VerifyOTP doesn't support email OTP properly
-            // We need to make a direct HTTP call to the Supabase Auth API
+            // Use direct HTTP call to the Supabase Auth API
             using var httpClient = new HttpClient();
             
             var requestBody = new
             {
                 email = email,
                 token = otp,
-                type = "email"  // Use "email" type for email OTP verification
+                type = "email"  // For email OTP verification
             };
             
             var content = new StringContent(
@@ -97,25 +107,33 @@ public class AuthService
             
             httpClient.DefaultRequestHeaders.Add("apikey", _supabaseKey);
             
-            // Construct the full URL - Supabase URL format is: https://xxx.supabase.co
+            // Construct the full URL
             var verifyUrl = $"{_supabaseUrl}/auth/v1/verify";
             Console.WriteLine($"🔍 Verifying OTP at: {verifyUrl}");
+            Console.WriteLine($"🔍 Email: {email}, OTP length: {otp.Length}");
             
             var response = await httpClient.PostAsync(verifyUrl, content);
             var responseContent = await response.Content.ReadAsStringAsync();
             
+            Console.WriteLine($"📥 Response Status: {response.StatusCode}");
+            Console.WriteLine($"📥 Response Content: {responseContent}");
+            
             if (!response.IsSuccessStatusCode)
             {
-                Console.WriteLine($"❌ OTP verification failed for {email}: {responseContent}");
+                Console.WriteLine($"❌ OTP verification failed for {email}");
                 
                 // Parse error response for better error messages
                 string errorMessage = "Invalid or expired OTP code. Please request a new code.";
                 try
                 {
                     var errorDoc = System.Text.Json.JsonDocument.Parse(responseContent);
-                    if (errorDoc.RootElement.TryGetProperty("error_description", out var errorDesc))
+                    
+                    // Check for error field
+                    if (errorDoc.RootElement.TryGetProperty("error", out var error))
                     {
-                        var errorText = errorDesc.GetString()?.ToLower() ?? "";
+                        var errorText = error.GetString()?.ToLower() ?? "";
+                        Console.WriteLine($"❌ Error field: {errorText}");
+                        
                         if (errorText.Contains("expired"))
                         {
                             errorMessage = "OTP code has expired. Please click 'Resend Code' to get a new one.";
@@ -124,15 +142,37 @@ public class AuthService
                         {
                             errorMessage = "Invalid OTP code. Please check your email and enter the correct code.";
                         }
+                        else if (errorText.Contains("otp"))
+                        {
+                            errorMessage = "Invalid OTP code. Please try again.";
+                        }
                     }
-                    else if (errorDoc.RootElement.TryGetProperty("msg", out var msg))
+                    
+                    // Check for error_description field
+                    if (errorDoc.RootElement.TryGetProperty("error_description", out var errorDesc))
                     {
-                        errorMessage = msg.GetString() ?? errorMessage;
+                        var errorDescText = errorDesc.GetString() ?? "";
+                        Console.WriteLine($"❌ Error description: {errorDescText}");
+                        if (!string.IsNullOrEmpty(errorDescText))
+                        {
+                            errorMessage = errorDescText;
+                        }
+                    }
+                    
+                    // Check for msg field
+                    if (errorDoc.RootElement.TryGetProperty("msg", out var msg))
+                    {
+                        var msgText = msg.GetString() ?? "";
+                        Console.WriteLine($"❌ Message: {msgText}");
+                        if (!string.IsNullOrEmpty(msgText))
+                        {
+                            errorMessage = msgText;
+                        }
                     }
                 }
-                catch
+                catch (Exception parseEx)
                 {
-                    // Use default error message if parsing fails
+                    Console.WriteLine($"❌ Error parsing response: {parseEx.Message}");
                 }
                 
                 return (false, null, errorMessage, null, null);
@@ -140,9 +180,31 @@ public class AuthService
             
             // Parse the response to get session info
             var jsonDoc = System.Text.Json.JsonDocument.Parse(responseContent);
-            var accessToken = jsonDoc.RootElement.GetProperty("access_token").GetString();
-            var refreshToken = jsonDoc.RootElement.GetProperty("refresh_token").GetString();
-            var userId = jsonDoc.RootElement.GetProperty("user").GetProperty("id").GetString();
+            
+            string? accessToken = null;
+            string? refreshToken = null;
+            string? userId = null;
+            
+            // Try to get access_token
+            if (jsonDoc.RootElement.TryGetProperty("access_token", out var accessTokenProp))
+            {
+                accessToken = accessTokenProp.GetString();
+            }
+            
+            // Try to get refresh_token
+            if (jsonDoc.RootElement.TryGetProperty("refresh_token", out var refreshTokenProp))
+            {
+                refreshToken = refreshTokenProp.GetString();
+            }
+            
+            // Try to get user id
+            if (jsonDoc.RootElement.TryGetProperty("user", out var userProp))
+            {
+                if (userProp.TryGetProperty("id", out var userIdProp))
+                {
+                    userId = userIdProp.GetString();
+                }
+            }
 
             Console.WriteLine($"✅ OTP verified successfully for {email}");
             Console.WriteLine($"✅ Session created - Access Token: {(accessToken != null ? "Present" : "Missing")}");
@@ -160,11 +222,11 @@ public class AuthService
             }
 
             // Existing user - signin flow
-            user.LastLoginAt = DateTime.UtcNow;
-            await _userRepository.UpdateAsync(user);
+            var updatedUser = user.WithUpdatedLogin();
+            await _userRepository.UpdateAsync(updatedUser);
             Console.WriteLine($"✅ Existing user logged in: {email}");
             
-            return (true, user, null, accessToken, refreshToken);
+            return (true, updatedUser, null, accessToken, refreshToken);
         }
         catch (Exception ex)
         {
@@ -287,16 +349,8 @@ public class AuthService
                 return existingUser;
             }
             
-            // Create user record
-            var user = new User
-            {
-                Email = email,
-                FullName = fullName,
-                Role = role.ToLower(),
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow,
-                LastLoginAt = DateTime.UtcNow
-            };
+            // Create user record using factory method
+            var user = User.Create(email, fullName, role);
             
             var createdUser = await _userRepository.AddAsync(user);
             Console.WriteLine($"✅ User created: {email} with role: {role}");

@@ -38,14 +38,11 @@ public class DocumentDAO : IDocumentRepository
 
     public async Task<Document> AddAsync(Document entity)
     {
-        entity.Id = Guid.NewGuid();
-        entity.CreatedAt = DateTime.UtcNow;
-        
         var response = await _supabase
             .From<Document>()
             .Insert(entity);
         
-        return response.Models.First();
+        return response.Models.FirstOrDefault() ?? entity;
     }
 
     public async Task<Document> UpdateAsync(Document entity)
@@ -55,7 +52,7 @@ public class DocumentDAO : IDocumentRepository
             .Where(x => x.Id == entity.Id)
             .Update(entity);
         
-        return response.Models.First();
+        return response.Models.FirstOrDefault() ?? entity;
     }
 
     public async Task<bool> DeleteAsync(Guid id)

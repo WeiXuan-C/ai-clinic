@@ -58,6 +58,8 @@ public class DoctorService
     /// </summary>
     public async Task<Doctor> CreateDoctorProfileAsync(Guid userId, string fullName, string licenseNumber, string specialization)
     {
+        // For now, keep using object initializer until Doctor entity is converted
+        // TODO: Convert Doctor to immutable pattern
         var doctor = new Doctor
         {
             UserId = userId,

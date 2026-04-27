@@ -21,8 +21,7 @@ public class AuthController
 
     /// <summary>
     /// Initiates login by sending OTP to user's email
-    /// Only works for users who are already registered
-    /// Facade method that simplifies the OTP sending process
+    /// Only works for users who are already registered IN LOCAL DATABASE
     /// </summary>
     public async Task<(bool Success, string Message)> InitiateLoginAsync(string email)
     {
@@ -38,15 +37,20 @@ public class AuthController
                 return (false, "Invalid email format");
             }
 
-            // Check if user exists before sending OTP
+            // Check if user exists IN LOCAL DATABASE (not Supabase Auth)
+            Console.WriteLine($"🔍 SIGNIN: Checking if {email} exists in local users table...");
             var userExists = await _authService.GetUserByEmailAsync(email);
+            
             if (userExists == null)
             {
+                Console.WriteLine($"❌ SIGNIN: User {email} NOT found in local database. Blocking signin.");
                 return (false, "This email is not registered. Please sign up first.");
             }
+            
+            Console.WriteLine($"✅ SIGNIN: User {email} found in local database. Proceeding with signin.");
 
-            // Send OTP with shouldCreateUser = false (signin only)
-            var success = await _authService.SendOtpAsync(email, shouldCreateUser: false);
+            // Send OTP - Supabase Auth user may or may not exist, but we don't care
+            var success = await _authService.SendOtpAsync(email);
 
             if (success)
             {
@@ -57,6 +61,7 @@ public class AuthController
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"❌ SIGNIN ERROR: {ex.Message}");
             return (false, $"Error: {ex.Message}");
         }
     }
@@ -94,7 +99,7 @@ public class AuthController
 
     /// <summary>
     /// Initiates signup by sending OTP to user's email
-    /// Only works for new users who are not yet registered
+    /// Only works for new users who are not yet registered IN LOCAL DATABASE
     /// </summary>
     public async Task<AuthResponse> SignUpWithOtpAsync(string email)
     {
@@ -110,25 +115,31 @@ public class AuthController
                 return new AuthResponse { Success = false, Message = "Invalid email format" };
             }
 
-            // Check if user already exists
+            // Check if user already exists IN LOCAL DATABASE (not Supabase Auth)
+            Console.WriteLine($"🔍 SIGNUP: Checking if {email} exists in local users table...");
             var existingUser = await _authService.GetUserByEmailAsync(email);
+            
             if (existingUser != null)
             {
+                Console.WriteLine($"❌ SIGNUP: User {email} already exists in local database. Blocking signup.");
                 return new AuthResponse { Success = false, Message = "This email is already registered. Please sign in instead." };
             }
+            
+            Console.WriteLine($"✅ SIGNUP: User {email} NOT found in local database. Proceeding with signup.");
 
-            // Send OTP with shouldCreateUser = true (signup)
-            var success = await _authService.SendOtpAsync(email, shouldCreateUser: true);
+            // Send OTP - will create Supabase Auth user if doesn't exist
+            var success = await _authService.SendOtpAsync(email);
 
             if (success)
             {
                 return new AuthResponse { Success = true, Message = "Verification code sent to your email. Please check your inbox." };
             }
 
-            return new AuthResponse { Success = false, Message = "Failed to send verification code. Please configure Supabase email settings." };
+            return new AuthResponse { Success = false, Message = "Failed to send verification code. Please try again." };
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"❌ SIGNUP ERROR: {ex.Message}");
             return new AuthResponse { Success = false, Message = $"Error: {ex.Message}" };
         }
     }
@@ -145,21 +156,36 @@ public class AuthController
                 return new AuthResponse { Success = false, Message = "Email and OTP are required" };
             }
 
+            Console.WriteLine($"🔍 VERIFY OTP: Starting verification for {email}");
             var (success, user, error, accessToken, refreshToken) = await _authService.VerifyOtpAsync(email, otp);
 
-            if (!success || user == null)
+            if (!success)
             {
+                Console.WriteLine($"❌ VERIFY OTP: Verification failed - {error}");
                 return new AuthResponse { Success = false, Message = error ?? "Invalid OTP" };
             }
 
-            // Update auth state with tokens
-            _authState.SetAuthentication(user, accessToken, refreshToken);
+            Console.WriteLine($"✅ VERIFY OTP: Verification successful. User in local DB: {(user != null ? "Yes" : "No")}");
+
+            // For signup: user will be null (new user, not in local DB yet)
+            // For signin: user will be populated (existing user in local DB)
+            if (user != null)
+            {
+                // Existing user trying to signup - should have been blocked earlier
+                Console.WriteLine($"⚠️ VERIFY OTP: User already exists in local DB. This is a signin, not signup.");
+                _authState.SetAuthentication(user, accessToken, refreshToken);
+                return new AuthResponse { Success = true, Message = "OTP verified successfully", User = user };
+            }
             
-            // If user exists, it's a returning user (signin)
-            return new AuthResponse { Success = true, Message = "OTP verified successfully", User = user };
+            // New user - OTP verified, proceed to role selection
+            Console.WriteLine($"✅ VERIFY OTP: New user verified. Proceeding to role selection.");
+            // Store tokens temporarily (we'll set full auth after profile completion)
+            _authState.SetAuthentication(null, accessToken, refreshToken);
+            return new AuthResponse { Success = true, Message = "OTP verified successfully", User = null };
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"❌ VERIFY OTP ERROR: {ex.Message}");
             return new AuthResponse { Success = false, Message = $"Error: {ex.Message}" };
         }
     }

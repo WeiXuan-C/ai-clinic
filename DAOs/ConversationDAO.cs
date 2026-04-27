@@ -38,28 +38,23 @@ public class ConversationDAO : IConversationRepository
 
     public async Task<Conversation> AddAsync(Conversation entity)
     {
-        entity.Id = Guid.NewGuid();
-        entity.CreatedAt = DateTime.UtcNow;
-        entity.StartedAt = DateTime.UtcNow;
-        entity.LastMessageAt = DateTime.UtcNow;
-        
+        // Entity already created with factory method
         var response = await _supabase
             .From<Conversation>()
             .Insert(entity);
         
-        return response.Models.First();
+        return response.Models.FirstOrDefault() ?? entity;
     }
 
     public async Task<Conversation> UpdateAsync(Conversation entity)
     {
-        entity.UpdatedAt = DateTime.UtcNow;
-        
+        // Entity already updated with factory method
         var response = await _supabase
             .From<Conversation>()
             .Where(x => x.Id == entity.Id)
             .Update(entity);
         
-        return response.Models.First();
+        return response.Models.FirstOrDefault() ?? entity;
     }
 
     public async Task<bool> DeleteAsync(Guid id)

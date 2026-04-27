@@ -45,26 +45,21 @@ public class PatientProfileDAO : IPatientProfileRepository
 
     public async Task<PatientProfile> AddAsync(PatientProfile entity)
     {
-        entity.Id = Guid.NewGuid();
-        entity.CreatedAt = DateTime.UtcNow;
-        
         var response = await _supabase
             .From<PatientProfile>()
             .Insert(entity);
-        
-        return response.Models.First();
+
+        return response.Models.FirstOrDefault() ?? entity;
     }
 
     public async Task<PatientProfile> UpdateAsync(PatientProfile entity)
     {
-        entity.UpdatedAt = DateTime.UtcNow;
-        
         var response = await _supabase
             .From<PatientProfile>()
             .Where(x => x.UserId == entity.UserId)
             .Update(entity);
-        
-        return response.Models.First();
+
+        return response.Models.FirstOrDefault() ?? entity;
     }
 
     public async Task<bool> DeleteAsync(Guid id)

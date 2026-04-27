@@ -4,7 +4,7 @@ using AiClinic.Services;
 using AiClinic.Controller;
 using AiClinic.UI.State;
 using AiClinic.Factories;
-using Supabase;
+using AiClinic.Database;
 
 namespace AiClinic;
 
@@ -18,14 +18,18 @@ public static class DependencyInjectionExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // Register Supabase Client
+        // Register Supabase HTTP Client (direct REST API calls)
         var supabaseUrl = configuration["Supabase:Url"] 
             ?? throw new Exception("Supabase URL not configured");
         var supabaseKey = configuration["Supabase:Key"] 
             ?? throw new Exception("Supabase Key not configured");
 
-        services.AddScoped<Client>(_ => 
-            new Client(supabaseUrl, supabaseKey));
+        services.AddScoped<SupabaseHttpClient>(_ => 
+            new SupabaseHttpClient(supabaseUrl, supabaseKey));
+
+        // Keep Supabase client for Auth only
+        services.AddScoped<Supabase.Client>(_ => 
+            new Supabase.Client(supabaseUrl, supabaseKey));
 
         // Register DAOs (Adapter Pattern) - Scoped lifetime
         services.AddScoped<IUserRepository, UserDAO>();

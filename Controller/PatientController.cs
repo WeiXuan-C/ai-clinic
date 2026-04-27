@@ -48,23 +48,28 @@ public class PatientController
     /// </summary>
     public async Task<PatientProfile> UpdateProfileAsync(Guid userId, UpdatePatientProfileRequest request)
     {
-        var profile = new PatientProfile
+        // Get existing profile first
+        var existingProfile = await _patientService.GetProfileAsync(userId);
+        if (existingProfile == null)
         {
-            UserId = userId,
-            FullName = request.FullName,
-            DateOfBirth = request.DateOfBirth,
-            Gender = request.Gender,
-            Address = request.Address,
-            EmergencyContactName = request.EmergencyContactName,
-            EmergencyContactPhone = request.EmergencyContactPhone,
-            BloodType = request.BloodType,
-            Allergies = request.Allergies,
-            ChronicConditions = request.ChronicConditions,
-            CurrentMedications = request.CurrentMedications,
-            UpdatedAt = DateTime.UtcNow
-        };
+            throw new InvalidOperationException("Profile not found");
+        }
 
-        return await _patientService.UpdateProfileAsync(userId, profile);
+        // Use factory method to create updated profile
+        var updatedProfile = existingProfile.WithUpdatedInfo(
+            request.FullName,
+            request.DateOfBirth,
+            request.Gender,
+            request.Address,
+            request.EmergencyContactName,
+            request.EmergencyContactPhone,
+            request.BloodType,
+            request.Allergies,
+            request.ChronicConditions,
+            request.CurrentMedications
+        );
+
+        return await _patientService.UpdateProfileAsync(updatedProfile);
     }
 
     /// <summary>
@@ -96,12 +101,13 @@ public class PatientController
                 return (false, "User not found");
             }
 
-            user.DataSharingEnabled = request.DataSharingEnabled;
-            user.AiAnalysisEnabled = request.AiAnalysisEnabled;
-            user.ActivityTrackingEnabled = request.ActivityTrackingEnabled;
-            user.UpdatedAt = DateTime.UtcNow;
+            var updatedUser = user.WithUpdatedPrivacySettings(
+                request.DataSharingEnabled,
+                request.AiAnalysisEnabled,
+                request.ActivityTrackingEnabled
+            );
 
-            await _patientService.UpdateUserSettingsAsync(user);
+            await _patientService.UpdateUserSettingsAsync(updatedUser);
             return (true, "Settings updated successfully");
         }
         catch (Exception ex)
@@ -117,16 +123,26 @@ public class PatientController
     {
         try
         {
-            var ticket = new SupportTicket
+            // Create ticket using Initialize method (respects private setters)
+            var ticket = new SupportTicket();
+            ticket.Initialize(
+                id: Guid.NewGuid(),
+                userId: request.UserId,
+                subject: request.Subject,
+                description: request.Description,
+                createdAt: DateTime.UtcNow
+            );
+            
+            // Set optional properties through business methods
+            if (!string.IsNullOrEmpty(request.Category))
             {
-                UserId = request.UserId,
-                Subject = request.Subject,
-                Description = request.Description,
-                Category = request.Category,
-                Priority = request.Priority,
-                Status = "open",
-                CreatedAt = DateTime.UtcNow
-            };
+                ticket.SetCategory(request.Category);
+            }
+            
+            if (!string.IsNullOrEmpty(request.Priority))
+            {
+                ticket.SetPriority(request.Priority);
+            }
 
             var createdTicket = await _patientService.CreateSupportTicketAsync(ticket);
             return (true, "Support ticket created successfully", createdTicket);
