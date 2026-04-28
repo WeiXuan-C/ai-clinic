@@ -1,3 +1,4 @@
+using AiClinic.Interfaces;
 using AiClinic.Services;
 using AiClinic.UI.State;
 
@@ -23,7 +24,8 @@ public class PatientProfileController
     /// </summary>
     public async Task<PatientProfile?> GetProfileAsync(Guid userId)
     {
-        return await _patientProfileService.GetProfileAsync(userId);
+        var profile = await _patientProfileService.GetProfileAsync(userId);
+        return profile as PatientProfile;
     }
 
     /// <summary>
@@ -34,7 +36,7 @@ public class PatientProfileController
         try
         {
             var profile = await _patientProfileService.CreateProfileAsync(userId, fullName);
-            return (true, "Patient profile created successfully", profile);
+            return (true, "Patient profile created successfully", profile as PatientProfile);
         }
         catch (Exception ex)
         {
@@ -54,21 +56,27 @@ public class PatientProfileController
             throw new InvalidOperationException("Profile not found");
         }
 
-        // Use factory method to create updated profile
-        var updatedProfile = existingProfile.WithUpdatedInfo(
-            request.FullName,
-            request.DateOfBirth,
-            request.Gender,
-            request.Address,
-            request.EmergencyContactName,
-            request.EmergencyContactPhone,
-            request.BloodType,
-            request.Allergies,
-            request.ChronicConditions,
-            request.CurrentMedications
-        );
+        // Create updated profile with new values
+        var updatedProfile = new PatientProfile
+        {
+            Id = existingProfile.Id,
+            UserId = existingProfile.UserId,
+            FullName = request.FullName ?? existingProfile.FullName,
+            DateOfBirth = request.DateOfBirth ?? existingProfile.DateOfBirth,
+            Gender = request.Gender ?? existingProfile.Gender,
+            Address = request.Address ?? existingProfile.Address,
+            EmergencyContactName = request.EmergencyContactName ?? existingProfile.EmergencyContactName,
+            EmergencyContactPhone = request.EmergencyContactPhone ?? existingProfile.EmergencyContactPhone,
+            BloodType = request.BloodType ?? existingProfile.BloodType,
+            Allergies = request.Allergies ?? existingProfile.Allergies,
+            ChronicConditions = request.ChronicConditions ?? existingProfile.ChronicConditions,
+            CurrentMedications = request.CurrentMedications ?? existingProfile.CurrentMedications,
+            CreatedAt = existingProfile.CreatedAt,
+            UpdatedAt = DateTime.UtcNow
+        };
 
-        return await _patientProfileService.UpdateProfileAsync(updatedProfile);
+        var result = await _patientProfileService.UpdateProfileAsync(updatedProfile);
+        return result as PatientProfile ?? throw new InvalidOperationException("Update failed");
     }
 
     /// <summary>
@@ -84,7 +92,8 @@ public class PatientProfileController
     /// </summary>
     public async Task<User?> GetUserSettingsAsync(Guid userId)
     {
-        return await _patientProfileService.GetUserSettingsAsync(userId);
+        var settings = await _patientProfileService.GetUserSettingsAsync(userId);
+        return settings as User;
     }
 
     /// <summary>
@@ -94,19 +103,14 @@ public class PatientProfileController
     {
         try
         {
-            var user = await _patientProfileService.GetUserSettingsAsync(userId);
-            if (user == null)
+            var settings = new
             {
-                return (false, "User not found");
-            }
+                DataSharingEnabled = request.DataSharingEnabled,
+                AiAnalysisEnabled = request.AiAnalysisEnabled,
+                ActivityTrackingEnabled = request.ActivityTrackingEnabled
+            };
 
-            var updatedUser = user.WithUpdatedPrivacySettings(
-                request.DataSharingEnabled,
-                request.AiAnalysisEnabled,
-                request.ActivityTrackingEnabled
-            );
-
-            await _patientProfileService.UpdateUserSettingsAsync(updatedUser);
+            await _patientProfileService.UpdateUserSettingsAsync(userId, settings);
             return (true, "Settings updated successfully");
         }
         catch (Exception ex)
@@ -122,29 +126,22 @@ public class PatientProfileController
     {
         try
         {
-            // Create ticket using Initialize method (respects private setters)
-            var ticket = new SupportTicket();
-            ticket.Initialize(
-                id: Guid.NewGuid(),
-                userId: request.UserId,
-                subject: request.Subject,
-                description: request.Description,
-                createdAt: DateTime.UtcNow
-            );
-            
-            // Set optional properties through business methods
-            if (!string.IsNullOrEmpty(request.Category))
+            // Create ticket with all properties
+            var ticket = new SupportTicket
             {
-                ticket.SetCategory(request.Category);
-            }
-            
-            if (!string.IsNullOrEmpty(request.Priority))
-            {
-                ticket.SetPriority(request.Priority);
-            }
+                Id = Guid.NewGuid(),
+                UserId = request.UserId,
+                Subject = request.Subject,
+                Description = request.Description,
+                Category = request.Category,
+                Priority = request.Priority ?? "medium",
+                Status = "open",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
 
             var createdTicket = await _patientProfileService.CreateSupportTicketAsync(ticket);
-            return (true, "Support ticket created successfully", createdTicket);
+            return (true, "Support ticket created successfully", createdTicket as SupportTicket);
         }
         catch (Exception ex)
         {
@@ -157,7 +154,8 @@ public class PatientProfileController
     /// </summary>
     public async Task<IEnumerable<SupportTicket>> GetUserSupportTicketsAsync(Guid userId)
     {
-        return await _patientProfileService.GetUserSupportTicketsAsync(userId);
+        var tickets = await _patientProfileService.GetUserSupportTicketsAsync(userId);
+        return tickets.Cast<SupportTicket>();
     }
 
     /// <summary>
@@ -165,7 +163,8 @@ public class PatientProfileController
     /// </summary>
     public async Task<SupportTicket?> GetSupportTicketAsync(Guid ticketId)
     {
-        return await _patientProfileService.GetSupportTicketAsync(ticketId);
+        var ticket = await _patientProfileService.GetSupportTicketAsync(ticketId);
+        return ticket as SupportTicket;
     }
 }
 

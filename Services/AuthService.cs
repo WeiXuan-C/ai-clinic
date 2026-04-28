@@ -1,3 +1,4 @@
+using AiClinic.Interfaces;
 using AiClinic.UI.State;
 
 namespace AiClinic.Services;
@@ -26,7 +27,7 @@ public class AuthService
     /// <summary>
     /// Verifies OTP and authenticates user
     /// </summary>
-    public async Task<(bool Success, User? User, string? Error, string? AccessToken, string? RefreshToken)> VerifyOtpAsync(string email, string otp)
+    public async Task<(bool Success, IUser? User, string? Error, string? AccessToken, string? RefreshToken)> VerifyOtpAsync(string email, string otp)
     {
         return await _state.VerifyOtpAsync(email, otp);
     }
@@ -58,7 +59,7 @@ public class AuthService
     /// <summary>
     /// Gets user by ID
     /// </summary>
-    public async Task<User?> GetUserByIdAsync(Guid userId)
+    public async Task<IUser?> GetUserByIdAsync(Guid userId)
     {
         return await _state.GetUserByIdAsync(userId);
     }
@@ -66,7 +67,7 @@ public class AuthService
     /// <summary>
     /// Gets user by email
     /// </summary>
-    public async Task<User?> GetUserByEmailAsync(string email)
+    public async Task<IUser?> GetUserByEmailAsync(string email)
     {
         return await _state.GetUserByEmailAsync(email);
     }
@@ -74,15 +75,31 @@ public class AuthService
     /// <summary>
     /// Updates user profile
     /// </summary>
-    public async Task<User?> UpdateUserAsync(User user)
+    public async Task<IUser?> UpdateUserAsync(IUser user)
     {
-        return await _state.UpdateUserAsync(user);
+        var concreteUser = user as User ?? new User
+        {
+            Id = user.Id,
+            Email = user.Email,
+            Phone = user.Phone,
+            Role = user.Role,
+            IsActive = user.IsActive,
+            CreatedAt = user.CreatedAt,
+            UpdatedAt = user.UpdatedAt,
+            LastLoginAt = user.LastLoginAt,
+            DataSharingEnabled = user.DataSharingEnabled,
+            AiAnalysisEnabled = user.AiAnalysisEnabled,
+            ActivityTrackingEnabled = user.ActivityTrackingEnabled,
+            IsDeactivated = user.IsDeactivated,
+            DeactivatedAt = user.DeactivatedAt
+        };
+        return await _state.UpdateUserAsync(concreteUser);
     }
 
     /// <summary>
     /// Creates a new user with role and profile
     /// </summary>
-    public async Task<User?> CreateUserWithProfileAsync(string email, string fullName, string role)
+    public async Task<IUser?> CreateUserWithProfileAsync(string email, string fullName, string role)
     {
         return await _state.CreateUserWithProfileAsync(email, fullName, role);
     }
@@ -90,7 +107,7 @@ public class AuthService
     /// <summary>
     /// Gets the current authenticated user from state
     /// </summary>
-    public User? GetCurrentUser()
+    public IUser? GetCurrentUser()
     {
         return _state.CurrentUser;
     }

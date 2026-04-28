@@ -1,3 +1,4 @@
+using AiClinic.Interfaces;
 using AiClinic.Services;
 using AiClinic.UI.State;
 
@@ -86,7 +87,7 @@ public class AuthController
             }
 
             // Update global auth state with tokens
-            _authState.SetAuthentication(user, accessToken, refreshToken);
+            _authState.SetAuthentication(user as User ?? throw new InvalidOperationException("User conversion failed"), accessToken, refreshToken);
 
             return (true, "Login successful!");
         }
@@ -172,14 +173,14 @@ public class AuthController
             {
                 // Existing user trying to signup - should have been blocked earlier
                 Console.WriteLine($"⚠️ VERIFY OTP: User already exists in local DB. This is a signin, not signup.");
-                _authState.SetAuthentication(user, accessToken, refreshToken);
-                return new AuthResponse { Success = true, Message = "OTP verified successfully", User = user };
+                _authState.SetAuthentication(user as User ?? throw new InvalidOperationException("User conversion failed"), accessToken, refreshToken);
+                return new AuthResponse { Success = true, Message = "OTP verified successfully", User = user as User };
             }
             
             // New user - OTP verified, proceed to role selection
             Console.WriteLine($"✅ VERIFY OTP: New user verified. Proceeding to role selection.");
             // Store tokens temporarily (we'll set full auth after profile completion)
-            _authState.SetAuthentication(null, accessToken, refreshToken);
+            _authState.SetAuthentication(null!, accessToken, refreshToken);
             return new AuthResponse { Success = true, Message = "OTP verified successfully", User = null };
         }
         catch (Exception ex)
@@ -225,9 +226,9 @@ public class AuthController
             }
 
             // Update auth state
-            _authState.CurrentUser = user;
+            _authState.CurrentUser = user as User;
 
-            return new AuthResponse { Success = true, Message = "Registration completed successfully", User = user };
+            return new AuthResponse { Success = true, Message = "Registration completed successfully", User = user as User };
         }
         catch (Exception ex)
         {
@@ -286,7 +287,7 @@ public class AuthController
         try
         {
             var updatedUser = await _authService.UpdateUserAsync(user);
-            _authState.CurrentUser = updatedUser;
+            _authState.CurrentUser = updatedUser as User;
 
             return (true, "Profile updated successfully");
         }

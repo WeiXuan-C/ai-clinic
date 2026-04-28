@@ -2,9 +2,9 @@ namespace AiClinic.Controller;
 
 public class DoctorRatingController
 {
-    private readonly Interfaces.DoctorRatingInterface _ratingService;
+    private readonly Services.DoctorRatingService _ratingService;
 
-    public DoctorRatingController(Interfaces.DoctorRatingInterface ratingService)
+    public DoctorRatingController(Services.DoctorRatingService ratingService)
     {
         _ratingService = ratingService;
     }

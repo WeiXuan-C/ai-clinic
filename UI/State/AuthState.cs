@@ -41,7 +41,15 @@ public class AuthState
     /// <summary>
     /// Currently authenticated user
     /// </summary>
-    public User? CurrentUser => _currentUser;
+    public User? CurrentUser
+    {
+        get => _currentUser;
+        set
+        {
+            _currentUser = value;
+            NotifyStateChanged();
+        }
+    }
 
     /// <summary>
     /// Access token for Supabase authentication
@@ -491,7 +499,18 @@ public class AuthState
                 return existingUser;
             }
             
-            var user = User.Create(email, fullName, role);
+            var user = new User
+            {
+                Id = Guid.NewGuid(),
+                Email = email,
+                Role = role,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                DataSharingEnabled = true,
+                AiAnalysisEnabled = true,
+                ActivityTrackingEnabled = true
+            };
             var createdUser = await _userRepository.AddAsync(user);
             
             Console.WriteLine($"✅ User created: {email} with role: {role}");

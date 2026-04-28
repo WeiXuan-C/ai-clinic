@@ -2,9 +2,9 @@ namespace AiClinic.Controller;
 
 public class SupportTicketController
 {
-    private readonly Interfaces.SupportTicketInterface _supportTicketService;
+    private readonly Services.SupportTicketService _supportTicketService;
 
-    public SupportTicketController(Interfaces.SupportTicketInterface supportTicketService)
+    public SupportTicketController(Services.SupportTicketService supportTicketService)
     {
         _supportTicketService = supportTicketService;
     }

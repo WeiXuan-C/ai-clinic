@@ -1,3 +1,6 @@
+using Postgrest.Attributes;
+using Postgrest.Models;
+
 namespace AiClinic.Interfaces;
 
 /// <summary>
@@ -20,6 +23,26 @@ public interface IDocument
     string? Description { get; set; }
     string[]? Tags { get; set; }
     DateTime CreatedAt { get; set; }
+}
+
+/// <summary>
+/// Document entity implementation
+/// </summary>
+public class Document : BaseModel, IDocument
+{
+    public Guid Id { get; set; }
+    public Guid ConversationId { get; set; }
+    public Guid UploadedByUserId { get; set; }
+    public string FileName { get; set; } = string.Empty;
+    public string FileType { get; set; } = string.Empty;
+    public long FileSizeBytes { get; set; }
+    public string FileUrl { get; set; } = string.Empty;
+    public string? MimeType { get; set; }
+    public bool IsProcessed { get; set; }
+    public string? ExtractedText { get; set; }
+    public string? Description { get; set; }
+    public string[]? Tags { get; set; }
+    public DateTime CreatedAt { get; set; }
 }
 
 /// <summary>

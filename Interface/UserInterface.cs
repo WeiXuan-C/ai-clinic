@@ -1,12 +1,10 @@
+using Postgrest.Attributes;
+using Postgrest.Models;
+
 namespace AiClinic.Interfaces;
 
-/// <summary>
-/// Factory Design Pattern - Entity Interface
-/// Defines the contract for User entity structure (attributes/properties as constraints)
-/// </summary>
 public interface IUser
 {
-    // Entity Properties - Constraints
     Guid Id { get; set; }
     string Email { get; set; }
     string? Phone { get; set; }
@@ -22,10 +20,43 @@ public interface IUser
     DateTime? DeactivatedAt { get; set; }
 }
 
-/// <summary>
-/// Factory Design Pattern - Repository Interface
-/// Defines the contract for User repository operations
-/// </summary>
+public class User : BaseModel, IUser
+{
+    public Guid Id { get; set; }
+    public string Email { get; set; } = string.Empty;
+    public string? Phone { get; set; }
+    public string Role { get; set; } = string.Empty;
+    public bool IsActive { get; set; } = true;
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public DateTime? LastLoginAt { get; set; }
+    public bool DataSharingEnabled { get; set; } = true;
+    public bool AiAnalysisEnabled { get; set; } = true;
+    public bool ActivityTrackingEnabled { get; set; } = true;
+    public bool IsDeactivated { get; set; }
+    public DateTime? DeactivatedAt { get; set; }
+
+    public User WithUpdatedLogin()
+    {
+        return new User
+        {
+            Id = this.Id,
+            Email = this.Email,
+            Phone = this.Phone,
+            Role = this.Role,
+            IsActive = this.IsActive,
+            CreatedAt = this.CreatedAt,
+            UpdatedAt = DateTime.UtcNow,
+            LastLoginAt = DateTime.UtcNow,
+            DataSharingEnabled = this.DataSharingEnabled,
+            AiAnalysisEnabled = this.AiAnalysisEnabled,
+            ActivityTrackingEnabled = this.ActivityTrackingEnabled,
+            IsDeactivated = this.IsDeactivated,
+            DeactivatedAt = this.DeactivatedAt
+        };
+    }
+}
+
 public interface IUserRepository
 {
     Task<User?> GetByIdAsync(Guid id);

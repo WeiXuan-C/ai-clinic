@@ -32,30 +32,45 @@ public static class DependencyInjectionExtensions
         services.AddScoped<IUserRepository, UserDAO>();
         services.AddScoped<IConversationRepository, ConversationDAO>();
         services.AddScoped<IMessageRepository, MessageDAO>();
-        services.AddScoped<IDoctorRepository, DoctorDAO>();
+        services.AddScoped<IDoctorRepository, DoctorProfileDAO>();
         services.AddScoped<IDocumentRepository, DocumentDAO>();
         services.AddScoped<IPatientProfileRepository, PatientProfileDAO>();
         services.AddScoped<ISupportTicketRepository, SupportTicketDAO>();
-
-        // Register Services (Business Logic) - Scoped lifetime
-        services.AddScoped<AuthService>();
-        services.AddScoped<ChatService>();
-        services.AddScoped<DoctorService>();
-        services.AddScoped<PatientService>();
-
-        // Register Factories (Abstract Factory Pattern) - Scoped lifetime
-        services.AddScoped<IServiceFactory, ServiceFactory>();
-
-        // Register Controllers (Facade Pattern) - Scoped lifetime
-        services.AddScoped<AuthController>();
-        services.AddScoped<ChatController>();
-        services.AddScoped<DoctorController>();
-        services.AddScoped<PatientController>();
+        services.AddScoped<IAdminProfileRepository, AdminProfileDAO>();
+        services.AddScoped<IDoctorRatingRepository, DoctorRatingDAO>();
 
         // Register State - Singleton lifetime (system requirement)
         services.AddSingleton<AuthState>();
-        services.AddSingleton<ChatState>();
-        services.AddSingleton<DoctorState>();
+        services.AddSingleton<ConversationState>();
+        services.AddSingleton<MessageState>();
+        services.AddSingleton<DoctorProfileState>();
+        services.AddSingleton<PatientProfileState>();
+        services.AddSingleton<AdminProfileState>();
+        services.AddSingleton<SupportTicketState>();
+        services.AddSingleton<DocumentState>();
+        services.AddSingleton<DoctorRatingState>();
+
+        // Register Services (Business Logic) - Scoped lifetime
+        services.AddScoped<Services.AuthService>();
+        services.AddScoped<Services.ConversationService>();
+        services.AddScoped<Services.MessageService>();
+        services.AddScoped<Services.DoctorProfileService>();
+        services.AddScoped<Services.PatientProfileService>();
+        services.AddScoped<Services.AdminProfileService>();
+        services.AddScoped<Services.SupportTicketService>();
+        services.AddScoped<Services.DocumentService>();
+        services.AddScoped<Services.DoctorRatingService>();
+
+        // Register Controllers (Facade Pattern) - Scoped lifetime
+        services.AddScoped<Controller.AuthController>();
+        services.AddScoped<Controller.ConversationController>();
+        services.AddScoped<Controller.MessageController>();
+        services.AddScoped<Controller.DoctorProfileController>();
+        services.AddScoped<Controller.PatientProfileController>();
+        services.AddScoped<Controller.AdminProfileController>();
+        services.AddScoped<Controller.SupportTicketController>();
+        services.AddScoped<Controller.DocumentController>();
+        services.AddScoped<Controller.DoctorRatingController>();
 
         return services;
     }

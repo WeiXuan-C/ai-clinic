@@ -1,3 +1,4 @@
+using AiClinic.Interfaces;
 using AiClinic.Services;
 using AiClinic.UI.State;
 
@@ -46,7 +47,7 @@ public class DoctorProfileController
                 return (false, "Doctor profile not found");
             }
 
-            _doctorProfileState.CurrentDoctor = doctor;
+            _doctorProfileState.CurrentDoctor = doctor as Doctor;
 
             return (true, "Doctor profile loaded successfully");
         }
@@ -67,9 +68,23 @@ public class DoctorProfileController
     {
         try
         {
-            var doctor = await _doctorProfileService.CreateDoctorProfileAsync(userId, fullName, licenseNumber, specialization);
-            _doctorProfileState.CurrentDoctor = doctor;
-            return (true, "Doctor profile created successfully", doctor);
+            var doctorProfile = new Doctor
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                FullName = fullName,
+                LicenseNumber = licenseNumber,
+                PrimarySpecialization = specialization,
+                IsActive = true,
+                IsVerified = false,
+                IsAcceptingPatients = true,
+                AvailabilityStatus = "available",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            var doctor = await _doctorProfileService.CreateDoctorProfileAsync(doctorProfile);
+            _doctorProfileState.CurrentDoctor = doctor as Doctor;
+            return (true, "Doctor profile created successfully", doctor as Doctor);
         }
         catch (Exception ex)
         {
@@ -88,7 +103,7 @@ public class DoctorProfileController
             _doctorProfileState.IsLoading = true;
 
             var doctors = await _doctorProfileService.GetAvailableDoctorsAsync();
-            _doctorProfileState.SetAvailableDoctors(doctors);
+            _doctorProfileState.SetAvailableDoctors(doctors.Cast<Doctor>());
 
             return (true, $"Loaded {doctors.Count()} available doctors");
         }
@@ -107,7 +122,8 @@ public class DoctorProfileController
     /// </summary>
     public async Task<IEnumerable<Doctor>> SearchDoctorsBySpecializationAsync(string specialization)
     {
-        return await _doctorProfileService.GetDoctorsBySpecializationAsync(specialization);
+        var doctors = await _doctorProfileService.GetDoctorsBySpecializationAsync(specialization);
+        return doctors.Cast<Doctor>();
     }
 
     /// <summary>
@@ -131,7 +147,7 @@ public class DoctorProfileController
             }
 
             await _doctorProfileService.UpdateDoctorAvailabilityAsync(doctor.Id, status);
-            _doctorProfileState.UpdateAvailabilityStatus(status);
+            _doctorProfileState.UpdateAvailabilityStatus(doctor.Id, status);
 
             return (true, $"Availability updated to {status}");
         }
@@ -152,7 +168,8 @@ public class DoctorProfileController
             return Enumerable.Empty<Conversation>();
         }
 
-        return await _doctorProfileService.GetDoctorConversationsAsync(doctor.Id);
+        var conversations = await _doctorProfileService.GetDoctorConversationsAsync(doctor.Id);
+        return conversations.Cast<Conversation>();
     }
 
     /// <summary>
@@ -164,7 +181,7 @@ public class DoctorProfileController
         try
         {
             var updatedDoctor = await _doctorProfileService.UpdateDoctorProfileAsync(doctor);
-            _doctorProfileState.CurrentDoctor = updatedDoctor;
+            _doctorProfileState.CurrentDoctor = updatedDoctor as Doctor;
 
             return (true, "Profile updated successfully");
         }
@@ -179,7 +196,8 @@ public class DoctorProfileController
     /// </summary>
     public async Task<IEnumerable<Doctor>> GetAllDoctorsAsync()
     {
-        return await _doctorProfileService.GetAllDoctorsAsync();
+        var doctors = await _doctorProfileService.GetAllDoctorsAsync();
+        return doctors.Cast<Doctor>();
     }
 
     /// <summary>
@@ -187,7 +205,21 @@ public class DoctorProfileController
     /// </summary>
     public async Task<Doctor?> GetDoctorByIdAsync(Guid doctorId)
     {
-        return await _doctorProfileService.GetDoctorByIdAsync(doctorId);
+        var doctor = await _doctorProfileService.GetDoctorByIdAsync(doctorId);
+        return doctor as Doctor;
+    }
+
+    /// <summary>
+    /// Finds an available doctor by specialization
+    /// </summary>
+    public async Task<Doctor?> FindAvailableDoctorAsync(string? specialization)
+    {
+        if (string.IsNullOrEmpty(specialization))
+        {
+            return null;
+        }
+        var doctor = await _doctorProfileService.FindAvailableDoctorAsync(specialization);
+        return doctor as Doctor;
     }
 
     /// <summary>
@@ -195,6 +227,7 @@ public class DoctorProfileController
     /// </summary>
     public async Task<Doctor?> FindBestAvailableDoctorAsync(string? specialization = null)
     {
-        return await _doctorProfileService.FindAvailableDoctorAsync(specialization);
+        var doctor = await _doctorProfileService.FindAvailableDoctorAsync(specialization ?? "general");
+        return doctor as Doctor;
     }
 }

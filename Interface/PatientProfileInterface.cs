@@ -1,3 +1,6 @@
+using Postgrest.Attributes;
+using Postgrest.Models;
+
 namespace AiClinic.Interfaces;
 
 /// <summary>
@@ -21,6 +24,27 @@ public interface IPatientProfile
     string[]? CurrentMedications { get; set; }
     DateTime CreatedAt { get; set; }
     DateTime UpdatedAt { get; set; }
+}
+
+/// <summary>
+/// PatientProfile entity implementation
+/// </summary>
+public class PatientProfile : BaseModel, IPatientProfile
+{
+    public Guid Id { get; set; }
+    public Guid UserId { get; set; }
+    public string? FullName { get; set; }
+    public DateTime? DateOfBirth { get; set; }
+    public string? Gender { get; set; }
+    public string? Address { get; set; }
+    public string? EmergencyContactName { get; set; }
+    public string? EmergencyContactPhone { get; set; }
+    public string? BloodType { get; set; }
+    public string[]? Allergies { get; set; }
+    public string[]? ChronicConditions { get; set; }
+    public string[]? CurrentMedications { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
 }
 
 /// <summary>

@@ -1,3 +1,6 @@
+using Postgrest.Attributes;
+using Postgrest.Models;
+
 namespace AiClinic.Interfaces;
 
 /// <summary>
@@ -18,6 +21,24 @@ public interface IDoctorRating
     int? KnowledgeRating { get; set; }
     int? ResponseTimeRating { get; set; }
     DateTime CreatedAt { get; set; }
+}
+
+/// <summary>
+/// DoctorRating entity implementation
+/// </summary>
+public class DoctorRating : BaseModel, IDoctorRating
+{
+    public Guid Id { get; set; }
+    public Guid DoctorId { get; set; }
+    public Guid PatientId { get; set; }
+    public Guid ConversationId { get; set; }
+    public int Rating { get; set; }
+    public string? ReviewText { get; set; }
+    public int? ProfessionalismRating { get; set; }
+    public int? CommunicationRating { get; set; }
+    public int? KnowledgeRating { get; set; }
+    public int? ResponseTimeRating { get; set; }
+    public DateTime CreatedAt { get; set; }
 }
 
 /// <summary>

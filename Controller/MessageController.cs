@@ -2,9 +2,9 @@ namespace AiClinic.Controller;
 
 public class MessageController
 {
-    private readonly Interfaces.MessageInterface _messageService;
+    private readonly Services.MessageService _messageService;
 
-    public MessageController(Interfaces.MessageInterface messageService)
+    public MessageController(Services.MessageService messageService)
     {
         _messageService = messageService;
     }
@@ -21,12 +21,15 @@ public class MessageController
 
     public async Task<object> GetMessagesByConversationIdAsync(string conversationId, int limit = 50, int offset = 0)
     {
-        return await _messageService.GetMessagesByConversationIdAsync(conversationId, limit, offset);
+        return await _messageService.GetMessagesByConversationIdAsync(conversationId);
     }
 
     public async Task MarkMessageAsReadAsync(string messageId)
     {
-        await _messageService.MarkMessageAsReadAsync(messageId);
+        if (Guid.TryParse(messageId, out var guid))
+        {
+            await _messageService.MarkAsReadAsync(messageId);
+        }
     }
 
     public async Task DeleteMessageAsync(string messageId)

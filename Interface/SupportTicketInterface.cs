@@ -1,3 +1,6 @@
+using Postgrest.Attributes;
+using Postgrest.Models;
+
 namespace AiClinic.Interfaces;
 
 /// <summary>
@@ -18,6 +21,24 @@ public interface ISupportTicket
     DateTime UpdatedAt { get; set; }
     DateTime? ResolvedAt { get; set; }
     DateTime? ClosedAt { get; set; }
+}
+
+/// <summary>
+/// SupportTicket entity implementation
+/// </summary>
+public class SupportTicket : BaseModel, ISupportTicket
+{
+    public Guid Id { get; set; }
+    public Guid UserId { get; set; }
+    public string Subject { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string? Category { get; set; }
+    public string Priority { get; set; } = "medium";
+    public string Status { get; set; } = "open";
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public DateTime? ResolvedAt { get; set; }
+    public DateTime? ClosedAt { get; set; }
 }
 
 /// <summary>

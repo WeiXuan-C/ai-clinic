@@ -178,5 +178,73 @@ public class DoctorRatingState
         NotifyStateChanged();
     }
 
+    public async Task<IEnumerable<DoctorRating>> GetByDoctorIdAsync(Guid doctorId)
+    {
+        try
+        {
+            _isLoading = true;
+            _errorMessage = null;
+            NotifyStateChanged();
+
+            var ratings = await _repository.GetByDoctorIdAsync(doctorId);
+            return ratings;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+            return Enumerable.Empty<DoctorRating>();
+        }
+        finally
+        {
+            _isLoading = false;
+            NotifyStateChanged();
+        }
+    }
+
+    public async Task<IEnumerable<DoctorRating>> GetByPatientIdAsync(Guid patientId)
+    {
+        try
+        {
+            _isLoading = true;
+            _errorMessage = null;
+            NotifyStateChanged();
+
+            var ratings = await _repository.GetByPatientIdAsync(patientId);
+            return ratings;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+            return Enumerable.Empty<DoctorRating>();
+        }
+        finally
+        {
+            _isLoading = false;
+            NotifyStateChanged();
+        }
+    }
+
+    public async Task<double> GetAverageRatingAsync(Guid doctorId)
+    {
+        try
+        {
+            _isLoading = true;
+            _errorMessage = null;
+            NotifyStateChanged();
+
+            return await _repository.GetAverageRatingAsync(doctorId);
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+            return 0.0;
+        }
+        finally
+        {
+            _isLoading = false;
+            NotifyStateChanged();
+        }
+    }
+
     private void NotifyStateChanged() => OnChange?.Invoke();
 }

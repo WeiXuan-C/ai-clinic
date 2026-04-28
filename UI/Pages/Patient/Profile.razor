@@ -1,6 +1,7 @@
 @page "/patient/profile"
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 @layout Components.Layout.SidebarLayout
+@using AiClinic.Interfaces
 @inject AuthController AuthController
 @inject PatientProfileController PatientController
 @inject NavigationManager Navigation

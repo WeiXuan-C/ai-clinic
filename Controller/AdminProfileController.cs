@@ -2,9 +2,9 @@ namespace AiClinic.Controller;
 
 public class AdminProfileController
 {
-    private readonly Interfaces.AdminProfileInterface _adminService;
+    private readonly Services.AdminProfileService _adminService;
 
-    public AdminProfileController(Interfaces.AdminProfileInterface adminService)
+    public AdminProfileController(Services.AdminProfileService adminService)
     {
         _adminService = adminService;
     }

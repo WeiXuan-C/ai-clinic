@@ -1,3 +1,6 @@
+using Postgrest.Attributes;
+using Postgrest.Models;
+
 namespace AiClinic.Interfaces;
 
 /// <summary>
@@ -27,6 +30,33 @@ public interface IConversation
     bool PrescriptionGenerated { get; set; }
     string? RequiredSpecialization { get; set; }
     decimal? AiConfidenceScore { get; set; }
+}
+
+/// <summary>
+/// Conversation entity implementation
+/// </summary>
+public class Conversation : BaseModel, IConversation
+{
+    public Guid Id { get; set; }
+    public Guid PatientId { get; set; }
+    public Guid? AssignedDoctorId { get; set; }
+    public string? Title { get; set; }
+    public string Status { get; set; } = "active";
+    public string[]? InitialSymptoms { get; set; }
+    public string? AiSuggestedSpecialization { get; set; }
+    public DateTime StartedAt { get; set; }
+    public DateTime? ClosedAt { get; set; }
+    public DateTime LastMessageAt { get; set; }
+    public int TotalMessages { get; set; }
+    public int AiMessagesCount { get; set; }
+    public int DoctorMessagesCount { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public string ConsultationStatus { get; set; } = "pending";
+    public bool DiagnosisCompleted { get; set; }
+    public bool PrescriptionGenerated { get; set; }
+    public string? RequiredSpecialization { get; set; }
+    public decimal? AiConfidenceScore { get; set; }
 }
 
 /// <summary>

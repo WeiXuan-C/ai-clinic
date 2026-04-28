@@ -1,4 +1,18 @@
+using Postgrest.Attributes;
+using Postgrest.Models;
+
 namespace AiClinic.Interfaces;
+
+/// <summary>
+/// Message sender type enumeration
+/// </summary>
+public static class MessageSenderType
+{
+    public const string Patient = "patient";
+    public const string Doctor = "doctor";
+    public const string AI = "ai";
+    public const string System = "system";
+}
 
 /// <summary>
 /// Factory Design Pattern - Entity Interface
@@ -18,6 +32,44 @@ public interface IMessage
     bool IsRead { get; set; }
     DateTime? ReadAt { get; set; }
     DateTime CreatedAt { get; set; }
+    DateTime SentAt { get; set; } // Alias for CreatedAt
+}
+
+/// <summary>
+/// Message entity implementation
+/// </summary>
+public class Message : BaseModel, IMessage
+{
+    public Guid Id { get; set; }
+    public Guid ConversationId { get; set; }
+    public Guid? SenderId { get; set; }
+    public string SenderType { get; set; } = string.Empty;
+    public string Content { get; set; } = string.Empty;
+    public string? AiModelUsed { get; set; }
+    public decimal? AiConfidenceScore { get; set; }
+    public Guid[]? DocumentReferences { get; set; }
+    public bool IsRead { get; set; }
+    public DateTime? ReadAt { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime SentAt { get => CreatedAt; set => CreatedAt = value; }
+
+    public Message WithMarkedAsRead()
+    {
+        return new Message
+        {
+            Id = this.Id,
+            ConversationId = this.ConversationId,
+            SenderId = this.SenderId,
+            SenderType = this.SenderType,
+            Content = this.Content,
+            AiModelUsed = this.AiModelUsed,
+            AiConfidenceScore = this.AiConfidenceScore,
+            DocumentReferences = this.DocumentReferences,
+            IsRead = true,
+            ReadAt = DateTime.UtcNow,
+            CreatedAt = this.CreatedAt
+        };
+    }
 }
 
 /// <summary>

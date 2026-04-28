@@ -22,8 +22,25 @@ public class DoctorProfileState
     public event Action? OnChange;
 
     public Doctor? CurrentProfile => _currentProfile;
+    public Doctor? CurrentDoctor
+    {
+        get => _currentProfile;
+        set
+        {
+            _currentProfile = value;
+            NotifyStateChanged();
+        }
+    }
     public IReadOnlyList<Doctor> Doctors => _doctors.AsReadOnly();
-    public bool IsLoading => _isLoading;
+    public bool IsLoading
+    {
+        get => _isLoading;
+        set
+        {
+            _isLoading = value;
+            NotifyStateChanged();
+        }
+    }
     public string? ErrorMessage => _errorMessage;
     public bool HasProfile => _currentProfile != null;
 
@@ -301,6 +318,23 @@ public class DoctorProfileState
         _doctors.Clear();
         _errorMessage = null;
         NotifyStateChanged();
+    }
+
+    public void SetAvailableDoctors(IEnumerable<Doctor> doctors)
+    {
+        _doctors = doctors.ToList();
+        NotifyStateChanged();
+    }
+
+    public void UpdateAvailabilityStatus(Guid doctorId, string status)
+    {
+        var doctor = _doctors.FirstOrDefault(d => d.Id == doctorId);
+        if (doctor != null)
+        {
+            doctor.AvailabilityStatus = status;
+            doctor.UpdatedAt = DateTime.UtcNow;
+            NotifyStateChanged();
+        }
     }
 
     private void NotifyStateChanged() => OnChange?.Invoke();

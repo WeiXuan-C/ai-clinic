@@ -1,3 +1,6 @@
+using Postgrest.Attributes;
+using Postgrest.Models;
+
 namespace AiClinic.Interfaces;
 
 /// <summary>
@@ -33,6 +36,39 @@ public interface IDoctorProfile
     bool IsAcceptingPatients { get; set; }
     DateTime CreatedAt { get; set; }
     DateTime UpdatedAt { get; set; }
+}
+
+/// <summary>
+/// Doctor entity implementation
+/// </summary>
+public class Doctor : BaseModel, IDoctorProfile
+{
+    public Guid Id { get; set; }
+    public Guid UserId { get; set; }
+    public string FullName { get; set; } = string.Empty;
+    public string? Title { get; set; }
+    public string LicenseNumber { get; set; } = string.Empty;
+    public string PrimarySpecialization { get; set; } = string.Empty;
+    public string[]? SubSpecializations { get; set; }
+    public string[]? MedicalExpertiseTags { get; set; }
+    public string[]? SymptomsExpertise { get; set; }
+    public string[]? ConditionsTreated { get; set; }
+    public string[]? ProceduresPerformed { get; set; }
+    public string[]? AgeGroupsTreated { get; set; }
+    public string[]? LanguagesSpoken { get; set; }
+    public int? YearsOfExperience { get; set; }
+    public string AvailabilityStatus { get; set; } = "available";
+    public object? WorkingHours { get; set; }
+    public int CurrentActiveConversations { get; set; }
+    public int TotalConsultations { get; set; }
+    public decimal AverageRating { get; set; }
+    public int TotalRatings { get; set; }
+    public string? ProfilePhotoUrl { get; set; }
+    public bool IsVerified { get; set; }
+    public bool IsActive { get; set; } = true;
+    public bool IsAcceptingPatients { get; set; } = true;
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
 }
 
 /// <summary>

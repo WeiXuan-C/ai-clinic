@@ -2,9 +2,9 @@ namespace AiClinic.Controller;
 
 public class ConversationController
 {
-    private readonly Interfaces.ConversationInterface _conversationService;
+    private readonly Services.ConversationService _conversationService;
 
-    public ConversationController(Interfaces.ConversationInterface conversationService)
+    public ConversationController(Services.ConversationService conversationService)
     {
         _conversationService = conversationService;
     }
