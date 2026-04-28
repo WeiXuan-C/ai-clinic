@@ -1,11 +1,8 @@
 @page "/patient/chat-example"
 @using AiClinic.Controller
-@using AiClinic.Core.Entities
-@using AiClinic.UI.State
-@inject ChatController ChatController
+@inject ConversationController ConversationController
+@inject MessageController MessageController
 @inject AuthController AuthController
-@inject ChatState ChatState
-@inject AuthState AuthState
 @implements IDisposable
 
 <PageTitle>AI Clinic - Chat Example</PageTitle>
@@ -13,7 +10,7 @@
 <div class="chat-example-container">
     <div class="chat-header">
         <h2>AI Clinic Consultation</h2>
-        @if (ChatState.HasAssignedDoctor)
+        @if (hasAssignedDoctor)
         {
             <span class="doctor-badge">👨‍⚕️ Doctor Assigned</span>
         }
@@ -24,17 +21,17 @@
     </div>
 
     <div class="messages-area">
-        @if (ChatState.IsLoading)
+        @if (isLoading)
         {
             <div class="loading">Loading conversation...</div>
         }
-        else if (!string.IsNullOrEmpty(ChatState.ErrorMessage))
+        else if (!string.IsNullOrEmpty(errorMessage))
         {
-            <div class="error">@ChatState.ErrorMessage</div>
+            <div class="error">@errorMessage</div>
         }
         else
         {
-            @foreach (var message in ChatState.Messages)
+            @foreach (var message in messages)
             {
                 <div class="message @GetMessageClass(message)">
                     <div class="message-sender">
@@ -58,12 +55,12 @@
             placeholder="Type your message..." 
             @bind="messageInput"
             @onkeypress="HandleKeyPress"
-            disabled="@ChatState.IsLoading" />
+            disabled="@isLoading" />
         
         <button 
             class="send-button" 
             @onclick="SendMessage"
-            disabled="@(string.IsNullOrWhiteSpace(messageInput) || ChatState.IsLoading)">
+            disabled="@(string.IsNullOrWhiteSpace(messageInput) || isLoading)">
             Send
         </button>
     </div>
@@ -80,24 +77,48 @@
 
 @code {
     private string messageInput = string.Empty;
+    private bool isLoading = false;
+    private bool hasAssignedDoctor = false;
+    private string? errorMessage;
+    private List<Message> messages = new();
+    private string? currentConversationId;
 
     protected override async Task OnInitializedAsync()
     {
-        // Subscribe to state changes
-        ChatState.OnChange += StateHasChanged;
-        AuthState.OnChange += StateHasChanged;
-
         // Load conversation
         await LoadConversation();
     }
 
     private async Task LoadConversation()
     {
-        var (success, message) = await ChatController.LoadConversationAsync();
-        
-        if (!success)
+        try
         {
-            Console.WriteLine($"Failed to load conversation: {message}");
+            isLoading = true;
+            errorMessage = null;
+            StateHasChanged();
+
+            var currentUser = AuthController.GetCurrentUser();
+            if (currentUser == null)
+            {
+                errorMessage = "Please sign in to continue";
+                return;
+            }
+
+            // Get conversations for current user
+            var conversationsResult = await ConversationController.GetConversationsByUserIdAsync(currentUser.Id.ToString());
+            
+            // TODO: Parse conversationsResult and get the active conversation
+            // For now, just show empty state
+            messages.Clear();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load conversation: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
         }
     }
 
@@ -106,29 +127,46 @@
         if (string.IsNullOrWhiteSpace(messageInput))
             return;
 
-        var content = messageInput;
-        messageInput = string.Empty;
-
-        var (success, message) = await ChatController.SendMessageAsync(content);
-
-        if (!success)
+        try
         {
-            Console.WriteLine($"Failed to send message: {message}");
+            isLoading = true;
+            var content = messageInput;
+            messageInput = string.Empty;
+            StateHasChanged();
+
+            var currentUser = AuthController.GetCurrentUser();
+            if (currentUser == null || string.IsNullOrEmpty(currentConversationId))
+            {
+                errorMessage = "Unable to send message";
+                return;
+            }
+
+            var request = new SendMessageRequest(
+                ConversationId: currentConversationId,
+                SenderId: currentUser.Id.ToString(),
+                Content: content,
+                AttachmentUrl: null
+            );
+
+            await MessageController.SendMessageAsync(request);
+            await LoadConversation(); // Reload to show new message
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to send message: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
         }
     }
 
     private async Task RequestDoctor()
     {
-        var (success, message) = await ChatController.RequestDoctorAsync();
-        
-        if (success)
-        {
-            Console.WriteLine(message);
-        }
-        else
-        {
-            Console.WriteLine($"Failed to request doctor: {message}");
-        }
+        // TODO: Implement doctor request functionality
+        errorMessage = "Doctor request feature coming soon";
+        StateHasChanged();
     }
 
     private async Task HandleKeyPress(KeyboardEventArgs e)
@@ -163,8 +201,7 @@
 
     public void Dispose()
     {
-        ChatState.OnChange -= StateHasChanged;
-        AuthState.OnChange -= StateHasChanged;
+        // No state subscriptions to clean up
     }
 }
 

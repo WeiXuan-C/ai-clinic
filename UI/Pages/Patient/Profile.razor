@@ -2,8 +2,7 @@
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 @layout Components.Layout.SidebarLayout
 @inject AuthController AuthController
-@inject AuthState AuthState
-@inject PatientController PatientController
+@inject PatientProfileController PatientController
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
 
@@ -11,7 +10,7 @@
 
 <link rel="stylesheet" href="/css/stitch-design-system.css" />
 
-@if (!AuthState.IsAuthenticated)
+@if (!AuthController.IsAuthenticated())
 {
     <div class="auth-checking">
         <div class="spinner"></div>
@@ -90,7 +89,7 @@ else
             </div>
             <div class="photo-info">
                 <h3 class="headline-sm">@(profile?.FullName ?? "No Name")</h3>
-                <p class="body-md">@AuthState.CurrentUser?.Email</p>
+                <p class="body-md">@AuthController.GetCurrentUser()?.Email</p>
                 <p class="body-sm">Member since @(profile?.CreatedAt.ToString("MMMM yyyy") ?? "N/A")</p>
             </div>
         </section>
@@ -111,7 +110,7 @@ else
                 </div>
                 <div class="form-group">
                     <label class="body-sm">Email Address</label>
-                    <input type="email" class="form-input" value="@AuthState.CurrentUser?.Email" disabled />
+                    <input type="email" class="form-input" value="@AuthController.GetCurrentUser()?.Email" disabled />
                 </div>
                 <div class="form-group">
                     <label class="body-sm">Gender</label>
@@ -216,7 +215,7 @@ else
     protected override async Task OnInitializedAsync()
     {
         // Check authentication first
-        if (!AuthState.IsAuthenticated)
+        if (!AuthController.IsAuthenticated())
         {
             Navigation.NavigateTo("/auth/signin");
             return;
@@ -247,12 +246,13 @@ else
             isLoading = true;
             errorMessage = null;
 
-            if (AuthState.CurrentUser == null)
+            var currentUser = AuthController.GetCurrentUser();
+            if (currentUser == null)
             {
                 // TODO: Implement authentication check
                 var isAuthenticated = false; // await AuthController.CheckAndSyncAuthenticationAsync();
                 
-                if (!isAuthenticated || AuthState.CurrentUser == null)
+                if (!isAuthenticated || currentUser == null)
                 {
                     errorMessage = "Please sign in to view your profile.";
                     await Task.Delay(1500);
@@ -261,13 +261,12 @@ else
                 }
             }
 
-            profile = await PatientController.GetProfileAsync(AuthState.CurrentUser.Id);
+            profile = await PatientController.GetProfileAsync(currentUser.Id);
 
             if (profile != null)
             {
                 originalProfile = profile;
                 PopulateFormFields(profile);
-                // AuthState.UpdatePatientProfile(profile);
             }
             else
             {
@@ -336,7 +335,8 @@ else
             errorMessage = null;
             successMessage = null;
 
-            if (AuthState.CurrentUser == null)
+            var currentUser = AuthController.GetCurrentUser();
+            if (currentUser == null)
             {
                 errorMessage = "User not authenticated";
                 return;
@@ -355,10 +355,8 @@ else
                 CurrentMedications: ParseCommaSeparated(currentMedicationsInput)
             );
 
-            profile = await PatientController.UpdateProfileAsync(AuthState.CurrentUser.Id, request);
+            profile = await PatientController.UpdateProfileAsync(currentUser.Id, request);
             originalProfile = profile;
-            
-            // AuthState.UpdatePatientProfile(profile);
 
             successMessage = "Profile updated successfully!";
             isEditing = false;

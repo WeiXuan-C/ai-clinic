@@ -1,9 +1,6 @@
-using AiClinic.Core.Interfaces;
+using AiClinic.Interfaces;
 using AiClinic.DAOs;
-using AiClinic.Services;
-using AiClinic.Controller;
 using AiClinic.UI.State;
-using AiClinic.Factories;
 using AiClinic.Database;
 
 namespace AiClinic;

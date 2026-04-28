@@ -1,5 +1,4 @@
-using AiClinic.Core.Entities;
-using AiClinic.Core.Interfaces;
+using AiClinic.Interfaces;
 using AiClinic.Database;
 
 namespace AiClinic.DAOs;

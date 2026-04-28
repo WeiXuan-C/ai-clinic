@@ -1,4 +1,3 @@
-using AiClinic.Core.Entities;
 using AiClinic.Services;
 using AiClinic.UI.State;
 
