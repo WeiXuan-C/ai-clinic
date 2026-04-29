@@ -125,7 +125,7 @@ public class PatientProfileService
         return _state.HasProfile;
     }
 
-    // Controller-facing methods (adapters for backward compatibility)
+    // Controller-facing methods
     
     public async Task<IPatientProfile?> GetProfileAsync(Guid userId)
     {
@@ -136,38 +136,52 @@ public class PatientProfileService
     {
         // This would need to check the User table, not PatientProfile
         // For now, return false as a placeholder
+        await Task.CompletedTask;
         return false;
     }
     
-    public async Task<object?> GetUserSettingsAsync(Guid userId)
+    public async Task<IUser?> GetUserSettingsAsync(Guid userId)
     {
-        // Return user settings - placeholder implementation
-        return new
+        // This should delegate to UserService/AuthService
+        // For now, return null as placeholder
+        await Task.CompletedTask;
+        return null;
+    }
+    
+    public async Task UpdateUserSettingsAsync(Guid userId, bool dataSharingEnabled, bool aiAnalysisEnabled, bool activityTrackingEnabled)
+    {
+        // This should delegate to UserService/AuthService
+        // For now, just complete the task
+        await Task.CompletedTask;
+    }
+    
+    public async Task<IPatientProfile?> UpdateProfileAsync(Guid userId, object request)
+    {
+        // Get existing profile
+        var existingProfile = await GetProfileByUserIdAsync(userId);
+        if (existingProfile == null)
         {
-            UserId = userId,
-            DataSharingEnabled = true,
-            AiAnalysisEnabled = true,
-            ActivityTrackingEnabled = true
-        };
+            throw new InvalidOperationException("Profile not found");
+        }
+
+        // For now, just return the existing profile
+        // In a real implementation, you would update the profile with the request data
+        await Task.CompletedTask;
+        return existingProfile;
     }
     
-    public async Task<object?> UpdateUserSettingsAsync(Guid userId, object settings)
-    {
-        // Update user settings - placeholder implementation
-        return settings;
-    }
-    
-    public async Task<ISupportTicket?> CreateSupportTicketAsync(ISupportTicket ticket)
+    public async Task CreateSupportTicketAsync(Guid userId, string subject, string description, string? category, string priority)
     {
         // This should delegate to SupportTicketService
-        // For now, return null as placeholder
-        return null;
+        // For now, just complete the task
+        await Task.CompletedTask;
     }
     
     public async Task<IEnumerable<ISupportTicket>> GetUserSupportTicketsAsync(Guid userId)
     {
         // This should delegate to SupportTicketService
         // For now, return empty list as placeholder
+        await Task.CompletedTask;
         return Enumerable.Empty<ISupportTicket>();
     }
     
@@ -175,6 +189,7 @@ public class PatientProfileService
     {
         // This should delegate to SupportTicketService
         // For now, return null as placeholder
+        await Task.CompletedTask;
         return null;
     }
 }

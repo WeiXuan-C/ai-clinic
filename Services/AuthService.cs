@@ -5,15 +5,22 @@ namespace AiClinic.Services;
 
 /// <summary>
 /// Authentication Service - Business Logic Layer
-/// Handles authentication operations through state management
+/// Coordinates between DAOs, Auth Client, and State
 /// </summary>
 public class AuthService
 {
-    private readonly AuthState _state;
+    private readonly IUserRepository _userRepository;
+    private readonly ISupabaseAuthClient _supabaseAuth;
+    private readonly AuthState _authState;
 
-    public AuthService(AuthState state)
+    public AuthService(
+        IUserRepository userRepository,
+        ISupabaseAuthClient supabaseAuth,
+        AuthState authState)
     {
-        _state = state;
+        _userRepository = userRepository;
+        _supabaseAuth = supabaseAuth;
+        _authState = authState;
     }
 
     /// <summary>
@@ -21,7 +28,29 @@ public class AuthService
     /// </summary>
     public async Task<bool> SendOtpAsync(string email)
     {
-        return await _state.SendOtpAsync(email);
+        try
+        {
+            _authState.IsLoading = true;
+            _authState.ErrorMessage = null;
+
+            var success = await _supabaseAuth.SendOtpAsync(email);
+
+            if (!success)
+            {
+                _authState.ErrorMessage = "Failed to send OTP";
+            }
+
+            return success;
+        }
+        catch (Exception ex)
+        {
+            _authState.ErrorMessage = ex.Message;
+            return false;
+        }
+        finally
+        {
+            _authState.IsLoading = false;
+        }
     }
 
     /// <summary>
@@ -29,7 +58,58 @@ public class AuthService
     /// </summary>
     public async Task<(bool Success, IUser? User, string? Error, string? AccessToken, string? RefreshToken)> VerifyOtpAsync(string email, string otp)
     {
-        return await _state.VerifyOtpAsync(email, otp);
+        try
+        {
+            _authState.IsLoading = true;
+            _authState.ErrorMessage = null;
+
+            // Verify OTP with Supabase Auth
+            var (success, accessToken, refreshToken, error) = await _supabaseAuth.VerifyOtpAsync(email, otp);
+
+            if (!success)
+            {
+                _authState.ErrorMessage = error;
+                return (false, null, error, null, null);
+            }
+
+            // Check if user exists in local database
+            var user = await _userRepository.GetByEmailAsync(email);
+
+            if (user == null)
+            {
+                // New user - OTP verified but not in local DB yet
+                Console.WriteLine($"📝 New user verified: {email}");
+                return (true, null, null, accessToken, refreshToken);
+            }
+
+            // Existing user - update login timestamp
+            var updatedUser = user.WithUpdatedLogin();
+            await _userRepository.UpdateAsync(updatedUser);
+
+            // Update state
+            _authState.SetAuthentication(updatedUser, accessToken, refreshToken);
+
+            Console.WriteLine($"✅ Existing user logged in: {email}");
+
+            return (true, updatedUser, null, accessToken, refreshToken);
+        }
+        catch (Exception ex)
+        {
+            var errorMessage = ex.Message.ToLower() switch
+            {
+                var msg when msg.Contains("expired") => "OTP code has expired. Please click 'Resend Code' to get a new one.",
+                var msg when msg.Contains("invalid") => "Invalid OTP code. Please check your email and try again.",
+                var msg when msg.Contains("too many") => "Too many attempts. Please wait a few minutes and try again.",
+                _ => $"Verification failed: {ex.Message}"
+            };
+
+            _authState.ErrorMessage = errorMessage;
+            return (false, null, errorMessage, null, null);
+        }
+        finally
+        {
+            _authState.IsLoading = false;
+        }
     }
 
     /// <summary>
@@ -37,7 +117,30 @@ public class AuthService
     /// </summary>
     public async Task<bool> RestoreSessionAsync(string accessToken, string refreshToken)
     {
-        return await _state.RestoreSessionAsync(accessToken, refreshToken);
+        try
+        {
+            _authState.IsLoading = true;
+            _authState.ErrorMessage = null;
+
+            var success = await _supabaseAuth.RestoreSessionAsync(accessToken, refreshToken);
+
+            if (success)
+            {
+                _authState.AccessToken = accessToken;
+                _authState.RefreshToken = refreshToken;
+            }
+
+            return success;
+        }
+        catch (Exception ex)
+        {
+            _authState.ErrorMessage = ex.Message;
+            return false;
+        }
+        finally
+        {
+            _authState.IsLoading = false;
+        }
     }
 
     /// <summary>
@@ -45,7 +148,30 @@ public class AuthService
     /// </summary>
     public async Task<(bool Success, string? AccessToken, string? RefreshToken)> RefreshSessionAsync()
     {
-        return await _state.RefreshSessionAsync();
+        try
+        {
+            _authState.IsLoading = true;
+            _authState.ErrorMessage = null;
+
+            var (success, accessToken, refreshToken) = await _supabaseAuth.RefreshSessionAsync();
+
+            if (success && accessToken != null)
+            {
+                _authState.AccessToken = accessToken;
+                _authState.RefreshToken = refreshToken;
+            }
+
+            return (success, accessToken, refreshToken);
+        }
+        catch (Exception ex)
+        {
+            _authState.ErrorMessage = ex.Message;
+            return (false, null, null);
+        }
+        finally
+        {
+            _authState.IsLoading = false;
+        }
     }
 
     /// <summary>
@@ -53,23 +179,67 @@ public class AuthService
     /// </summary>
     public async Task SignOutAsync()
     {
-        await _state.SignOutAsync();
+        try
+        {
+            _authState.IsLoading = true;
+
+            await _supabaseAuth.SignOutAsync();
+
+            _authState.Logout();
+
+            Console.WriteLine("✅ User signed out");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Error signing out: {ex.Message}");
+            _authState.ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            _authState.IsLoading = false;
+        }
     }
 
     /// <summary>
-    /// Gets user by ID
+    /// Gets user by ID from repository
     /// </summary>
     public async Task<IUser?> GetUserByIdAsync(Guid userId)
     {
-        return await _state.GetUserByIdAsync(userId);
+        try
+        {
+            _authState.IsLoading = true;
+            return await _userRepository.GetByIdAsync(userId);
+        }
+        catch (Exception ex)
+        {
+            _authState.ErrorMessage = ex.Message;
+            return null;
+        }
+        finally
+        {
+            _authState.IsLoading = false;
+        }
     }
 
     /// <summary>
-    /// Gets user by email
+    /// Gets user by email from repository
     /// </summary>
     public async Task<IUser?> GetUserByEmailAsync(string email)
     {
-        return await _state.GetUserByEmailAsync(email);
+        try
+        {
+            _authState.IsLoading = true;
+            return await _userRepository.GetByEmailAsync(email);
+        }
+        catch (Exception ex)
+        {
+            _authState.ErrorMessage = ex.Message;
+            return null;
+        }
+        finally
+        {
+            _authState.IsLoading = false;
+        }
     }
 
     /// <summary>
@@ -77,23 +247,46 @@ public class AuthService
     /// </summary>
     public async Task<IUser?> UpdateUserAsync(IUser user)
     {
-        var concreteUser = user as User ?? new User
+        try
         {
-            Id = user.Id,
-            Email = user.Email,
-            Phone = user.Phone,
-            Role = user.Role,
-            IsActive = user.IsActive,
-            CreatedAt = user.CreatedAt,
-            UpdatedAt = user.UpdatedAt,
-            LastLoginAt = user.LastLoginAt,
-            DataSharingEnabled = user.DataSharingEnabled,
-            AiAnalysisEnabled = user.AiAnalysisEnabled,
-            ActivityTrackingEnabled = user.ActivityTrackingEnabled,
-            IsDeactivated = user.IsDeactivated,
-            DeactivatedAt = user.DeactivatedAt
-        };
-        return await _state.UpdateUserAsync(concreteUser);
+            _authState.IsLoading = true;
+
+            var concreteUser = user as User ?? new User
+            {
+                Id = user.Id,
+                Email = user.Email,
+                Phone = user.Phone,
+                Role = user.Role,
+                IsActive = user.IsActive,
+                CreatedAt = user.CreatedAt,
+                UpdatedAt = user.UpdatedAt,
+                LastLoginAt = user.LastLoginAt,
+                DataSharingEnabled = user.DataSharingEnabled,
+                AiAnalysisEnabled = user.AiAnalysisEnabled,
+                ActivityTrackingEnabled = user.ActivityTrackingEnabled,
+                IsDeactivated = user.IsDeactivated,
+                DeactivatedAt = user.DeactivatedAt
+            };
+
+            var updated = await _userRepository.UpdateAsync(concreteUser);
+
+            // Update state if it's the current user
+            if (_authState.CurrentUser?.Id == user.Id)
+            {
+                _authState.CurrentUser = updated;
+            }
+
+            return updated;
+        }
+        catch (Exception ex)
+        {
+            _authState.ErrorMessage = ex.Message;
+            return null;
+        }
+        finally
+        {
+            _authState.IsLoading = false;
+        }
     }
 
     /// <summary>
@@ -101,110 +294,67 @@ public class AuthService
     /// </summary>
     public async Task<IUser?> CreateUserWithProfileAsync(string email, string fullName, string role)
     {
-        return await _state.CreateUserWithProfileAsync(email, fullName, role);
+        try
+        {
+            _authState.IsLoading = true;
+
+            email = email.ToLower();
+
+            // Check if user already exists
+            var existingUser = await _userRepository.GetByEmailAsync(email);
+            if (existingUser != null)
+            {
+                Console.WriteLine($"⚠️ User already exists: {email}");
+                return existingUser;
+            }
+
+            // Create new user
+            var user = new User
+            {
+                Id = Guid.NewGuid(),
+                Email = email,
+                Role = role,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                DataSharingEnabled = true,
+                AiAnalysisEnabled = true,
+                ActivityTrackingEnabled = true
+            };
+
+            var createdUser = await _userRepository.AddAsync(user);
+
+            Console.WriteLine($"✅ User created: {email} with role: {role}");
+
+            // Update state
+            _authState.CurrentUser = createdUser;
+
+            return createdUser;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Error creating user: {ex.Message}");
+            _authState.ErrorMessage = ex.Message;
+            return null;
+        }
+        finally
+        {
+            _authState.IsLoading = false;
+        }
     }
 
-    /// <summary>
-    /// Gets the current authenticated user from state
-    /// </summary>
-    public IUser? GetCurrentUser()
-    {
-        return _state.CurrentUser;
-    }
-
-    /// <summary>
-    /// Checks if user is authenticated
-    /// </summary>
-    public bool IsAuthenticated()
-    {
-        return _state.IsAuthenticated;
-    }
-
-    /// <summary>
-    /// Gets current user's role
-    /// </summary>
-    public string? GetUserRole()
-    {
-        return _state.UserRole;
-    }
-
-    /// <summary>
-    /// Gets current user's ID
-    /// </summary>
-    public Guid? GetUserId()
-    {
-        return _state.UserId;
-    }
-
-    /// <summary>
-    /// Checks if current user has a specific role
-    /// </summary>
-    public bool HasRole(string role)
-    {
-        return _state.HasRole(role);
-    }
-
-    /// <summary>
-    /// Checks if current user is a patient
-    /// </summary>
-    public bool IsPatient()
-    {
-        return _state.IsPatient;
-    }
-
-    /// <summary>
-    /// Checks if current user is a doctor
-    /// </summary>
-    public bool IsDoctor()
-    {
-        return _state.IsDoctor;
-    }
-
-    /// <summary>
-    /// Checks if current user is an admin
-    /// </summary>
-    public bool IsAdmin()
-    {
-        return _state.IsAdmin;
-    }
-
-    /// <summary>
-    /// Gets access token
-    /// </summary>
-    public string? GetAccessToken()
-    {
-        return _state.AccessToken;
-    }
-
-    /// <summary>
-    /// Gets refresh token
-    /// </summary>
-    public string? GetRefreshToken()
-    {
-        return _state.RefreshToken;
-    }
-
-    /// <summary>
-    /// Gets loading state
-    /// </summary>
-    public bool IsLoading()
-    {
-        return _state.IsLoading;
-    }
-
-    /// <summary>
-    /// Gets error message
-    /// </summary>
-    public string? GetErrorMessage()
-    {
-        return _state.ErrorMessage;
-    }
-
-    /// <summary>
-    /// Clears error message
-    /// </summary>
-    public void ClearError()
-    {
-        _state.ClearError();
-    }
+    // Convenience methods for accessing state
+    public IUser? GetCurrentUser() => _authState.CurrentUser;
+    public bool IsAuthenticated() => _authState.IsAuthenticated;
+    public string? GetUserRole() => _authState.UserRole;
+    public Guid? GetUserId() => _authState.UserId;
+    public bool HasRole(string role) => _authState.HasRole(role);
+    public bool IsPatient() => _authState.IsPatient;
+    public bool IsDoctor() => _authState.IsDoctor;
+    public bool IsAdmin() => _authState.IsAdmin;
+    public string? GetAccessToken() => _authState.AccessToken;
+    public string? GetRefreshToken() => _authState.RefreshToken;
+    public bool IsLoading() => _authState.IsLoading;
+    public string? GetErrorMessage() => _authState.ErrorMessage;
+    public void ClearError() => _authState.ClearError();
 }

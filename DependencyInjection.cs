@@ -21,12 +21,11 @@ public static class DependencyInjectionExtensions
         var supabaseKey = configuration["Supabase:Key"] 
             ?? throw new Exception("Supabase Key not configured");
 
-        services.AddScoped<SupabaseHttpClient>(_ => 
+        services.AddScoped<SupabaseHttpClient>(_ =>
             new SupabaseHttpClient(supabaseUrl, supabaseKey));
 
-        // Keep Supabase client for Auth only
-        services.AddScoped<Supabase.Client>(_ => 
-            new Supabase.Client(supabaseUrl, supabaseKey));
+        // Register Supabase Auth Client (Adapter Pattern)
+        services.AddScoped<ISupabaseAuthClient, SupabaseAuthClient>();
 
         // Register DAOs (Adapter Pattern) - Scoped lifetime
         services.AddScoped<IUserRepository, UserDAO>();
@@ -39,16 +38,17 @@ public static class DependencyInjectionExtensions
         services.AddScoped<IAdminProfileRepository, AdminProfileDAO>();
         services.AddScoped<IDoctorRatingRepository, DoctorRatingDAO>();
 
-        // Register State - Singleton lifetime (system requirement)
-        services.AddSingleton<AuthState>();
-        services.AddSingleton<ConversationState>();
-        services.AddSingleton<MessageState>();
-        services.AddSingleton<DoctorProfileState>();
-        services.AddSingleton<PatientProfileState>();
-        services.AddSingleton<AdminProfileState>();
-        services.AddSingleton<SupportTicketState>();
-        services.AddSingleton<DocumentState>();
-        services.AddSingleton<DoctorRatingState>();
+        // Register State - Scoped for Blazor Server (prevents data leakage between users)
+        // Use AddSingleton only if using Blazor WebAssembly
+        services.AddScoped<AuthState>();
+        services.AddScoped<ConversationState>();
+        services.AddScoped<MessageState>();
+        services.AddScoped<DoctorProfileState>();
+        services.AddScoped<PatientProfileState>();
+        services.AddScoped<AdminProfileState>();
+        services.AddScoped<SupportTicketState>();
+        services.AddScoped<DocumentState>();
+        services.AddScoped<DoctorRatingState>();
 
         // Register Services (Business Logic) - Scoped lifetime
         services.AddScoped<Services.AuthService>();

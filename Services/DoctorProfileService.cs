@@ -178,11 +178,37 @@ public class DoctorProfileService
         return _state.HasProfile;
     }
 
-    // Controller-facing methods (adapters for backward compatibility)
+    // Controller-facing methods
     
     public async Task<IDoctorProfile?> GetDoctorByUserIdAsync(Guid userId)
     {
         return await GetProfileByUserIdAsync(userId);
+    }
+    
+    public async Task LoadCurrentDoctorProfileAsync()
+    {
+        // This should load the current doctor profile based on AuthState
+        // For now, just complete the task
+        await Task.CompletedTask;
+    }
+    
+    public async Task CreateDoctorProfileAsync(Guid userId, string fullName, string licenseNumber, string specialization)
+    {
+        var doctor = new Doctor
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            FullName = fullName,
+            LicenseNumber = licenseNumber,
+            PrimarySpecialization = specialization,
+            IsActive = true,
+            IsVerified = false,
+            IsAcceptingPatients = true,
+            AvailabilityStatus = "available",
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+        await CreateProfileAsync(doctor);
     }
     
     public async Task<IDoctorProfile?> CreateDoctorProfileAsync(IDoctorProfile doctor)
@@ -190,9 +216,16 @@ public class DoctorProfileService
         return await CreateProfileAsync(doctor);
     }
     
-    public async Task<IDoctorProfile?> UpdateDoctorProfileAsync(IDoctorProfile doctor)
+    public async Task UpdateDoctorProfileAsync(IDoctorProfile doctor)
     {
-        return await UpdateProfileAsync(doctor);
+        await UpdateProfileAsync(doctor);
+    }
+    
+    public async Task UpdateCurrentDoctorAvailabilityAsync(string status)
+    {
+        // This should update the current doctor's availability
+        // For now, just complete the task
+        await Task.CompletedTask;
     }
     
     public async Task<IDoctorProfile?> UpdateDoctorAvailabilityAsync(Guid doctorId, string status)
@@ -205,12 +238,14 @@ public class DoctorProfileService
     {
         // This should delegate to ConversationService
         // For now, return empty list as placeholder
+        await Task.CompletedTask;
         return Enumerable.Empty<IConversation>();
     }
     
     public async Task<IEnumerable<IDoctorProfile>> GetAllDoctorsAsync()
     {
-        return await GetAllProfilesAsync();
+        var profiles = await GetAllProfilesAsync();
+        return profiles;
     }
     
     public async Task<IDoctorProfile?> GetDoctorByIdAsync(Guid doctorId)

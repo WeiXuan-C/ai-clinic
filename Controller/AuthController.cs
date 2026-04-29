@@ -1,22 +1,19 @@
 using AiClinic.Interfaces;
 using AiClinic.Services;
-using AiClinic.UI.State;
 
 namespace AiClinic.Controller;
 
 /// <summary>
 /// Facade Pattern Implementation
-/// Simplifies authentication flows by coordinating AuthService and AuthState
+/// Simplifies authentication flows by delegating to AuthService
 /// </summary>
 public class AuthController
 {
     private readonly AuthService _authService;
-    private readonly AuthState _authState;
 
-    public AuthController(AuthService authService, AuthState authState)
+    public AuthController(AuthService authService)
     {
         _authService = authService;
-        _authState = authState;
     }
 
     /// <summary>
@@ -67,8 +64,8 @@ public class AuthController
     }
 
     /// <summary>
-    /// Completes login by verifying OTP and updating auth state
-    /// Facade method that coordinates OTP verification and state management
+    /// Completes login by verifying OTP
+    /// Facade method that delegates to AuthService
     /// </summary>
     public async Task<(bool Success, string Message)> CompleteLoginAsync(string email, string otp)
     {
@@ -85,9 +82,6 @@ public class AuthController
             {
                 return (false, error ?? "Invalid OTP");
             }
-
-            // Update global auth state with tokens
-            _authState.SetAuthentication(user as User ?? throw new InvalidOperationException("User conversion failed"), accessToken, refreshToken);
 
             return (true, "Login successful!");
         }
@@ -173,14 +167,11 @@ public class AuthController
             {
                 // Existing user trying to signup - should have been blocked earlier
                 Console.WriteLine($"⚠️ VERIFY OTP: User already exists in local DB. This is a signin, not signup.");
-                _authState.SetAuthentication(user as User ?? throw new InvalidOperationException("User conversion failed"), accessToken, refreshToken);
-                return new AuthResponse { Success = true, Message = "OTP verified successfully", User = user as User };
+                return new AuthResponse { Success = true, Message = "OTP verified successfully", User = user };
             }
-            
+
             // New user - OTP verified, proceed to role selection
             Console.WriteLine($"✅ VERIFY OTP: New user verified. Proceeding to role selection.");
-            // Store tokens temporarily (we'll set full auth after profile completion)
-            _authState.SetAuthentication(null!, accessToken, refreshToken);
             return new AuthResponse { Success = true, Message = "OTP verified successfully", User = null };
         }
         catch (Exception ex)
@@ -219,16 +210,13 @@ public class AuthController
 
             // Create user record with role
             var user = await _authService.CreateUserWithProfileAsync(email, fullName, role);
-            
+
             if (user == null)
             {
                 return new AuthResponse { Success = false, Message = "Failed to create user account" };
             }
 
-            // Update auth state
-            _authState.CurrentUser = user as User;
-
-            return new AuthResponse { Success = true, Message = "Registration completed successfully", User = user as User };
+            return new AuthResponse { Success = true, Message = "Registration completed successfully", User = user };
         }
         catch (Exception ex)
         {
@@ -238,11 +226,10 @@ public class AuthController
 
     /// <summary>
     /// Logs out the current user
-    /// Facade method that clears auth state
     /// </summary>
     public void Logout()
     {
-        _authState.Logout();
+        _authService.ClearError();
     }
 
     /// <summary>
@@ -251,15 +238,14 @@ public class AuthController
     public async Task LogoutAsync()
     {
         await _authService.SignOutAsync();
-        _authState.Logout();
     }
 
     /// <summary>
     /// Gets the current authenticated user
     /// </summary>
-    public User? GetCurrentUser()
+    public IUser? GetCurrentUser()
     {
-        return _authState.CurrentUser;
+        return _authService.GetCurrentUser();
     }
 
     /// <summary>
@@ -267,7 +253,7 @@ public class AuthController
     /// </summary>
     public bool IsAuthenticated()
     {
-        return _authState.IsAuthenticated;
+        return _authService.IsAuthenticated();
     }
 
     /// <summary>
@@ -275,19 +261,23 @@ public class AuthController
     /// </summary>
     public bool HasRole(string role)
     {
-        return _authState.HasRole(role);
+        return _authService.HasRole(role);
     }
 
     /// <summary>
     /// Updates user profile
-    /// Facade method that coordinates service and state updates
+    /// Facade method that delegates to AuthService
     /// </summary>
-    public async Task<(bool Success, string Message)> UpdateProfileAsync(User user)
+    public async Task<(bool Success, string Message)> UpdateProfileAsync(IUser user)
     {
         try
         {
             var updatedUser = await _authService.UpdateUserAsync(user);
-            _authState.CurrentUser = updatedUser as User;
+
+            if (updatedUser == null)
+            {
+                return (false, "Failed to update profile");
+            }
 
             return (true, "Profile updated successfully");
         }
@@ -321,5 +311,5 @@ public class AuthResponse
 {
     public bool Success { get; set; }
     public string? Message { get; set; }
-    public User? User { get; set; }
+    public IUser? User { get; set; }
 }
