@@ -1,6 +1,6 @@
-using AiClinic.Interfaces;
+using ai_clinic.Interfaces;
 
-namespace AiClinic.UI.State;
+namespace ai_clinic.UI.State;
 
 /// <summary>
 /// Scoped Patient Profile State for Blazor (Redux-like pattern)

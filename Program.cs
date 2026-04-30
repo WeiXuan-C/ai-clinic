@@ -1,4 +1,4 @@
-using AiClinic;
+using ai_clinic;
 using MudBlazor.Services;
 
 var builder = WebApplication.CreateBuilder(args);

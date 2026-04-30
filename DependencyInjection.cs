@@ -1,9 +1,9 @@
-using AiClinic.Interfaces;
-using AiClinic.DAOs;
-using AiClinic.UI.State;
-using AiClinic.Database;
+using ai_clinic.Interfaces;
+using ai_clinic.DAOs;
+using ai_clinic.UI.State;
+using ai_clinic.Database;
 
-namespace AiClinic;
+namespace ai_clinic;
 
 /// <summary>
 /// Dependency Injection Configuration

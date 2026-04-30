@@ -1,27 +1,20 @@
-using AiClinic.Interfaces;
-using AiClinic.Services;
+using ai_clinic.Interfaces;
+using ai_clinic.Services;
 
-namespace AiClinic.Controller;
+namespace ai_clinic.Controller;
 
 /// <summary>
 /// Patient Controller - Facade Pattern
 /// Simplifies patient profile operations by delegating to PatientProfileService
 /// </summary>
-public class PatientProfileController
+public class PatientProfileController(PatientProfileService patientProfileService)
 {
-    private readonly PatientProfileService _patientProfileService;
-
-    public PatientProfileController(PatientProfileService patientProfileService)
-    {
-        _patientProfileService = patientProfileService;
-    }
-
     /// <summary>
     /// Gets patient profile
     /// </summary>
-    public async Task<IPatientProfile?> GetProfileAsync(Guid userId)
+    public Task<IPatientProfile?> GetProfileAsync(Guid userId)
     {
-        return await _patientProfileService.GetProfileAsync(userId);
+        return patientProfileService.GetProfileAsync(userId);
     }
 
     /// <summary>
@@ -31,7 +24,7 @@ public class PatientProfileController
     {
         try
         {
-            var profile = await _patientProfileService.CreateProfileAsync(userId, fullName);
+            var profile = await patientProfileService.CreateProfileAsync(userId, fullName);
 
             if (profile == null)
             {
@@ -53,7 +46,7 @@ public class PatientProfileController
     {
         try
         {
-            await _patientProfileService.UpdateProfileAsync(userId, request);
+            await patientProfileService.UpdateProfileAsync(userId, request);
             return (true, "Profile updated successfully");
         }
         catch (Exception ex)
@@ -65,17 +58,17 @@ public class PatientProfileController
     /// <summary>
     /// Checks if email exists
     /// </summary>
-    public async Task<bool> CheckEmailExistsAsync(string email)
+    public Task<bool> CheckEmailExistsAsync(string email)
     {
-        return await _patientProfileService.CheckEmailExistsAsync(email);
+        return patientProfileService.CheckEmailExistsAsync(email);
     }
 
     /// <summary>
     /// Gets user settings
     /// </summary>
-    public async Task<IUser?> GetUserSettingsAsync(Guid userId)
+    public Task<IUser?> GetUserSettingsAsync(Guid userId)
     {
-        return await _patientProfileService.GetUserSettingsAsync(userId);
+        return patientProfileService.GetUserSettingsAsync(userId);
     }
 
     /// <summary>
@@ -85,7 +78,7 @@ public class PatientProfileController
     {
         try
         {
-            await _patientProfileService.UpdateUserSettingsAsync(
+            await patientProfileService.UpdateUserSettingsAsync(
                 userId,
                 request.DataSharingEnabled,
                 request.AiAnalysisEnabled,
@@ -106,7 +99,7 @@ public class PatientProfileController
     {
         try
         {
-            await _patientProfileService.CreateSupportTicketAsync(
+            await patientProfileService.CreateSupportTicketAsync(
                 request.UserId,
                 request.Subject,
                 request.Description,
@@ -124,17 +117,17 @@ public class PatientProfileController
     /// <summary>
     /// Gets all support tickets for a user
     /// </summary>
-    public async Task<IEnumerable<ISupportTicket>> GetUserSupportTicketsAsync(Guid userId)
+    public Task<IEnumerable<ISupportTicket>> GetUserSupportTicketsAsync(Guid userId)
     {
-        return await _patientProfileService.GetUserSupportTicketsAsync(userId);
+        return patientProfileService.GetUserSupportTicketsAsync(userId);
     }
 
     /// <summary>
     /// Gets a specific support ticket
     /// </summary>
-    public async Task<ISupportTicket?> GetSupportTicketAsync(Guid ticketId)
+    public Task<ISupportTicket?> GetSupportTicketAsync(Guid ticketId)
     {
-        return await _patientProfileService.GetSupportTicketAsync(ticketId);
+        return patientProfileService.GetSupportTicketAsync(ticketId);
     }
 }
 

@@ -1,7 +1,7 @@
 @page "/patient/profile"
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 @layout Components.Layout.SidebarLayout
-@using AiClinic.Interfaces
+@using ai_clinic.Interfaces
 @inject AuthController AuthController
 @inject PatientProfileController PatientController
 @inject NavigationManager Navigation
@@ -262,7 +262,7 @@ else
                 }
             }
 
-            profile = await PatientController.GetProfileAsync(currentUser.Id);
+            profile = await PatientController.GetProfileAsync(currentUser.Id) as PatientProfile;
 
             if (profile != null)
             {
@@ -356,10 +356,19 @@ else
                 CurrentMedications: ParseCommaSeparated(currentMedicationsInput)
             );
 
-            profile = await PatientController.UpdateProfileAsync(currentUser.Id, request);
+            var (success, message) = await PatientController.UpdateProfileAsync(currentUser.Id, request);
+            
+            if (!success)
+            {
+                errorMessage = message;
+                return;
+            }
+
+            // Reload the profile after update
+            profile = await PatientController.GetProfileAsync(currentUser.Id) as PatientProfile;
             originalProfile = profile;
 
-            successMessage = "Profile updated successfully!";
+            successMessage = message;
             isEditing = false;
             
             await Task.Delay(100);

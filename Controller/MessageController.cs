@@ -1,40 +1,32 @@
-namespace AiClinic.Controller;
+using ai_clinic.Interfaces;
 
-public class MessageController
+namespace ai_clinic.Controller;
+
+public class MessageController(Services.MessageService messageService)
 {
-    private readonly Services.MessageService _messageService;
-
-    public MessageController(Services.MessageService messageService)
+    public Task<IMessage?> SendMessageAsync(SendMessageRequest request)
     {
-        _messageService = messageService;
+        return messageService.SendMessageAsync(request);
     }
 
-    public async Task<object> SendMessageAsync(SendMessageRequest request)
+    public Task<IMessage?> GetMessageByIdAsync(string messageId)
     {
-        return await _messageService.SendMessageAsync(request);
+        return messageService.GetMessageByIdAsync(messageId);
     }
 
-    public async Task<object?> GetMessageByIdAsync(string messageId)
+    public Task<IEnumerable<IMessage>> GetMessagesByConversationIdAsync(string conversationId)
     {
-        return await _messageService.GetMessageByIdAsync(messageId);
+        return messageService.GetMessagesByConversationIdAsync(conversationId);
     }
 
-    public async Task<object> GetMessagesByConversationIdAsync(string conversationId, int limit = 50, int offset = 0)
+    public Task MarkMessageAsReadAsync(string messageId)
     {
-        return await _messageService.GetMessagesByConversationIdAsync(conversationId);
+        return messageService.MarkAsReadAsync(messageId);
     }
 
-    public async Task MarkMessageAsReadAsync(string messageId)
+    public Task<bool> DeleteMessageAsync(string messageId)
     {
-        if (Guid.TryParse(messageId, out var guid))
-        {
-            await _messageService.MarkAsReadAsync(messageId);
-        }
-    }
-
-    public async Task DeleteMessageAsync(string messageId)
-    {
-        await _messageService.DeleteMessageAsync(messageId);
+        return messageService.DeleteMessageAsync(messageId);
     }
 }
 

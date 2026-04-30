@@ -1,37 +1,32 @@
-namespace AiClinic.Controller;
+using ai_clinic.Interfaces;
 
-public class SupportTicketController
+namespace ai_clinic.Controller;
+
+public class SupportTicketController(Services.SupportTicketService supportTicketService)
 {
-    private readonly Services.SupportTicketService _supportTicketService;
-
-    public SupportTicketController(Services.SupportTicketService supportTicketService)
+    public Task<ISupportTicket?> CreateTicketAsync(CreateTicketRequest request)
     {
-        _supportTicketService = supportTicketService;
+        return supportTicketService.CreateTicketAsync(request);
     }
 
-    public async Task<object> CreateTicketAsync(CreateTicketRequest request)
+    public Task<ISupportTicket?> GetTicketByIdAsync(string ticketId)
     {
-        return await _supportTicketService.CreateTicketAsync(request);
+        return supportTicketService.GetTicketByIdAsync(ticketId);
     }
 
-    public async Task<object?> GetTicketByIdAsync(string ticketId)
+    public Task<IEnumerable<ISupportTicket>> GetTicketsByUserIdAsync(string userId)
     {
-        return await _supportTicketService.GetTicketByIdAsync(ticketId);
+        return supportTicketService.GetTicketsByUserIdAsync(userId);
     }
 
-    public async Task<object> GetTicketsByUserIdAsync(string userId)
+    public Task<ISupportTicket?> UpdateTicketStatusAsync(string ticketId, string status)
     {
-        return await _supportTicketService.GetTicketsByUserIdAsync(userId);
+        return supportTicketService.UpdateTicketStatusAsync(ticketId, status);
     }
 
-    public async Task<object> UpdateTicketStatusAsync(string ticketId, string status)
+    public Task<bool> DeleteTicketAsync(string ticketId)
     {
-        return await _supportTicketService.UpdateTicketStatusAsync(ticketId, status);
-    }
-
-    public async Task DeleteTicketAsync(string ticketId)
-    {
-        await _supportTicketService.DeleteTicketAsync(ticketId);
+        return supportTicketService.DeleteTicketAsync(ticketId);
     }
 }
 

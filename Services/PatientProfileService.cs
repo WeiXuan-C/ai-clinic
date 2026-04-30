@@ -1,7 +1,7 @@
-using AiClinic.Interfaces;
-using AiClinic.UI.State;
+using ai_clinic.Interfaces;
+using ai_clinic.UI.State;
 
-namespace AiClinic.Services;
+namespace ai_clinic.Services;
 
 /// <summary>
 /// Patient Profile Service - Business Logic Layer

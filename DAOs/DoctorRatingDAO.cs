@@ -1,18 +1,18 @@
-using AiClinic.Interfaces;
-using Supabase;
+using ai_clinic.Interfaces;
+using ai_clinic.Database;
 
-namespace AiClinic.DAOs;
+namespace ai_clinic.DAOs;
 
 /// <summary>
 /// Adapter Pattern Implementation
-/// Adapts Supabase client interface to IDoctorRatingRepository interface
+/// Adapts Supabase HTTP client to IDoctorRatingRepository interface
 /// Converts JSON responses from Supabase into C# DoctorRating objects
 /// </summary>
 public class DoctorRatingDAO : IDoctorRatingRepository
 {
-    private readonly Client _supabase;
+    private readonly SupabaseHttpClient _supabase;
 
-    public DoctorRatingDAO(Client supabase)
+    public DoctorRatingDAO(SupabaseHttpClient supabase)
     {
         _supabase = supabase;
     }
@@ -21,12 +21,7 @@ public class DoctorRatingDAO : IDoctorRatingRepository
     {
         try
         {
-            var response = await _supabase
-                .From<DoctorRating>()
-                .Where(x => x.Id == id)
-                .Single();
-            
-            return response;
+            return await _supabase.GetSingleAsync<DoctorRating>("doctor_ratings", $"id=eq.{id}");
         }
         catch
         {
@@ -36,92 +31,53 @@ public class DoctorRatingDAO : IDoctorRatingRepository
 
     public async Task<IEnumerable<DoctorRating>> GetAllAsync()
     {
-        var response = await _supabase
-            .From<DoctorRating>()
-            .Order("created_at", Postgrest.Constants.Ordering.Descending)
-            .Get();
-        
-        return response.Models;
+        var filter = "order=created_at.desc";
+        return await _supabase.GetAsync<DoctorRating>("doctor_ratings", filter);
     }
 
     public async Task<DoctorRating> AddAsync(DoctorRating entity)
     {
-        var response = await _supabase
-            .From<DoctorRating>()
-            .Insert(entity);
-        
-        return response.Models.FirstOrDefault() ?? entity;
+        var result = await _supabase.PostAsync<DoctorRating>("doctor_ratings", entity);
+        return result ?? entity;
     }
 
     public async Task<DoctorRating> UpdateAsync(DoctorRating entity)
     {
-        var response = await _supabase
-            .From<DoctorRating>()
-            .Where(x => x.Id == entity.Id)
-            .Update(entity);
-        
-        return response.Models.FirstOrDefault() ?? entity;
+        var result = await _supabase.PatchAsync<DoctorRating>("doctor_ratings", $"id=eq.{entity.Id}", entity);
+        return result ?? entity;
     }
 
     public async Task<bool> DeleteAsync(Guid id)
     {
-        try
-        {
-            await _supabase
-                .From<DoctorRating>()
-                .Where(x => x.Id == id)
-                .Delete();
-            
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
+        return await _supabase.DeleteAsync("doctor_ratings", $"id=eq.{id}");
     }
 
     public async Task<IEnumerable<DoctorRating>> GetByDoctorIdAsync(Guid doctorId)
     {
-        var response = await _supabase
-            .From<DoctorRating>()
-            .Where(x => x.DoctorId == doctorId)
-            .Order("created_at", Postgrest.Constants.Ordering.Descending)
-            .Get();
-        
-        return response.Models;
+        var filter = $"doctor_id=eq.{doctorId}&order=created_at.desc";
+        return await _supabase.GetAsync<DoctorRating>("doctor_ratings", filter);
     }
 
     public async Task<IEnumerable<DoctorRating>> GetByPatientIdAsync(Guid patientId)
     {
-        var response = await _supabase
-            .From<DoctorRating>()
-            .Where(x => x.PatientId == patientId)
-            .Order("created_at", Postgrest.Constants.Ordering.Descending)
-            .Get();
-        
-        return response.Models;
+        var filter = $"patient_id=eq.{patientId}&order=created_at.desc";
+        return await _supabase.GetAsync<DoctorRating>("doctor_ratings", filter);
     }
 
     public async Task<double> GetAverageRatingAsync(Guid doctorId)
     {
-        var response = await _supabase
-            .From<DoctorRating>()
-            .Where(x => x.DoctorId == doctorId)
-            .Get();
-        
-        if (!response.Models.Any())
+        var ratings = await GetByDoctorIdAsync(doctorId);
+        var ratingsList = ratings.ToList();
+
+        if (ratingsList.Count == 0)
             return 0.0;
-        
-        return response.Models.Average(r => r.Rating);
+
+        return ratingsList.Average(r => r.Rating);
     }
 
     public async Task<int> GetTotalRatingsCountAsync(Guid doctorId)
     {
-        var response = await _supabase
-            .From<DoctorRating>()
-            .Where(x => x.DoctorId == doctorId)
-            .Get();
-        
-        return response.Models.Count;
+        var ratings = await GetByDoctorIdAsync(doctorId);
+        return ratings.Count();
     }
 }

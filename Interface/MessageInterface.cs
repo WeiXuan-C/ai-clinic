@@ -1,7 +1,7 @@
 using Postgrest.Attributes;
 using Postgrest.Models;
 
-namespace AiClinic.Interfaces;
+namespace ai_clinic.Interfaces;
 
 /// <summary>
 /// Message sender type enumeration

@@ -1,120 +1,84 @@
-using AiClinic.Interfaces;
-using Supabase;
+using ai_clinic.Interfaces;
+using ai_clinic.Database;
 
-namespace AiClinic.DAOs;
+namespace ai_clinic.DAOs;
 
 /// <summary>
 /// Adapter Pattern Implementation
-/// Adapts Supabase client interface to IConversationRepository interface
+/// Adapts Supabase HTTP client to IConversationRepository interface
 /// </summary>
 public class ConversationDAO : IConversationRepository
 {
-    private readonly Client _supabase;
+    private readonly SupabaseHttpClient _supabase;
 
-    public ConversationDAO(Client supabase)
+    public ConversationDAO(SupabaseHttpClient supabase)
     {
         _supabase = supabase;
     }
 
     public async Task<Conversation?> GetByIdAsync(Guid id)
     {
-        var response = await _supabase
-            .From<Conversation>()
-            .Where(x => x.Id == id)
-            .Single();
-        
-        return response;
+        try
+        {
+            return await _supabase.GetSingleAsync<Conversation>("conversations", $"id=eq.{id}");
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     public async Task<IEnumerable<Conversation>> GetAllAsync()
     {
-        var response = await _supabase
-            .From<Conversation>()
-            .Get();
-        
-        return response.Models;
+        return await _supabase.GetAsync<Conversation>("conversations");
     }
 
     public async Task<Conversation> AddAsync(Conversation entity)
     {
-        // Entity already created with factory method
-        var response = await _supabase
-            .From<Conversation>()
-            .Insert(entity);
-        
-        return response.Models.FirstOrDefault() ?? entity;
+        var result = await _supabase.PostAsync<Conversation>("conversations", entity);
+        return result ?? entity;
     }
 
     public async Task<Conversation> UpdateAsync(Conversation entity)
     {
-        // Entity already updated with factory method
-        var response = await _supabase
-            .From<Conversation>()
-            .Where(x => x.Id == entity.Id)
-            .Update(entity);
-        
-        return response.Models.FirstOrDefault() ?? entity;
+        var result = await _supabase.PatchAsync<Conversation>("conversations", $"id=eq.{entity.Id}", entity);
+        return result ?? entity;
     }
 
     public async Task<bool> DeleteAsync(Guid id)
     {
-        try
-        {
-            await _supabase
-                .From<Conversation>()
-                .Where(x => x.Id == id)
-                .Delete();
-            
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
+        return await _supabase.DeleteAsync("conversations", $"id=eq.{id}");
     }
 
     public async Task<IEnumerable<Conversation>> GetByPatientIdAsync(Guid patientId)
     {
-        var response = await _supabase
-            .From<Conversation>()
-            .Where(x => x.PatientId == patientId)
-            .Order("last_message_at", Postgrest.Constants.Ordering.Descending)
-            .Get();
-        
-        return response.Models;
+        var filter = $"patient_id=eq.{patientId}&order=last_message_at.desc";
+        return await _supabase.GetAsync<Conversation>("conversations", filter);
     }
 
     public async Task<IEnumerable<Conversation>> GetByDoctorIdAsync(Guid doctorId)
     {
-        var response = await _supabase
-            .From<Conversation>()
-            .Where(x => x.AssignedDoctorId == doctorId)
-            .Order("last_message_at", Postgrest.Constants.Ordering.Descending)
-            .Get();
-        
-        return response.Models;
+        var filter = $"assigned_doctor_id=eq.{doctorId}&order=last_message_at.desc";
+        return await _supabase.GetAsync<Conversation>("conversations", filter);
     }
 
     public async Task<IEnumerable<Conversation>> GetActiveConversationsAsync()
     {
-        var response = await _supabase
-            .From<Conversation>()
-            .Where(x => x.Status == "active")
-            .Order("last_message_at", Postgrest.Constants.Ordering.Descending)
-            .Get();
-        
-        return response.Models;
+        var filter = "status=eq.active&order=last_message_at.desc";
+        return await _supabase.GetAsync<Conversation>("conversations", filter);
     }
 
     public async Task<Conversation?> GetActiveConversationByPatientIdAsync(Guid patientId)
     {
-        var response = await _supabase
-            .From<Conversation>()
-            .Where(x => x.PatientId == patientId)
-            .Where(x => x.Status == "active")
-            .Order("last_message_at", Postgrest.Constants.Ordering.Descending)
-            .Single();
-        
-        return response;
+        try
+        {
+            var filter = $"patient_id=eq.{patientId}&status=eq.active&order=last_message_at.desc&limit=1";
+            var results = await _supabase.GetAsync<Conversation>("conversations", filter);
+            return results.FirstOrDefault();
+        }
+        catch
+        {
+            return null;
+        }
     }
 }

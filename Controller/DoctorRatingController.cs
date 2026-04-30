@@ -1,47 +1,42 @@
-namespace AiClinic.Controller;
+using ai_clinic.Interfaces;
 
-public class DoctorRatingController
+namespace ai_clinic.Controller;
+
+public class DoctorRatingController(Services.DoctorRatingService ratingService)
 {
-    private readonly Services.DoctorRatingService _ratingService;
-
-    public DoctorRatingController(Services.DoctorRatingService ratingService)
+    public Task<IDoctorRating?> CreateRatingAsync(CreateRatingRequest request)
     {
-        _ratingService = ratingService;
+        return ratingService.CreateRatingAsync(request);
     }
 
-    public async Task<object> CreateRatingAsync(CreateRatingRequest request)
+    public Task<IDoctorRating?> GetRatingByIdAsync(string ratingId)
     {
-        return await _ratingService.CreateRatingAsync(request);
+        return ratingService.GetRatingByIdAsync(ratingId);
     }
 
-    public async Task<object?> GetRatingByIdAsync(string ratingId)
+    public Task<IEnumerable<IDoctorRating>> GetRatingsByDoctorIdAsync(string doctorId)
     {
-        return await _ratingService.GetRatingByIdAsync(ratingId);
+        return ratingService.GetRatingsByDoctorIdAsync(doctorId);
     }
 
-    public async Task<object> GetRatingsByDoctorIdAsync(string doctorId)
+    public Task<double> GetAverageRatingAsync(string doctorId)
     {
-        return await _ratingService.GetRatingsByDoctorIdAsync(doctorId);
+        return ratingService.GetAverageRatingAsync(doctorId);
     }
 
-    public async Task<double> GetAverageRatingAsync(string doctorId)
+    public Task<IEnumerable<IDoctorRating>> GetRatingsByPatientIdAsync(string patientId)
     {
-        return await _ratingService.GetAverageRatingAsync(doctorId);
+        return ratingService.GetRatingsByPatientIdAsync(patientId);
     }
 
-    public async Task<object> GetRatingsByPatientIdAsync(string patientId)
+    public Task<IDoctorRating?> UpdateRatingAsync(string ratingId, UpdateRatingRequest request)
     {
-        return await _ratingService.GetRatingsByPatientIdAsync(patientId);
+        return ratingService.UpdateRatingAsync(ratingId, request);
     }
 
-    public async Task<object> UpdateRatingAsync(string ratingId, UpdateRatingRequest request)
+    public Task<bool> DeleteRatingAsync(string ratingId)
     {
-        return await _ratingService.UpdateRatingAsync(ratingId, request);
-    }
-
-    public async Task DeleteRatingAsync(string ratingId)
-    {
-        await _ratingService.DeleteRatingAsync(ratingId);
+        return ratingService.DeleteRatingAsync(ratingId);
     }
 }
 

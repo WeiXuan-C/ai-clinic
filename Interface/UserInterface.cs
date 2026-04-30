@@ -1,7 +1,6 @@
-using Postgrest.Attributes;
-using Postgrest.Models;
+using System.Text.Json.Serialization;
 
-namespace AiClinic.Interfaces;
+namespace ai_clinic.Interfaces;
 
 public interface IUser
 {
@@ -20,20 +19,45 @@ public interface IUser
     DateTime? DeactivatedAt { get; set; }
 }
 
-public class User : BaseModel, IUser
+public class User : IUser
 {
+    [JsonPropertyName("id")]
     public Guid Id { get; set; }
+    
+    [JsonPropertyName("email")]
     public string Email { get; set; } = string.Empty;
+    
+    [JsonPropertyName("phone")]
     public string? Phone { get; set; }
+    
+    [JsonPropertyName("role")]
     public string Role { get; set; } = string.Empty;
+    
+    [JsonPropertyName("is_active")]
     public bool IsActive { get; set; } = true;
+    
+    [JsonPropertyName("created_at")]
     public DateTime CreatedAt { get; set; }
+    
+    [JsonPropertyName("updated_at")]
     public DateTime UpdatedAt { get; set; }
+    
+    [JsonPropertyName("last_login_at")]
     public DateTime? LastLoginAt { get; set; }
+    
+    [JsonPropertyName("data_sharing_enabled")]
     public bool DataSharingEnabled { get; set; } = true;
+    
+    [JsonPropertyName("ai_analysis_enabled")]
     public bool AiAnalysisEnabled { get; set; } = true;
+    
+    [JsonPropertyName("activity_tracking_enabled")]
     public bool ActivityTrackingEnabled { get; set; } = true;
+    
+    [JsonPropertyName("is_deactivated")]
     public bool IsDeactivated { get; set; }
+    
+    [JsonPropertyName("deactivated_at")]
     public DateTime? DeactivatedAt { get; set; }
 
     public User WithUpdatedLogin()

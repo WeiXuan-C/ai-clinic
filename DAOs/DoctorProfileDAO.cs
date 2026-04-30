@@ -1,121 +1,77 @@
-using AiClinic.Interfaces;
-using Supabase;
+using ai_clinic.Interfaces;
+using ai_clinic.Database;
 
-namespace AiClinic.DAOs;
+namespace ai_clinic.DAOs;
 
 /// <summary>
 /// Adapter Pattern Implementation
-/// Adapts Supabase client interface to IDoctorRepository interface
+/// Adapts Supabase HTTP client to IDoctorRepository interface
 /// </summary>
 public class DoctorProfileDAO : IDoctorRepository
 {
-    private readonly Client _supabase;
+    private readonly SupabaseHttpClient _supabase;
 
-    public DoctorProfileDAO(Client supabase)
+    public DoctorProfileDAO(SupabaseHttpClient supabase)
     {
         _supabase = supabase;
     }
 
     public async Task<Doctor?> GetByIdAsync(Guid id)
     {
-        var response = await _supabase
-            .From<Doctor>()
-            .Where(x => x.Id == id)
-            .Single();
-        
-        return response;
+        try
+        {
+            return await _supabase.GetSingleAsync<Doctor>("doctors", $"id=eq.{id}");
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     public async Task<IEnumerable<Doctor>> GetAllAsync()
     {
-        var response = await _supabase
-            .From<Doctor>()
-            .Get();
-        
-        return response.Models;
+        return await _supabase.GetAsync<Doctor>("doctors");
     }
 
     public async Task<Doctor> AddAsync(Doctor entity)
     {
-        entity.Id = Guid.NewGuid();
-        entity.CreatedAt = DateTime.UtcNow;
-        
-        var response = await _supabase
-            .From<Doctor>()
-            .Insert(entity);
-        
-        return response.Models.First();
+        var result = await _supabase.PostAsync<Doctor>("doctors", entity);
+        return result ?? entity;
     }
 
     public async Task<Doctor> UpdateAsync(Doctor entity)
     {
-        entity.UpdatedAt = DateTime.UtcNow;
-        
-        var response = await _supabase
-            .From<Doctor>()
-            .Where(x => x.UserId == entity.UserId)
-            .Update(entity);
-        
-        return response.Models.First();
+        var result = await _supabase.PatchAsync<Doctor>("doctors", $"user_id=eq.{entity.UserId}", entity);
+        return result ?? entity;
     }
 
     public async Task<bool> DeleteAsync(Guid id)
     {
-        try
-        {
-            await _supabase
-                .From<Doctor>()
-                .Where(x => x.Id == id)
-                .Delete();
-            
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
+        return await _supabase.DeleteAsync("doctors", $"id=eq.{id}");
     }
 
     public async Task<Doctor?> GetByUserIdAsync(Guid userId)
     {
-        var response = await _supabase
-            .From<Doctor>()
-            .Where(x => x.UserId == userId)
-            .Single();
-        
-        return response;
+        try
+        {
+            return await _supabase.GetSingleAsync<Doctor>("doctors", $"user_id=eq.{userId}");
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     public async Task<IEnumerable<Doctor>> GetAvailableDoctorsAsync()
     {
-        var response = await _supabase
-            .From<Doctor>()
-            .Where(x => x.AvailabilityStatus == "available")
-            .Where(x => x.IsActive == true)
-            .Where(x => x.IsVerified == true)
-            .Get();
-        
-        return response.Models;
+        var filter = "availability_status=eq.available&is_active=eq.true&is_verified=eq.true";
+        return await _supabase.GetAsync<Doctor>("doctors", filter);
     }
 
     public async Task<IEnumerable<Doctor>> GetBySpecializationAsync(string specialization)
     {
-        var response = await _supabase
-            .From<Doctor>()
-            .Where(x => x.PrimarySpecialization == specialization)
-            .Where(x => x.IsActive == true)
-            .Where(x => x.IsVerified == true)
-            .Order("average_rating", Postgrest.Constants.Ordering.Descending)
-            .Get();
-        
-        return response.Models;
-    }
-
-    public async Task<IEnumerable<Doctor>> GetByOrganizationIdAsync(Guid organizationId)
-    {
-        // OrganizationId property doesn't exist in Doctor entity
-        // Return empty list for now
-        return Enumerable.Empty<Doctor>();
+        var filter = $"primary_specialization=eq.{specialization}&is_active=eq.true&is_verified=eq.true&order=average_rating.desc";
+        return await _supabase.GetAsync<Doctor>("doctors", filter);
     }
 
     public async Task UpdateAvailabilityStatusAsync(Guid doctorId, string status)
@@ -126,5 +82,12 @@ public class DoctorProfileDAO : IDoctorRepository
             doctor.AvailabilityStatus = status;
             await UpdateAsync(doctor);
         }
+    }
+
+    public async Task<IEnumerable<Doctor>> GetByOrganizationIdAsync(Guid organizationId)
+    {
+        // OrganizationId property doesn't exist in Doctor entity
+        // Return empty list for now
+        return [];
     }
 }

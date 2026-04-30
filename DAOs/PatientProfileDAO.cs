@@ -1,17 +1,17 @@
-using AiClinic.Interfaces;
-using Supabase;
+using ai_clinic.Interfaces;
+using ai_clinic.Database;
 
-namespace AiClinic.DAOs;
+namespace ai_clinic.DAOs;
 
 /// <summary>
 /// Adapter Pattern Implementation
-/// Adapts Supabase client interface to IPatientProfileRepository interface
+/// Adapts Supabase HTTP client to IPatientProfileRepository interface
 /// </summary>
 public class PatientProfileDAO : IPatientProfileRepository
 {
-    private readonly Client _supabase;
+    private readonly SupabaseHttpClient _supabase;
 
-    public PatientProfileDAO(Client supabase)
+    public PatientProfileDAO(SupabaseHttpClient supabase)
     {
         _supabase = supabase;
     }
@@ -20,12 +20,7 @@ public class PatientProfileDAO : IPatientProfileRepository
     {
         try
         {
-            var response = await _supabase
-                .From<PatientProfile>()
-                .Where(x => x.Id == id)
-                .Single();
-            
-            return response;
+            return await _supabase.GetSingleAsync<PatientProfile>("patient_profiles", $"id=eq.{id}");
         }
         catch
         {
@@ -35,59 +30,31 @@ public class PatientProfileDAO : IPatientProfileRepository
 
     public async Task<IEnumerable<PatientProfile>> GetAllAsync()
     {
-        var response = await _supabase
-            .From<PatientProfile>()
-            .Get();
-        
-        return response.Models;
+        return await _supabase.GetAsync<PatientProfile>("patient_profiles");
     }
 
     public async Task<PatientProfile> AddAsync(PatientProfile entity)
     {
-        var response = await _supabase
-            .From<PatientProfile>()
-            .Insert(entity);
-
-        return response.Models.FirstOrDefault() ?? entity;
+        var result = await _supabase.PostAsync<PatientProfile>("patient_profiles", entity);
+        return result ?? entity;
     }
 
     public async Task<PatientProfile> UpdateAsync(PatientProfile entity)
     {
-        var response = await _supabase
-            .From<PatientProfile>()
-            .Where(x => x.UserId == entity.UserId)
-            .Update(entity);
-
-        return response.Models.FirstOrDefault() ?? entity;
+        var result = await _supabase.PatchAsync<PatientProfile>("patient_profiles", $"user_id=eq.{entity.UserId}", entity);
+        return result ?? entity;
     }
 
     public async Task<bool> DeleteAsync(Guid id)
     {
-        try
-        {
-            await _supabase
-                .From<PatientProfile>()
-                .Where(x => x.Id == id)
-                .Delete();
-            
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
+        return await _supabase.DeleteAsync("patient_profiles", $"id=eq.{id}");
     }
 
     public async Task<PatientProfile?> GetByUserIdAsync(Guid userId)
     {
         try
         {
-            var response = await _supabase
-                .From<PatientProfile>()
-                .Where(x => x.UserId == userId)
-                .Single();
-            
-            return response;
+            return await _supabase.GetSingleAsync<PatientProfile>("patient_profiles", $"user_id=eq.{userId}");
         }
         catch
         {

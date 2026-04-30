@@ -1,22 +1,22 @@
-using AiClinic.Interfaces;
-using Supabase;
+using ai_clinic.Interfaces;
+using ai_clinic.Database;
 
-namespace AiClinic.UI.State;
+namespace ai_clinic.UI.State;
 
 /// <summary>
 /// Scoped Support Ticket State for Blazor (Redux-like pattern)
-/// State owns Supabase Client and makes all database calls
+/// State owns Supabase HTTP Client and makes all database calls
 /// Manages cache and returns standardized objects
 /// </summary>
 public class SupportTicketState
 {
-    private readonly Client _supabase;
-    private List<SupportTicket> _tickets = new();
+    private readonly SupabaseHttpClient _supabase;
+    private List<SupportTicket> _tickets = [];
     private SupportTicket? _selectedTicket;
     private bool _isLoading;
     private string? _errorMessage;
 
-    public SupportTicketState(Client supabase)
+    public SupportTicketState(SupabaseHttpClient supabase)
     {
         _supabase = supabase;
     }
@@ -46,19 +46,15 @@ public class SupportTicketState
             _errorMessage = null;
             NotifyStateChanged();
 
-            // State calls Supabase, gets JSON, Supabase converts to objects
-            var response = await _supabase
-                .From<SupportTicket>()
-                .Order("created_at", Postgrest.Constants.Ordering.Descending)
-                .Get();
-            
-            _tickets = response.Models.ToList();
-            return response.Models;
+            var filter = "order=created_at.desc";
+            var tickets = await _supabase.GetAsync<SupportTicket>("support_tickets", filter);
+            _tickets = [.. tickets];
+            return tickets;
         }
         catch (Exception ex)
         {
             _errorMessage = ex.Message;
-            return Enumerable.Empty<SupportTicket>();
+            return [];
         }
         finally
         {
@@ -75,21 +71,18 @@ public class SupportTicketState
             _errorMessage = null;
             NotifyStateChanged();
 
-            var response = await _supabase
-                .From<SupportTicket>()
-                .Where(x => x.Id == id)
-                .Single();
+            var ticket = await _supabase.GetSingleAsync<SupportTicket>("support_tickets", $"id=eq.{id}");
             
-            if (response != null)
+            if (ticket != null)
             {
                 var index = _tickets.FindIndex(t => t.Id == id);
                 if (index >= 0)
-                    _tickets[index] = response;
+                    _tickets[index] = ticket;
                 else
-                    _tickets.Add(response);
+                    _tickets.Add(ticket);
             }
             
-            return response;
+            return ticket;
         }
         catch (Exception ex)
         {
@@ -111,19 +104,15 @@ public class SupportTicketState
             _errorMessage = null;
             NotifyStateChanged();
 
-            var response = await _supabase
-                .From<SupportTicket>()
-                .Where(x => x.UserId == userId)
-                .Order("created_at", Postgrest.Constants.Ordering.Descending)
-                .Get();
-            
-            _tickets = response.Models.ToList();
-            return response.Models;
+            var filter = $"user_id=eq.{userId}&order=created_at.desc";
+            var tickets = await _supabase.GetAsync<SupportTicket>("support_tickets", filter);
+            _tickets = [.. tickets];
+            return tickets;
         }
         catch (Exception ex)
         {
             _errorMessage = ex.Message;
-            return Enumerable.Empty<SupportTicket>();
+            return [];
         }
         finally
         {
@@ -140,19 +129,15 @@ public class SupportTicketState
             _errorMessage = null;
             NotifyStateChanged();
 
-            var response = await _supabase
-                .From<SupportTicket>()
-                .Where(x => x.Status == status)
-                .Order("created_at", Postgrest.Constants.Ordering.Descending)
-                .Get();
-            
-            _tickets = response.Models.ToList();
-            return response.Models;
+            var filter = $"status=eq.{status}&order=created_at.desc";
+            var tickets = await _supabase.GetAsync<SupportTicket>("support_tickets", filter);
+            _tickets = [.. tickets];
+            return tickets;
         }
         catch (Exception ex)
         {
             _errorMessage = ex.Message;
-            return Enumerable.Empty<SupportTicket>();
+            return [];
         }
         finally
         {
@@ -169,11 +154,7 @@ public class SupportTicketState
             _errorMessage = null;
             NotifyStateChanged();
 
-            var response = await _supabase
-                .From<SupportTicket>()
-                .Insert(ticket);
-            
-            var created = response.Models.FirstOrDefault();
+            var created = await _supabase.PostAsync<SupportTicket>("support_tickets", ticket);
             if (created != null)
                 _tickets.Add(created);
             
@@ -199,12 +180,7 @@ public class SupportTicketState
             _errorMessage = null;
             NotifyStateChanged();
 
-            var response = await _supabase
-                .From<SupportTicket>()
-                .Where(x => x.Id == ticket.Id)
-                .Update(ticket);
-            
-            var updated = response.Models.FirstOrDefault();
+            var updated = await _supabase.PatchAsync<SupportTicket>("support_tickets", $"id=eq.{ticket.Id}", ticket);
             if (updated != null)
             {
                 var index = _tickets.FindIndex(t => t.Id == ticket.Id);
@@ -237,16 +213,16 @@ public class SupportTicketState
             _errorMessage = null;
             NotifyStateChanged();
 
-            await _supabase
-                .From<SupportTicket>()
-                .Where(x => x.Id == id)
-                .Delete();
+            var success = await _supabase.DeleteAsync("support_tickets", $"id=eq.{id}");
             
-            _tickets.RemoveAll(t => t.Id == id);
-            if (_selectedTicket?.Id == id)
-                _selectedTicket = null;
+            if (success)
+            {
+                _tickets.RemoveAll(t => t.Id == id);
+                if (_selectedTicket?.Id == id)
+                    _selectedTicket = null;
+            }
             
-            return true;
+            return success;
         }
         catch (Exception ex)
         {

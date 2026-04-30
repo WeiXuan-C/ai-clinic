@@ -1,7 +1,7 @@
-using AiClinic.Interfaces;
+using ai_clinic.Interfaces;
 using Microsoft.Extensions.Configuration;
 
-namespace AiClinic.DAOs;
+namespace ai_clinic.DAOs;
 
 /// <summary>
 /// Adapter Pattern Implementation

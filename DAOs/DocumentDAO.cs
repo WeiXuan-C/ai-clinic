@@ -1,106 +1,70 @@
-using AiClinic.Interfaces;
-using Supabase;
+using ai_clinic.Interfaces;
+using ai_clinic.Database;
 
-namespace AiClinic.DAOs;
+namespace ai_clinic.DAOs;
 
 /// <summary>
 /// Adapter Pattern Implementation
-/// Adapts Supabase client interface to IDocumentRepository interface
+/// Adapts Supabase HTTP client to IDocumentRepository interface
 /// </summary>
 public class DocumentDAO : IDocumentRepository
 {
-    private readonly Client _supabase;
+    private readonly SupabaseHttpClient _supabase;
 
-    public DocumentDAO(Client supabase)
+    public DocumentDAO(SupabaseHttpClient supabase)
     {
         _supabase = supabase;
     }
 
     public async Task<Document?> GetByIdAsync(Guid id)
     {
-        var response = await _supabase
-            .From<Document>()
-            .Where(x => x.Id == id)
-            .Single();
-        
-        return response;
+        try
+        {
+            return await _supabase.GetSingleAsync<Document>("documents", $"id=eq.{id}");
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     public async Task<IEnumerable<Document>> GetAllAsync()
     {
-        var response = await _supabase
-            .From<Document>()
-            .Get();
-        
-        return response.Models;
+        return await _supabase.GetAsync<Document>("documents");
     }
 
     public async Task<Document> AddAsync(Document entity)
     {
-        var response = await _supabase
-            .From<Document>()
-            .Insert(entity);
-        
-        return response.Models.FirstOrDefault() ?? entity;
+        var result = await _supabase.PostAsync<Document>("documents", entity);
+        return result ?? entity;
     }
 
     public async Task<Document> UpdateAsync(Document entity)
     {
-        var response = await _supabase
-            .From<Document>()
-            .Where(x => x.Id == entity.Id)
-            .Update(entity);
-        
-        return response.Models.FirstOrDefault() ?? entity;
+        var result = await _supabase.PatchAsync<Document>("documents", $"id=eq.{entity.Id}", entity);
+        return result ?? entity;
     }
 
     public async Task<bool> DeleteAsync(Guid id)
     {
-        try
-        {
-            await _supabase
-                .From<Document>()
-                .Where(x => x.Id == id)
-                .Delete();
-            
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
+        return await _supabase.DeleteAsync("documents", $"id=eq.{id}");
     }
 
     public async Task<IEnumerable<Document>> GetByConversationIdAsync(Guid conversationId)
     {
-        var response = await _supabase
-            .From<Document>()
-            .Where(x => x.ConversationId == conversationId)
-            .Order("created_at", Postgrest.Constants.Ordering.Descending)
-            .Get();
-        
-        return response.Models;
+        var filter = $"conversation_id=eq.{conversationId}&order=created_at.desc";
+        return await _supabase.GetAsync<Document>("documents", filter);
     }
 
     public async Task<IEnumerable<Document>> GetByUserIdAsync(Guid userId)
     {
-        var response = await _supabase
-            .From<Document>()
-            .Where(x => x.UploadedByUserId == userId)
-            .Order("created_at", Postgrest.Constants.Ordering.Descending)
-            .Get();
-        
-        return response.Models;
+        var filter = $"uploaded_by_user_id=eq.{userId}&order=created_at.desc";
+        return await _supabase.GetAsync<Document>("documents", filter);
     }
 
     public async Task<IEnumerable<Document>> GetProcessedDocumentsAsync(Guid conversationId)
     {
-        var response = await _supabase
-            .From<Document>()
-            .Where(x => x.ConversationId == conversationId)
-            .Where(x => x.IsProcessed == true)
-            .Get();
-        
-        return response.Models;
+        var filter = $"conversation_id=eq.{conversationId}&is_processed=eq.true";
+        return await _supabase.GetAsync<Document>("documents", filter);
     }
 }

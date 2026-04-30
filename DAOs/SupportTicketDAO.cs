@@ -1,17 +1,17 @@
-using AiClinic.Interfaces;
-using Supabase;
+using ai_clinic.Interfaces;
+using ai_clinic.Database;
 
-namespace AiClinic.DAOs;
+namespace ai_clinic.DAOs;
 
 /// <summary>
 /// Adapter Pattern Implementation
-/// Adapts Supabase client interface to ISupportTicketRepository interface
+/// Adapts Supabase HTTP client to ISupportTicketRepository interface
 /// </summary>
 public class SupportTicketDAO : ISupportTicketRepository
 {
-    private readonly Client _supabase;
+    private readonly SupabaseHttpClient _supabase;
 
-    public SupportTicketDAO(Client supabase)
+    public SupportTicketDAO(SupabaseHttpClient supabase)
     {
         _supabase = supabase;
     }
@@ -20,12 +20,7 @@ public class SupportTicketDAO : ISupportTicketRepository
     {
         try
         {
-            var response = await _supabase
-                .From<SupportTicket>()
-                .Where(x => x.Id == id)
-                .Single();
-            
-            return response;
+            return await _supabase.GetSingleAsync<SupportTicket>("support_tickets", $"id=eq.{id}");
         }
         catch
         {
@@ -35,69 +30,36 @@ public class SupportTicketDAO : ISupportTicketRepository
 
     public async Task<IEnumerable<SupportTicket>> GetAllAsync()
     {
-        var response = await _supabase
-            .From<SupportTicket>()
-            .Order("created_at", Postgrest.Constants.Ordering.Descending)
-            .Get();
-        
-        return response.Models;
+        var filter = "order=created_at.desc";
+        return await _supabase.GetAsync<SupportTicket>("support_tickets", filter);
     }
 
     public async Task<SupportTicket> AddAsync(SupportTicket entity)
     {
-        var response = await _supabase
-            .From<SupportTicket>()
-            .Insert(entity);
-        
-        return response.Models.FirstOrDefault() ?? entity;
+        var result = await _supabase.PostAsync<SupportTicket>("support_tickets", entity);
+        return result ?? entity;
     }
 
     public async Task<SupportTicket> UpdateAsync(SupportTicket entity)
     {
-        var response = await _supabase
-            .From<SupportTicket>()
-            .Where(x => x.Id == entity.Id)
-            .Update(entity);
-        
-        return response.Models.FirstOrDefault() ?? entity;
+        var result = await _supabase.PatchAsync<SupportTicket>("support_tickets", $"id=eq.{entity.Id}", entity);
+        return result ?? entity;
     }
 
     public async Task<bool> DeleteAsync(Guid id)
     {
-        try
-        {
-            await _supabase
-                .From<SupportTicket>()
-                .Where(x => x.Id == id)
-                .Delete();
-            
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
+        return await _supabase.DeleteAsync("support_tickets", $"id=eq.{id}");
     }
 
     public async Task<IEnumerable<SupportTicket>> GetByUserIdAsync(Guid userId)
     {
-        var response = await _supabase
-            .From<SupportTicket>()
-            .Where(x => x.UserId == userId)
-            .Order("created_at", Postgrest.Constants.Ordering.Descending)
-            .Get();
-        
-        return response.Models;
+        var filter = $"user_id=eq.{userId}&order=created_at.desc";
+        return await _supabase.GetAsync<SupportTicket>("support_tickets", filter);
     }
 
     public async Task<IEnumerable<SupportTicket>> GetByStatusAsync(string status)
     {
-        var response = await _supabase
-            .From<SupportTicket>()
-            .Where(x => x.Status == status)
-            .Order("created_at", Postgrest.Constants.Ordering.Descending)
-            .Get();
-        
-        return response.Models;
+        var filter = $"status=eq.{status}&order=created_at.desc";
+        return await _supabase.GetAsync<SupportTicket>("support_tickets", filter);
     }
 }

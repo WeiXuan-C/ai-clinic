@@ -1,6 +1,6 @@
-using AiClinic.Interfaces;
+using ai_clinic.Interfaces;
 
-namespace AiClinic.UI.State;
+namespace ai_clinic.UI.State;
 
 /// <summary>
 /// Scoped Authentication State for Blazor (Redux-like pattern)

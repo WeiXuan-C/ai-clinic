@@ -1,42 +1,37 @@
-namespace AiClinic.Controller;
+using ai_clinic.Interfaces;
 
-public class ConversationController
+namespace ai_clinic.Controller;
+
+public class ConversationController(Services.ConversationService conversationService)
 {
-    private readonly Services.ConversationService _conversationService;
-
-    public ConversationController(Services.ConversationService conversationService)
+    public Task<IConversation?> CreateConversationAsync(CreateConversationRequest request)
     {
-        _conversationService = conversationService;
+        return conversationService.CreateConversationAsync(request);
     }
 
-    public async Task<object> CreateConversationAsync(CreateConversationRequest request)
+    public Task<IConversation?> GetConversationByIdAsync(string conversationId)
     {
-        return await _conversationService.CreateConversationAsync(request);
+        return conversationService.GetConversationByIdAsync(conversationId);
     }
 
-    public async Task<object?> GetConversationByIdAsync(string conversationId)
+    public Task<IEnumerable<IConversation>> GetConversationsByUserIdAsync(string userId)
     {
-        return await _conversationService.GetConversationByIdAsync(conversationId);
+        return conversationService.GetConversationsByUserIdAsync(userId);
     }
 
-    public async Task<object> GetConversationsByUserIdAsync(string userId)
+    public Task<IConversation?> GetConversationBetweenUsersAsync(string patientId, string doctorId)
     {
-        return await _conversationService.GetConversationsByUserIdAsync(userId);
+        return conversationService.GetConversationBetweenUsersAsync(patientId, doctorId);
     }
 
-    public async Task<object?> GetConversationBetweenUsersAsync(string patientId, string doctorId)
+    public Task<IConversation?> UpdateConversationAsync(string conversationId, UpdateConversationRequest request)
     {
-        return await _conversationService.GetConversationBetweenUsersAsync(patientId, doctorId);
+        return conversationService.UpdateConversationAsync(conversationId, request);
     }
 
-    public async Task<object> UpdateConversationAsync(string conversationId, UpdateConversationRequest request)
+    public Task<bool> DeleteConversationAsync(string conversationId)
     {
-        return await _conversationService.UpdateConversationAsync(conversationId, request);
-    }
-
-    public async Task DeleteConversationAsync(string conversationId)
-    {
-        await _conversationService.DeleteConversationAsync(conversationId);
+        return conversationService.DeleteConversationAsync(conversationId);
     }
 }
 

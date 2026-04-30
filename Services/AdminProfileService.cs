@@ -1,7 +1,7 @@
-using AiClinic.Interfaces;
-using AiClinic.UI.State;
+using ai_clinic.Interfaces;
+using ai_clinic.UI.State;
 
-namespace AiClinic.Services;
+namespace ai_clinic.Services;
 
 /// <summary>
 /// Admin Profile Service - Business Logic Layer
@@ -108,7 +108,7 @@ public class AdminProfileService
 
     // Controller-facing methods (adapters for backward compatibility)
     
-    public async Task<object> CreateAdminProfileAsync(object request)
+    public async Task<object?> CreateAdminProfileAsync(object request)
     {
         // Extract properties from request object dynamically
         var requestType = request.GetType();
@@ -129,8 +129,7 @@ public class AdminProfileService
             ManagePermissions = false
         };
         
-        var result = await CreateProfileAsync(profile);
-        return result ?? new object();
+        return await CreateProfileAsync(profile);
     }
     
     public async Task<object?> GetAdminProfileByIdAsync(string adminId)
@@ -142,12 +141,12 @@ public class AdminProfileService
         return null;
     }
     
-    public async Task<object> GetAllAdminProfilesAsync()
+    public async Task<object?> GetAllAdminProfilesAsync()
     {
         return await GetAllProfilesAsync();
     }
     
-    public async Task<object> UpdateAdminProfileAsync(string adminId, object request)
+    public async Task<object?> UpdateAdminProfileAsync(string adminId, object request)
     {
         if (!Guid.TryParse(adminId, out var guid))
         {
@@ -178,8 +177,7 @@ public class AdminProfileService
             ManagePermissions = existing.ManagePermissions
         };
         
-        var result = await UpdateProfileAsync(updated);
-        return result ?? new object();
+        return await UpdateProfileAsync(updated);
     }
     
     public async Task DeleteAdminProfileAsync(string adminId)
@@ -190,7 +188,7 @@ public class AdminProfileService
         }
     }
     
-    public async Task<object> GetSystemStatisticsAsync()
+    public async Task<object?> GetSystemStatisticsAsync()
     {
         // Return basic statistics
         var allProfiles = await GetAllProfilesAsync();

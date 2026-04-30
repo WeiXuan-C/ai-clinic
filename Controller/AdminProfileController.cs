@@ -1,42 +1,35 @@
-namespace AiClinic.Controller;
+namespace ai_clinic.Controller;
 
-public class AdminProfileController
+public class AdminProfileController(Services.AdminProfileService adminService)
 {
-    private readonly Services.AdminProfileService _adminService;
-
-    public AdminProfileController(Services.AdminProfileService adminService)
+    public Task<object?> CreateAdminProfileAsync(CreateAdminProfileRequest request)
     {
-        _adminService = adminService;
+        return adminService.CreateAdminProfileAsync(request);
     }
 
-    public async Task<object> CreateAdminProfileAsync(CreateAdminProfileRequest request)
+    public Task<object?> GetAdminProfileByIdAsync(string adminId)
     {
-        return await _adminService.CreateAdminProfileAsync(request);
+        return adminService.GetAdminProfileByIdAsync(adminId);
     }
 
-    public async Task<object?> GetAdminProfileByIdAsync(string adminId)
+    public Task<object?> GetAllAdminProfilesAsync()
     {
-        return await _adminService.GetAdminProfileByIdAsync(adminId);
+        return adminService.GetAllAdminProfilesAsync();
     }
 
-    public async Task<object> GetAllAdminProfilesAsync()
+    public Task<object?> UpdateAdminProfileAsync(string adminId, UpdateAdminProfileRequest request)
     {
-        return await _adminService.GetAllAdminProfilesAsync();
+        return adminService.UpdateAdminProfileAsync(adminId, request);
     }
 
-    public async Task<object> UpdateAdminProfileAsync(string adminId, UpdateAdminProfileRequest request)
+    public Task DeleteAdminProfileAsync(string adminId)
     {
-        return await _adminService.UpdateAdminProfileAsync(adminId, request);
+        return adminService.DeleteAdminProfileAsync(adminId);
     }
 
-    public async Task DeleteAdminProfileAsync(string adminId)
+    public Task<object?> GetSystemStatisticsAsync()
     {
-        await _adminService.DeleteAdminProfileAsync(adminId);
-    }
-
-    public async Task<object> GetSystemStatisticsAsync()
-    {
-        return await _adminService.GetSystemStatisticsAsync();
+        return adminService.GetSystemStatisticsAsync();
     }
 }
 

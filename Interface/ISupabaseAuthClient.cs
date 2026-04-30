@@ -1,4 +1,4 @@
-namespace AiClinic.Interfaces;
+namespace ai_clinic.Interfaces;
 
 /// <summary>
 /// Abstraction for Supabase Authentication operations

@@ -1,7 +1,7 @@
-using AiClinic.Interfaces;
-using AiClinic.Database;
+using ai_clinic.Interfaces;
+using ai_clinic.Database;
 
-namespace AiClinic.DAOs;
+namespace ai_clinic.DAOs;
 
 /// <summary>
 /// Adapter Pattern Implementation

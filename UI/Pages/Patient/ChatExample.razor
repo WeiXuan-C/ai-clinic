@@ -1,6 +1,6 @@
 @page "/patient/chat-example"
-@using AiClinic.Controller
-@using AiClinic.Interfaces
+@using ai_clinic.Controller
+@using ai_clinic.Interfaces
 @inject ConversationController ConversationController
 @inject MessageController MessageController
 @inject AuthController AuthController
@@ -82,7 +82,7 @@
     private bool hasAssignedDoctor = false;
     private string? errorMessage;
     private List<Message> messages = new();
-    private string? currentConversationId;
+    private string? currentConversationId = null;
 
     protected override async Task OnInitializedAsync()
     {
@@ -108,8 +108,18 @@
             // Get conversations for current user
             var conversationsResult = await ConversationController.GetConversationsByUserIdAsync(currentUser.Id.ToString());
             
-            // TODO: Parse conversationsResult and get the active conversation
-            // For now, just show empty state
+            // Get the first active conversation if available
+            var conversations = conversationsResult?.ToList();
+            if (conversations != null && conversations.Any())
+            {
+                var activeConversation = conversations.FirstOrDefault();
+                if (activeConversation != null)
+                {
+                    currentConversationId = activeConversation.Id.ToString();
+                }
+            }
+            
+            // TODO: Load messages for the conversation
             messages.Clear();
         }
         catch (Exception ex)

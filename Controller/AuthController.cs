@@ -1,21 +1,14 @@
-using AiClinic.Interfaces;
-using AiClinic.Services;
+using ai_clinic.Interfaces;
+using ai_clinic.Services;
 
-namespace AiClinic.Controller;
+namespace ai_clinic.Controller;
 
 /// <summary>
 /// Facade Pattern Implementation
 /// Simplifies authentication flows by delegating to AuthService
 /// </summary>
-public class AuthController
+public class AuthController(AuthService authService)
 {
-    private readonly AuthService _authService;
-
-    public AuthController(AuthService authService)
-    {
-        _authService = authService;
-    }
-
     /// <summary>
     /// Initiates login by sending OTP to user's email
     /// Only works for users who are already registered IN LOCAL DATABASE
@@ -35,19 +28,19 @@ public class AuthController
             }
 
             // Check if user exists IN LOCAL DATABASE (not Supabase Auth)
-            Console.WriteLine($"🔍 SIGNIN: Checking if {email} exists in local users table...");
-            var userExists = await _authService.GetUserByEmailAsync(email);
-            
+            Console.WriteLine("🔍 SIGNIN: Checking if {0} exists in local users table...", email);
+            var userExists = await authService.GetUserByEmailAsync(email);
+
             if (userExists == null)
             {
-                Console.WriteLine($"❌ SIGNIN: User {email} NOT found in local database. Blocking signin.");
+                Console.WriteLine("❌ SIGNIN: User {0} NOT found in local database. Blocking signin.", email);
                 return (false, "This email is not registered. Please sign up first.");
             }
-            
-            Console.WriteLine($"✅ SIGNIN: User {email} found in local database. Proceeding with signin.");
+
+            Console.WriteLine("✅ SIGNIN: User {0} found in local database. Proceeding with signin.", email);
 
             // Send OTP - Supabase Auth user may or may not exist, but we don't care
-            var success = await _authService.SendOtpAsync(email);
+            var success = await authService.SendOtpAsync(email);
 
             if (success)
             {
@@ -58,7 +51,7 @@ public class AuthController
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"❌ SIGNIN ERROR: {ex.Message}");
+            Console.WriteLine("❌ SIGNIN ERROR: {0}", ex.Message);
             return (false, $"Error: {ex.Message}");
         }
     }
@@ -76,7 +69,7 @@ public class AuthController
                 return (false, "Email and OTP are required");
             }
 
-            var (success, user, error, accessToken, refreshToken) = await _authService.VerifyOtpAsync(email, otp);
+            var (success, user, error, accessToken, refreshToken) = await authService.VerifyOtpAsync(email, otp);
 
             if (!success || user == null)
             {
@@ -110,19 +103,19 @@ public class AuthController
             }
 
             // Check if user already exists IN LOCAL DATABASE (not Supabase Auth)
-            Console.WriteLine($"🔍 SIGNUP: Checking if {email} exists in local users table...");
-            var existingUser = await _authService.GetUserByEmailAsync(email);
-            
+            Console.WriteLine("🔍 SIGNUP: Checking if {0} exists in local users table...", email);
+            var existingUser = await authService.GetUserByEmailAsync(email);
+
             if (existingUser != null)
             {
-                Console.WriteLine($"❌ SIGNUP: User {email} already exists in local database. Blocking signup.");
+                Console.WriteLine("❌ SIGNUP: User {0} already exists in local database. Blocking signup.", email);
                 return new AuthResponse { Success = false, Message = "This email is already registered. Please sign in instead." };
             }
-            
-            Console.WriteLine($"✅ SIGNUP: User {email} NOT found in local database. Proceeding with signup.");
+
+            Console.WriteLine("✅ SIGNUP: User {0} NOT found in local database. Proceeding with signup.", email);
 
             // Send OTP - will create Supabase Auth user if doesn't exist
-            var success = await _authService.SendOtpAsync(email);
+            var success = await authService.SendOtpAsync(email);
 
             if (success)
             {
@@ -133,7 +126,7 @@ public class AuthController
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"❌ SIGNUP ERROR: {ex.Message}");
+            Console.WriteLine("❌ SIGNUP ERROR: {0}", ex.Message);
             return new AuthResponse { Success = false, Message = $"Error: {ex.Message}" };
         }
     }
@@ -150,33 +143,33 @@ public class AuthController
                 return new AuthResponse { Success = false, Message = "Email and OTP are required" };
             }
 
-            Console.WriteLine($"🔍 VERIFY OTP: Starting verification for {email}");
-            var (success, user, error, accessToken, refreshToken) = await _authService.VerifyOtpAsync(email, otp);
+            Console.WriteLine("🔍 VERIFY OTP: Starting verification for {0}", email);
+            var (success, user, error, accessToken, refreshToken) = await authService.VerifyOtpAsync(email, otp);
 
             if (!success)
             {
-                Console.WriteLine($"❌ VERIFY OTP: Verification failed - {error}");
+                Console.WriteLine("❌ VERIFY OTP: Verification failed - {0}", error);
                 return new AuthResponse { Success = false, Message = error ?? "Invalid OTP" };
             }
 
-            Console.WriteLine($"✅ VERIFY OTP: Verification successful. User in local DB: {(user != null ? "Yes" : "No")}");
+            Console.WriteLine("✅ VERIFY OTP: Verification successful. User in local DB: {0}", user != null ? "Yes" : "No");
 
             // For signup: user will be null (new user, not in local DB yet)
             // For signin: user will be populated (existing user in local DB)
             if (user != null)
             {
                 // Existing user trying to signup - should have been blocked earlier
-                Console.WriteLine($"⚠️ VERIFY OTP: User already exists in local DB. This is a signin, not signup.");
+                Console.WriteLine("⚠️ VERIFY OTP: User already exists in local DB. This is a signin, not signup.");
                 return new AuthResponse { Success = true, Message = "OTP verified successfully", User = user };
             }
 
             // New user - OTP verified, proceed to role selection
-            Console.WriteLine($"✅ VERIFY OTP: New user verified. Proceeding to role selection.");
+            Console.WriteLine("✅ VERIFY OTP: New user verified. Proceeding to role selection.");
             return new AuthResponse { Success = true, Message = "OTP verified successfully", User = null };
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"❌ VERIFY OTP ERROR: {ex.Message}");
+            Console.WriteLine("❌ VERIFY OTP ERROR: {0}", ex.Message);
             return new AuthResponse { Success = false, Message = $"Error: {ex.Message}" };
         }
     }
@@ -202,14 +195,14 @@ public class AuthController
             }
 
             // Check if user already exists
-            var existingUser = await _authService.GetUserByEmailAsync(email);
+            var existingUser = await authService.GetUserByEmailAsync(email);
             if (existingUser != null)
             {
                 return new AuthResponse { Success = false, Message = "This account is already registered. Please sign in instead." };
             }
 
             // Create user record with role
-            var user = await _authService.CreateUserWithProfileAsync(email, fullName, role);
+            var user = await authService.CreateUserWithProfileAsync(email, fullName, role);
 
             if (user == null)
             {
@@ -229,15 +222,15 @@ public class AuthController
     /// </summary>
     public void Logout()
     {
-        _authService.ClearError();
+        authService.ClearError();
     }
 
     /// <summary>
     /// Logs out the current user (async version)
     /// </summary>
-    public async Task LogoutAsync()
+    public Task LogoutAsync()
     {
-        await _authService.SignOutAsync();
+        return authService.SignOutAsync();
     }
 
     /// <summary>
@@ -245,7 +238,7 @@ public class AuthController
     /// </summary>
     public IUser? GetCurrentUser()
     {
-        return _authService.GetCurrentUser();
+        return authService.GetCurrentUser();
     }
 
     /// <summary>
@@ -253,7 +246,7 @@ public class AuthController
     /// </summary>
     public bool IsAuthenticated()
     {
-        return _authService.IsAuthenticated();
+        return authService.IsAuthenticated();
     }
 
     /// <summary>
@@ -261,7 +254,7 @@ public class AuthController
     /// </summary>
     public bool HasRole(string role)
     {
-        return _authService.HasRole(role);
+        return authService.HasRole(role);
     }
 
     /// <summary>
@@ -272,7 +265,7 @@ public class AuthController
     {
         try
         {
-            var updatedUser = await _authService.UpdateUserAsync(user);
+            var updatedUser = await authService.UpdateUserAsync(user);
 
             if (updatedUser == null)
             {
@@ -290,7 +283,7 @@ public class AuthController
     /// <summary>
     /// Validates email format
     /// </summary>
-    private bool IsValidEmail(string email)
+    private static bool IsValidEmail(string email)
     {
         try
         {

@@ -2,7 +2,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 
-namespace AiClinic.Database;
+namespace ai_clinic.Database;
 
 /// <summary>
 /// Direct HTTP client for Supabase REST API

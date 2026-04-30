@@ -1,43 +1,38 @@
-namespace AiClinic.Controller;
+using ai_clinic.Interfaces;
 
-public class DocumentController
+namespace ai_clinic.Controller;
+
+public class DocumentController(Services.DocumentService documentService)
 {
-    private readonly Services.DocumentService _documentService;
-
-    public DocumentController(Services.DocumentService documentService)
-    {
-        _documentService = documentService;
-    }
-
-    public async Task<object> UploadDocumentAsync(IFormFile file, string userId, string documentType)
+    public Task<IDocument?> UploadDocumentAsync(IFormFile file, string userId, string documentType)
     {
         var request = new
         {
-            FileName = file.FileName,
+            file.FileName,
             FileType = documentType,
             UploadedByUserId = userId,
             ConversationId = Guid.Empty.ToString()
         };
-        return await _documentService.UploadDocumentAsync(request);
+        return documentService.UploadDocumentAsync(request);
     }
 
-    public async Task<object?> GetDocumentByIdAsync(string documentId)
+    public Task<IDocument?> GetDocumentByIdAsync(string documentId)
     {
-        return await _documentService.GetDocumentByIdAsync(documentId);
+        return documentService.GetDocumentByIdAsync(documentId);
     }
 
-    public async Task<object> GetDocumentsByUserIdAsync(string userId)
+    public async Task<IEnumerable<IDocument>> GetDocumentsByUserIdAsync(string userId)
     {
         if (Guid.TryParse(userId, out var guid))
         {
-            return await _documentService.GetDocumentsByUserIdAsync(guid);
+            return await documentService.GetDocumentsByUserIdAsync(guid);
         }
-        return Enumerable.Empty<object>();
+        return Enumerable.Empty<IDocument>();
     }
 
     public async Task<(Stream fileStream, string contentType, string fileName)> DownloadDocumentAsync(string documentId)
     {
-        var bytes = await _documentService.DownloadDocumentAsync(documentId);
+        var bytes = await documentService.DownloadDocumentAsync(documentId);
         if (bytes == null)
         {
             return (Stream.Null, "application/octet-stream", "file");
@@ -45,8 +40,8 @@ public class DocumentController
         return (new MemoryStream(bytes), "application/octet-stream", "document");
     }
 
-    public async Task DeleteDocumentAsync(string documentId)
+    public Task<bool> DeleteDocumentAsync(string documentId)
     {
-        await _documentService.DeleteDocumentAsync(documentId);
+        return documentService.DeleteDocumentAsync(documentId);
     }
 }

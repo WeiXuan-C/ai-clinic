@@ -1,109 +1,80 @@
-using AiClinic.Interfaces;
-using Supabase;
+using ai_clinic.Interfaces;
+using ai_clinic.Database;
 
-namespace AiClinic.DAOs;
+namespace ai_clinic.DAOs;
 
 /// <summary>
 /// Adapter Pattern Implementation
-/// Adapts Supabase client interface to IMessageRepository interface
+/// Adapts Supabase HTTP client to IMessageRepository interface
 /// </summary>
 public class MessageDAO : IMessageRepository
 {
-    private readonly Client _supabase;
+    private readonly SupabaseHttpClient _supabase;
 
-    public MessageDAO(Client supabase)
+    public MessageDAO(SupabaseHttpClient supabase)
     {
         _supabase = supabase;
     }
 
     public async Task<Message?> GetByIdAsync(Guid id)
     {
-        var response = await _supabase
-            .From<Message>()
-            .Where(x => x.Id == id)
-            .Single();
-        
-        return response;
+        try
+        {
+            return await _supabase.GetSingleAsync<Message>("messages", $"id=eq.{id}");
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     public async Task<IEnumerable<Message>> GetAllAsync()
     {
-        var response = await _supabase
-            .From<Message>()
-            .Get();
-        
-        return response.Models;
+        return await _supabase.GetAsync<Message>("messages");
     }
 
     public async Task<Message> AddAsync(Message entity)
     {
-        var response = await _supabase
-            .From<Message>()
-            .Insert(entity);
-        
-        return response.Models.FirstOrDefault() ?? entity;
+        var result = await _supabase.PostAsync<Message>("messages", entity);
+        return result ?? entity;
     }
 
     public async Task<Message> UpdateAsync(Message entity)
     {
-        var response = await _supabase
-            .From<Message>()
-            .Where(x => x.Id == entity.Id)
-            .Update(entity);
-        
-        return response.Models.FirstOrDefault() ?? entity;
+        var result = await _supabase.PatchAsync<Message>("messages", $"id=eq.{entity.Id}", entity);
+        return result ?? entity;
     }
 
     public async Task<bool> DeleteAsync(Guid id)
     {
-        try
-        {
-            await _supabase
-                .From<Message>()
-                .Where(x => x.Id == id)
-                .Delete();
-            
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
+        return await _supabase.DeleteAsync("messages", $"id=eq.{id}");
     }
 
     public async Task<IEnumerable<Message>> GetByConversationIdAsync(Guid conversationId)
     {
-        var response = await _supabase
-            .From<Message>()
-            .Where(x => x.ConversationId == conversationId)
-            .Order("sent_at", Postgrest.Constants.Ordering.Ascending)
-            .Get();
-        
-        return response.Models;
+        var filter = $"conversation_id=eq.{conversationId}&order=sent_at.asc";
+        return await _supabase.GetAsync<Message>("messages", filter);
     }
 
     public async Task<Message?> GetLatestMessageAsync(Guid conversationId)
     {
-        var response = await _supabase
-            .From<Message>()
-            .Where(x => x.ConversationId == conversationId)
-            .Order("sent_at", Postgrest.Constants.Ordering.Descending)
-            .Limit(1)
-            .Single();
-        
-        return response;
+        try
+        {
+            var filter = $"conversation_id=eq.{conversationId}&order=sent_at.desc&limit=1";
+            var results = await _supabase.GetAsync<Message>("messages", filter);
+            return results.FirstOrDefault();
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     public async Task<int> GetUnreadCountAsync(Guid conversationId, Guid userId)
     {
-        var response = await _supabase
-            .From<Message>()
-            .Where(x => x.ConversationId == conversationId)
-            .Where(x => x.SenderId != userId)
-            .Where(x => x.IsRead == false)
-            .Get();
-        
-        return response.Models.Count;
+        var filter = $"conversation_id=eq.{conversationId}&sender_id=neq.{userId}&is_read=eq.false";
+        var results = await _supabase.GetAsync<Message>("messages", filter);
+        return results.Count();
     }
 
     public async Task MarkAsReadAsync(Guid messageId)
