@@ -1,0 +1,385 @@
+@page "/doctor/settings"
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@layout Components.Layout.DoctorSidebarLayout
+
+<PageTitle>Settings - AI Medical Clinic</PageTitle>
+
+<link rel="stylesheet" href="/css/stitch-design-system.css" />
+
+<!-- Header -->
+<header class="content-header">
+    <div class="header-left">
+        <h1>Settings</h1>
+        <p class="body-md" style="margin: 0.5rem;">
+            Manage your account preferences and practice settings
+        </p>
+    </div>
+</header>
+
+<!-- Content Grid -->
+<div class="content-grid">
+    <!-- Account Settings -->
+    <section class="settings-card">
+        <div class="section-header">
+            <div class="header-with-icon">
+                <i data-lucide="user-cog" class="section-icon"></i>
+                <h2 class="headline-md">Account Settings</h2>
+            </div>
+        </div>
+        <div class="settings-list">
+            <div class="setting-item">
+                <div class="setting-info">
+                    <h4 class="headline-sm">Email Address</h4>
+                    <p class="body-sm">dr.smith@aiclinic.com</p>
+                </div>
+                <button class="btn-link">Change</button>
+            </div>
+            <div class="setting-item">
+                <div class="setting-info">
+                    <h4 class="headline-sm">Password</h4>
+                    <p class="body-sm">Last changed 3 months ago</p>
+                </div>
+                <button class="btn-link">Update</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Availability Settings -->
+    <section class="settings-card">
+        <div class="section-header">
+            <div class="header-with-icon">
+                <i data-lucide="calendar" class="section-icon"></i>
+                <h2 class="headline-md">Availability Settings</h2>
+            </div>
+        </div>
+        <div class="settings-list">
+            <div class="setting-item">
+                <div class="setting-info">
+                    <h4 class="headline-sm">Current Status</h4>
+                    <p class="body-sm">Set your availability status</p>
+                </div>
+                <select class="select-input">
+                    <option value="available">Available</option>
+                    <option value="busy">Busy</option>
+                    <option value="away">Away</option>
+                    <option value="offline">Offline</option>
+                </select>
+            </div>
+            <div class="setting-item">
+                <div class="setting-info">
+                    <h4 class="headline-sm">Auto-Accept Appointments</h4>
+                    <p class="body-sm">Automatically accept new appointment requests</p>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" />
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            <div class="setting-item">
+                <div class="setting-info">
+                    <h4 class="headline-sm">Maximum Daily Patients</h4>
+                    <p class="body-sm">Limit the number of patients per day</p>
+                </div>
+                <input type="number" class="number-input" value="30" />
+            </div>
+        </div>
+    </section>
+
+    <!-- Notification Settings -->
+    <section class="settings-card">
+        <div class="section-header">
+            <div class="header-with-icon">
+                <i data-lucide="bell" class="section-icon"></i>
+                <h2 class="headline-md">Notifications</h2>
+            </div>
+        </div>
+        <div class="settings-list">
+            <div class="setting-item">
+                <div class="setting-info">
+                    <h4 class="headline-sm">Urgent Consultations</h4>
+                    <p class="body-sm">Get notified about urgent patient requests</p>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" checked />
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            <div class="setting-item">
+                <div class="setting-info">
+                    <h4 class="headline-sm">New Appointments</h4>
+                    <p class="body-sm">Receive alerts for new appointment bookings</p>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" checked />
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            <div class="setting-item">
+                <div class="setting-info">
+                    <h4 class="headline-sm">AI Pre-Assessments</h4>
+                    <p class="body-sm">Notify when AI completes patient pre-assessment</p>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" checked />
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+            <div class="setting-item">
+                <div class="setting-info">
+                    <h4 class="headline-sm">Email Notifications</h4>
+                    <p class="body-sm">Receive email summaries of daily activity</p>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" />
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+        </div>
+    </section>
+
+    <!-- Privacy & Security -->
+    <section class="settings-card">
+        <div class="section-header">
+            <div class="header-with-icon">
+                <i data-lucide="shield" class="section-icon"></i>
+                <h2 class="headline-md">Privacy & Security</h2>
+            </div>
+        </div>
+        <div class="settings-list">
+            <div class="setting-item">
+                <div class="setting-info">
+                    <h4 class="headline-sm">Two-Factor Authentication</h4>
+                    <p class="body-sm">Add an extra layer of security</p>
+                </div>
+                <button class="btn-primary-sm">Enable</button>
+            </div>
+            <div class="setting-item">
+                <div class="setting-info">
+                    <h4 class="headline-sm">Session Timeout</h4>
+                    <p class="body-sm">Auto-logout after inactivity</p>
+                </div>
+                <select class="select-input">
+                    <option value="15">15 minutes</option>
+                    <option value="30" selected>30 minutes</option>
+                    <option value="60">1 hour</option>
+                    <option value="120">2 hours</option>
+                </select>
+            </div>
+            <div class="setting-item">
+                <div class="setting-info">
+                    <h4 class="headline-sm">Activity Log</h4>
+                    <p class="body-sm">View your account activity history</p>
+                </div>
+                <button class="btn-link">View Log</button>
+            </div>
+        </div>
+    </section>
+</div>
+
+@code {
+    // Component logic here
+}
+
+<style>
+    .content-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 2rem;
+    }
+
+    .header-left h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #191c1e;
+        margin: 0.5rem;
+        font-family: 'Manrope', sans-serif;
+    }
+
+    .header-left p {
+        color: #434654;
+    }
+
+    .content-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 2rem;
+        max-width: 900px;
+    }
+
+    .settings-card {
+        background: white;
+        padding: 2rem;
+        border-radius: 16px;
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.75rem;
+    }
+
+    .header-with-icon {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .section-icon {
+        font-size: 1.5rem;
+        color: #1e40af;
+    }
+
+    .section-header h2 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #191c1e;
+    }
+
+    .settings-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+
+    .setting-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.25rem;
+        background: #f7f9fb;
+        border-radius: 12px;
+    }
+
+    .setting-info {
+        flex: 1;
+    }
+
+    .setting-info h4 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #191c1e;
+        margin-bottom: 0.25rem;
+    }
+
+    .setting-info p {
+        font-size: 0.875rem;
+        color: #434654;
+    }
+
+    .toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 48px;
+        height: 28px;
+    }
+
+    .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .toggle-slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #e6e8ea;
+        transition: 0.3s;
+        border-radius: 28px;
+    }
+
+    .toggle-slider:before {
+        position: absolute;
+        content: "";
+        height: 20px;
+        width: 20px;
+        left: 4px;
+        bottom: 4px;
+        background-color: white;
+        transition: 0.3s;
+        border-radius: 50%;
+    }
+
+    input:checked + .toggle-slider {
+        background-color: #10b981;
+    }
+
+    input:checked + .toggle-slider:before {
+        transform: translateX(20px);
+    }
+
+    .btn-link {
+        color: #1e40af;
+        background: none;
+        border: none;
+        font-weight: 600;
+        cursor: pointer;
+        font-size: 0.875rem;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        transition: all 0.2s;
+    }
+
+    .btn-link:hover {
+        background: #dbeafe;
+    }
+
+    .select-input {
+        padding: 0.625rem 1rem;
+        border: 1px solid #e6e8ea;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        cursor: pointer;
+        background: white;
+        min-width: 150px;
+    }
+
+    .select-input:focus {
+        outline: none;
+        border-color: #1e40af;
+    }
+
+    .number-input {
+        padding: 0.625rem 1rem;
+        border: 1px solid #e6e8ea;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        background: white;
+        width: 100px;
+        text-align: center;
+    }
+
+    .number-input:focus {
+        outline: none;
+        border-color: #1e40af;
+    }
+
+    .btn-primary-sm {
+        padding: 0.625rem 1.25rem;
+        background: #1e40af;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        font-size: 0.875rem;
+        transition: all 0.2s;
+    }
+
+    .btn-primary-sm:hover {
+        background: #1e3a8a;
+    }
+
+    @@media (max-width: 768px) {
+        .setting-item {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+    }
+</style>

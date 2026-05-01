@@ -1,0 +1,754 @@
+@page "/doctor/support"
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@layout Components.Layout.DoctorSidebarLayout
+
+<PageTitle>Support - AI Medical Clinic</PageTitle>
+
+<link rel="stylesheet" href="/css/stitch-design-system.css" />
+
+<!-- Header -->
+<header class="content-header">
+    <div class="header-left">
+        <h1>Help & Support</h1>
+        <p class="body-md" style="margin: 0.5rem;">
+            <span class="status-indicator">●</span>
+            Professional support available 24/7
+        </p>
+    </div>
+    <div class="header-right">
+        <button class="btn btn-primary">
+            <i data-lucide="message-circle"></i>
+            Contact Support
+        </button>
+    </div>
+</header>
+
+<!-- Content Grid -->
+<div class="content-grid">
+    <!-- Quick Actions -->
+    <section class="quick-actions-section">
+        <h2 class="headline-md">Quick Actions</h2>
+        <div class="actions-grid">
+            <div class="action-card">
+                <i data-lucide="message-square" class="action-icon"></i>
+                <h3 class="headline-sm">Live Chat</h3>
+                <p class="body-sm">Chat with technical support</p>
+            </div>
+            <div class="action-card">
+                <i data-lucide="phone" class="action-icon"></i>
+                <h3 class="headline-sm">Call Us</h3>
+                <p class="body-sm">1-800-DOC-HELP</p>
+            </div>
+            <div class="action-card">
+                <i data-lucide="mail" class="action-icon"></i>
+                <h3 class="headline-sm">Email</h3>
+                <p class="body-sm">doctors@aiclinic.com</p>
+            </div>
+            <div class="action-card">
+                <i data-lucide="book-open" class="action-icon"></i>
+                <h3 class="headline-sm">Documentation</h3>
+                <p class="body-sm">Browse guides & resources</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section class="faq-section">
+        <div class="section-header">
+            <h2 class="headline-md">Frequently Asked Questions</h2>
+            <div class="search-box">
+                <i data-lucide="search"></i>
+                <input type="text" placeholder="Search FAQs..." />
+            </div>
+        </div>
+        
+        <div class="faq-list">
+            <div class="faq-item">
+                <div class="faq-question">
+                    <h4 class="headline-sm">How do I access patient medical records?</h4>
+                    <i data-lucide="chevron-down" class="faq-icon"></i>
+                </div>
+                <div class="faq-answer">
+                    <p class="body-md">Navigate to the "Medical Records" section from the sidebar. You can search, filter, and access all patient records securely from there.</p>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">
+                    <h4 class="headline-sm">How does the AI pre-assessment work?</h4>
+                    <i data-lucide="chevron-down" class="faq-icon"></i>
+                </div>
+                <div class="faq-answer">
+                    <p class="body-md">Our AI assistant conducts preliminary patient assessments based on symptoms and medical history. You'll receive a detailed report to review before the consultation.</p>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">
+                    <h4 class="headline-sm">Can I customize my availability schedule?</h4>
+                    <i data-lucide="chevron-down" class="faq-icon"></i>
+                </div>
+                <div class="faq-answer">
+                    <p class="body-md">Yes! Go to Settings > Availability to set your working hours, maximum daily patients, and availability status.</p>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">
+                    <h4 class="headline-sm">How do I prescribe medications?</h4>
+                    <i data-lucide="chevron-down" class="faq-icon"></i>
+                </div>
+                <div class="faq-answer">
+                    <p class="body-md">During or after a consultation, click on the patient's record and select "New Prescription". The system integrates with major pharmacies for e-prescribing.</p>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">
+                    <h4 class="headline-sm">Is the platform HIPAA compliant?</h4>
+                    <i data-lucide="chevron-down" class="faq-icon"></i>
+                </div>
+                <div class="faq-answer">
+                    <p class="body-md">Yes, our platform is fully HIPAA compliant with end-to-end encryption, secure data storage, and comprehensive audit logs.</p>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">
+                    <h4 class="headline-sm">How do I handle urgent consultations?</h4>
+                    <i data-lucide="chevron-down" class="faq-icon"></i>
+                </div>
+                <div class="faq-answer">
+                    <p class="body-md">Urgent cases are flagged with a red badge and appear at the top of your patient queue. You'll receive immediate notifications for urgent requests.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Form -->
+    <section class="contact-form-section">
+        <div class="section-header">
+            <h2 class="headline-md">Submit a Support Ticket</h2>
+            <p class="body-sm">We typically respond within 2 hours</p>
+        </div>
+        
+        <form class="contact-form">
+            <div class="form-group">
+                <label class="body-sm">Category</label>
+                <select class="form-input">
+                    <option>Select a category...</option>
+                    <option>Technical Issue</option>
+                    <option>Patient Records</option>
+                    <option>Billing Question</option>
+                    <option>Feature Request</option>
+                    <option>Account Issue</option>
+                    <option>Other</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label class="body-sm">Priority</label>
+                <div class="priority-options">
+                    <label class="radio-option">
+                        <input type="radio" name="priority" value="low" checked />
+                        <span>Low</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="priority" value="medium" />
+                        <span>Medium</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="priority" value="high" />
+                        <span>High</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="priority" value="urgent" />
+                        <span>Urgent</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="body-sm">Description</label>
+                <textarea class="form-input" rows="6" placeholder="Describe your issue or question..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label class="body-sm">Attachments (optional)</label>
+                <div class="file-upload">
+                    <i data-lucide="paperclip"></i>
+                    <span>Click to upload or drag and drop</span>
+                    <input type="file" multiple />
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Submit Ticket</button>
+        </form>
+    </section>
+
+    <!-- Resources Section -->
+    <section class="resources-section">
+        <h2 class="headline-md">Professional Resources</h2>
+        <div class="resources-list">
+            <a href="#" class="resource-item">
+                <i data-lucide="book" class="resource-icon"></i>
+                <div class="resource-info">
+                    <h4 class="headline-sm">Clinical Guidelines</h4>
+                    <p class="body-sm">Evidence-based practice guidelines</p>
+                </div>
+                <i data-lucide="arrow-right" class="arrow-icon"></i>
+            </a>
+            <a href="#" class="resource-item">
+                <i data-lucide="video" class="resource-icon"></i>
+                <div class="resource-info">
+                    <h4 class="headline-sm">Training Videos</h4>
+                    <p class="body-sm">Platform tutorials and best practices</p>
+                </div>
+                <i data-lucide="arrow-right" class="arrow-icon"></i>
+            </a>
+            <a href="#" class="resource-item">
+                <i data-lucide="shield-check" class="resource-icon"></i>
+                <div class="resource-info">
+                    <h4 class="headline-sm">HIPAA Compliance</h4>
+                    <p class="body-sm">Security and privacy information</p>
+                </div>
+                <i data-lucide="arrow-right" class="arrow-icon"></i>
+            </a>
+            <a href="#" class="resource-item">
+                <i data-lucide="file-text" class="resource-icon"></i>
+                <div class="resource-info">
+                    <h4 class="headline-sm">API Documentation</h4>
+                    <p class="body-sm">Integration guides for developers</p>
+                </div>
+                <i data-lucide="arrow-right" class="arrow-icon"></i>
+            </a>
+        </div>
+    </section>
+
+    <!-- System Status -->
+    <section class="status-section">
+        <div class="section-header">
+            <h2 class="headline-md">System Status</h2>
+            <span class="badge badge-success">ALL SYSTEMS OPERATIONAL</span>
+        </div>
+        <div class="status-list">
+            <div class="status-item">
+                <div class="status-indicator operational"></div>
+                <span class="body-md">Doctor Portal</span>
+                <span class="status-label">Operational</span>
+            </div>
+            <div class="status-item">
+                <div class="status-indicator operational"></div>
+                <span class="body-md">AI Assistant</span>
+                <span class="status-label">Operational</span>
+            </div>
+            <div class="status-item">
+                <div class="status-indicator operational"></div>
+                <span class="body-md">Video Consultations</span>
+                <span class="status-label">Operational</span>
+            </div>
+            <div class="status-item">
+                <div class="status-indicator operational"></div>
+                <span class="body-md">Medical Records</span>
+                <span class="status-label">Operational</span>
+            </div>
+        </div>
+    </section>
+</div>
+
+@code {
+    // Component logic here
+}
+
+<style>
+    .content-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 2rem;
+    }
+
+    .header-left h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #191c1e;
+        margin: 0.5rem;
+        font-family: 'Manrope', sans-serif;
+    }
+
+    .header-left p {
+        color: #434654;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .status-indicator {
+        color: #10b981;
+        font-size: 0.75rem;
+    }
+
+    .header-right {
+        display: flex;
+        gap: 1rem;
+    }
+
+    .content-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 2rem;
+    }
+
+    .quick-actions-section {
+        grid-column: span 2;
+        background: white;
+        padding: 2rem;
+        border-radius: 16px;
+    }
+
+    .quick-actions-section h2 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #191c1e;
+        margin-bottom: 1.5rem;
+    }
+
+    .actions-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.5rem;
+    }
+
+    .action-card {
+        padding: 1.5rem;
+        background: #f7f9fb;
+        border-radius: 12px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .action-card:hover {
+        background: #eceef0;
+        transform: translateY(-4px);
+    }
+
+    .action-icon {
+        width: 48px;
+        height: 48px;
+        background: #10b981;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: white;
+        margin: 0 auto 1rem;
+    }
+
+    .action-card h3 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #191c1e;
+        margin-bottom: 0.5rem;
+    }
+
+    .action-card p {
+        color: #434654;
+        font-size: 0.875rem;
+    }
+
+    .faq-section {
+        grid-column: span 1;
+        background: white;
+        padding: 2rem;
+        border-radius: 16px;
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.75rem;
+    }
+
+    .section-header h2 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #191c1e;
+    }
+
+    .section-header p {
+        color: #434654;
+    }
+
+    .search-box {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 1rem;
+        background: #f7f9fb;
+        border-radius: 8px;
+        min-width: 250px;
+    }
+
+    .search-box input {
+        border: none;
+        background: transparent;
+        outline: none;
+        font-size: 0.875rem;
+        width: 100%;
+    }
+
+    .faq-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .faq-item {
+        border: 1px solid #e6e8ea;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    .faq-question {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.25rem;
+        background: #f7f9fb;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    .faq-question:hover {
+        background: #eceef0;
+    }
+
+    .faq-question h4 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #191c1e;
+    }
+
+    .faq-icon {
+        color: #434654;
+        transition: transform 0.3s;
+    }
+
+    .faq-answer {
+        padding: 1.25rem;
+        background: white;
+        border-top: 1px solid #e6e8ea;
+    }
+
+    .faq-answer p {
+        color: #434654;
+        line-height: 1.6;
+    }
+
+    .contact-form-section {
+        grid-column: span 1;
+        background: white;
+        padding: 2rem;
+        border-radius: 16px;
+    }
+
+    .contact-form {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .form-group label {
+        color: #434654;
+        font-weight: 500;
+    }
+
+    .form-input {
+        padding: 0.875rem 1rem;
+        border: 1px solid #e6e8ea;
+        border-radius: 8px;
+        font-size: 0.9375rem;
+        font-family: 'Inter', sans-serif;
+        transition: all 0.2s;
+    }
+
+    .form-input:focus {
+        outline: none;
+        border-color: #1e40af;
+        box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
+    }
+
+    textarea.form-input {
+        resize: vertical;
+    }
+
+    .priority-options {
+        display: flex;
+        gap: 1rem;
+    }
+
+    .radio-option {
+        flex: 1;
+        padding: 0.75rem;
+        border: 2px solid #e6e8ea;
+        border-radius: 8px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .radio-option input {
+        display: none;
+    }
+
+    .radio-option span {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #434654;
+    }
+
+    .radio-option:has(input:checked) {
+        border-color: #1e40af;
+        background: #dbeafe;
+    }
+
+    .radio-option:has(input:checked) span {
+        color: #1e40af;
+    }
+
+    .file-upload {
+        padding: 2rem;
+        border: 2px dashed #e6e8ea;
+        border-radius: 8px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        position: relative;
+    }
+
+    .file-upload:hover {
+        border-color: #1e40af;
+        background: #f7f9fb;
+    }
+
+    .file-upload i {
+        font-size: 2rem;
+        color: #434654;
+        margin-bottom: 0.5rem;
+    }
+
+    .file-upload span {
+        display: block;
+        color: #434654;
+        font-size: 0.875rem;
+    }
+
+    .file-upload input {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        cursor: pointer;
+    }
+
+    .resources-section {
+        grid-column: span 2;
+        background: white;
+        padding: 2rem;
+        border-radius: 16px;
+    }
+
+    .resources-section h2 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #191c1e;
+        margin-bottom: 1.5rem;
+    }
+
+    .resources-list {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+
+    .resource-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1.25rem;
+        background: #f7f9fb;
+        border-radius: 12px;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+
+    .resource-item:hover {
+        background: #eceef0;
+        transform: translateX(4px);
+    }
+
+    .resource-icon {
+        width: 48px;
+        height: 48px;
+        min-width: 48px;
+        background: #10b981;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: white;
+    }
+
+    .resource-info {
+        flex: 1;
+    }
+
+    .resource-info h4 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #191c1e;
+        margin-bottom: 0.25rem;
+    }
+
+    .resource-info p {
+        font-size: 0.75rem;
+        color: #434654;
+    }
+
+    .arrow-icon {
+        color: #434654;
+    }
+
+    .status-section {
+        grid-column: span 2;
+        background: white;
+        padding: 2rem;
+        border-radius: 16px;
+    }
+
+    .status-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .status-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem;
+        background: #f7f9fb;
+        border-radius: 8px;
+    }
+
+    .status-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+    }
+
+    .status-indicator.operational {
+        background: #10b981;
+    }
+
+    .status-item span:nth-child(2) {
+        flex: 1;
+        color: #191c1e;
+    }
+
+    .status-label {
+        color: #059669;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+
+    .badge {
+        padding: 0.375rem 0.75rem;
+        border-radius: 6px;
+        font-size: 0.625rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+    }
+
+    .badge-success {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: none;
+        font-size: 0.875rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn-primary {
+        background: #1e40af;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #1e3a8a;
+        transform: translateY(-1px);
+    }
+
+    @@media (max-width: 1200px) {
+        .actions-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @@media (max-width: 1024px) {
+        .content-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .quick-actions-section,
+        .faq-section,
+        .contact-form-section,
+        .resources-section,
+        .status-section {
+            grid-column: span 1;
+        }
+
+        .resources-list {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @@media (max-width: 768px) {
+        .actions-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .priority-options {
+            flex-direction: column;
+        }
+
+        .search-box {
+            min-width: auto;
+            width: 100%;
+        }
+
+        .section-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+    }
+</style>
