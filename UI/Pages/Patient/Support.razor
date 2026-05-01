@@ -249,19 +249,19 @@
                     <label class="body-sm">Priority *</label>
                     <div class="priority-options">
                         <label class="radio-option">
-                            <input type="radio" name="priority" value="low" @onchange="() => ticketPriority = \"low\"" checked="@(ticketPriority == \"low\")" />
+                            <input type="radio" name="priority" value="low" checked="@(ticketPriority == "low")" @onchange="@(() => ticketPriority = "low")" />
                             <span>Low</span>
                         </label>
                         <label class="radio-option">
-                            <input type="radio" name="priority" value="medium" @onchange="() => ticketPriority = \"medium\"" checked="@(ticketPriority == \"medium\")" />
+                            <input type="radio" name="priority" value="medium" checked="@(ticketPriority == "medium")" @onchange="@(() => ticketPriority = "medium")" />
                             <span>Medium</span>
                         </label>
                         <label class="radio-option">
-                            <input type="radio" name="priority" value="high" @onchange="() => ticketPriority = \"high\"" checked="@(ticketPriority == \"high\")" />
+                            <input type="radio" name="priority" value="high" checked="@(ticketPriority == "high")" @onchange="@(() => ticketPriority = "high")" />
                             <span>High</span>
                         </label>
                         <label class="radio-option">
-                            <input type="radio" name="priority" value="urgent" @onchange="() => ticketPriority = \"urgent\"" checked="@(ticketPriority == \"urgent\")" />
+                            <input type="radio" name="priority" value="urgent" checked="@(ticketPriority == "urgent")" @onchange="@(() => ticketPriority = "urgent")" />
                             <span>Urgent</span>
                         </label>
                     </div>
