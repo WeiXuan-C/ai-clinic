@@ -36,6 +36,11 @@ public interface IDoctorProfile
     bool IsAcceptingPatients { get; set; }
     DateTime CreatedAt { get; set; }
     DateTime UpdatedAt { get; set; }
+    Guid? MVerifiedByAdminId { get; set; }
+    string? VerificationStatus { get; set; }
+    string? VerificationNotes { get; set; }
+    object? DocumentsChecked { get; set; }
+    DateTime? VerifiedAt { get; set; }
 }
 
 /// <summary>
@@ -121,6 +126,21 @@ public class Doctor : BaseModel, IDoctorProfile
     
     [Column("updated_at")]
     public DateTime UpdatedAt { get; set; }
+    
+    [Column("mverified_by_admin_id")]
+    public Guid? MVerifiedByAdminId { get; set; }
+    
+    [Column("verification_status")]
+    public string? VerificationStatus { get; set; }
+    
+    [Column("verification_notes")]
+    public string? VerificationNotes { get; set; }
+    
+    [Column("documents_checked")]
+    public object? DocumentsChecked { get; set; }
+    
+    [Column("verified_at")]
+    public DateTime? VerifiedAt { get; set; }
 }
 
 /// <summary>
