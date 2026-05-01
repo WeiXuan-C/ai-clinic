@@ -1,0 +1,688 @@
+@page "/doctor/analytics"
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@layout Components.Layout.DoctorSidebarLayout
+
+<PageTitle>Analytics - AI Medical Clinic</PageTitle>
+
+<link rel="stylesheet" href="/css/stitch-design-system.css" />
+
+<!-- Header -->
+<header class="content-header">
+    <div class="header-left">
+        <h1>Analytics & Insights</h1>
+        <p class="body-md" style="margin: 0.5rem;">
+            <span class="status-indicator">●</span>
+            Track your performance and patient outcomes
+        </p>
+    </div>
+    <div class="header-right">
+        <select class="period-selector">
+            <option value="week">This Week</option>
+            <option value="month" selected>This Month</option>
+            <option value="quarter">This Quarter</option>
+            <option value="year">This Year</option>
+        </select>
+        <button class="btn btn-primary">
+            <i data-lucide="download"></i>
+            Export Report
+        </button>
+    </div>
+</header>
+
+<!-- Content Grid -->
+<div class="content-grid">
+    <!-- Key Metrics -->
+    <section class="metrics-section">
+        <h2 class="headline-md">Key Metrics</h2>
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-header">
+                    <i data-lucide="users" class="metric-icon"></i>
+                    <span class="trend positive">+12%</span>
+                </div>
+                <h3 class="metric-value">542</h3>
+                <p class="metric-label">Total Patients</p>
+                <div class="metric-chart">
+                    <div class="chart-bar" style="height: 40%"></div>
+                    <div class="chart-bar" style="height: 60%"></div>
+                    <div class="chart-bar" style="height: 45%"></div>
+                    <div class="chart-bar" style="height: 80%"></div>
+                    <div class="chart-bar" style="height: 100%"></div>
+                </div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <i data-lucide="calendar-check" class="metric-icon"></i>
+                    <span class="trend positive">+8%</span>
+                </div>
+                <h3 class="metric-value">187</h3>
+                <p class="metric-label">Consultations</p>
+                <div class="metric-chart">
+                    <div class="chart-bar" style="height: 60%"></div>
+                    <div class="chart-bar" style="height: 70%"></div>
+                    <div class="chart-bar" style="height: 55%"></div>
+                    <div class="chart-bar" style="height: 90%"></div>
+                    <div class="chart-bar" style="height: 100%"></div>
+                </div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <i data-lucide="clock" class="metric-icon"></i>
+                    <span class="trend positive">-5%</span>
+                </div>
+                <h3 class="metric-value">18 min</h3>
+                <p class="metric-label">Avg Response Time</p>
+                <div class="metric-chart">
+                    <div class="chart-bar" style="height: 100%"></div>
+                    <div class="chart-bar" style="height: 80%"></div>
+                    <div class="chart-bar" style="height: 70%"></div>
+                    <div class="chart-bar" style="height: 60%"></div>
+                    <div class="chart-bar" style="height: 50%"></div>
+                </div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <i data-lucide="star" class="metric-icon"></i>
+                    <span class="trend positive">+2%</span>
+                </div>
+                <h3 class="metric-value">4.9</h3>
+                <p class="metric-label">Patient Rating</p>
+                <div class="metric-chart">
+                    <div class="chart-bar" style="height: 85%"></div>
+                    <div class="chart-bar" style="height: 88%"></div>
+                    <div class="chart-bar" style="height: 90%"></div>
+                    <div class="chart-bar" style="height: 95%"></div>
+                    <div class="chart-bar" style="height: 100%"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Patient Demographics -->
+    <section class="demographics-section">
+        <div class="section-header">
+            <h2 class="headline-md">Patient Demographics</h2>
+        </div>
+        <div class="demographics-grid">
+            <div class="demo-card">
+                <h4 class="headline-sm">Age Distribution</h4>
+                <div class="demo-bars">
+                    <div class="demo-bar-item">
+                        <span class="demo-label">18-30</span>
+                        <div class="demo-bar">
+                            <div class="demo-fill" style="width: 25%"></div>
+                        </div>
+                        <span class="demo-value">25%</span>
+                    </div>
+                    <div class="demo-bar-item">
+                        <span class="demo-label">31-45</span>
+                        <div class="demo-bar">
+                            <div class="demo-fill" style="width: 35%"></div>
+                        </div>
+                        <span class="demo-value">35%</span>
+                    </div>
+                    <div class="demo-bar-item">
+                        <span class="demo-label">46-60</span>
+                        <div class="demo-bar">
+                            <div class="demo-fill" style="width: 28%"></div>
+                        </div>
+                        <span class="demo-value">28%</span>
+                    </div>
+                    <div class="demo-bar-item">
+                        <span class="demo-label">60+</span>
+                        <div class="demo-bar">
+                            <div class="demo-fill" style="width: 12%"></div>
+                        </div>
+                        <span class="demo-value">12%</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="demo-card">
+                <h4 class="headline-sm">Gender Distribution</h4>
+                <div class="gender-stats">
+                    <div class="gender-item">
+                        <div class="gender-circle" style="background: #1e40af;">
+                            <span>52%</span>
+                        </div>
+                        <p class="body-sm">Female</p>
+                    </div>
+                    <div class="gender-item">
+                        <div class="gender-circle" style="background: #10b981;">
+                            <span>46%</span>
+                        </div>
+                        <p class="body-sm">Male</p>
+                    </div>
+                    <div class="gender-item">
+                        <div class="gender-circle" style="background: #f59e0b;">
+                            <span>2%</span>
+                        </div>
+                        <p class="body-sm">Other</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Top Conditions -->
+    <section class="conditions-section">
+        <div class="section-header">
+            <h2 class="headline-md">Top Conditions Treated</h2>
+        </div>
+        <div class="conditions-list">
+            <div class="condition-item">
+                <span class="condition-rank">1</span>
+                <div class="condition-info">
+                    <h4 class="headline-sm">Hypertension</h4>
+                    <div class="condition-bar">
+                        <div class="condition-fill" style="width: 85%"></div>
+                    </div>
+                </div>
+                <span class="condition-count">127 patients</span>
+            </div>
+            <div class="condition-item">
+                <span class="condition-rank">2</span>
+                <div class="condition-info">
+                    <h4 class="headline-sm">Type 2 Diabetes</h4>
+                    <div class="condition-bar">
+                        <div class="condition-fill" style="width: 72%"></div>
+                    </div>
+                </div>
+                <span class="condition-count">98 patients</span>
+            </div>
+            <div class="condition-item">
+                <span class="condition-rank">3</span>
+                <div class="condition-info">
+                    <h4 class="headline-sm">Anxiety Disorders</h4>
+                    <div class="condition-bar">
+                        <div class="condition-fill" style="width: 65%"></div>
+                    </div>
+                </div>
+                <span class="condition-count">87 patients</span>
+            </div>
+            <div class="condition-item">
+                <span class="condition-rank">4</span>
+                <div class="condition-info">
+                    <h4 class="headline-sm">Asthma</h4>
+                    <div class="condition-bar">
+                        <div class="condition-fill" style="width: 48%"></div>
+                    </div>
+                </div>
+                <span class="condition-count">64 patients</span>
+            </div>
+            <div class="condition-item">
+                <span class="condition-rank">5</span>
+                <div class="condition-info">
+                    <h4 class="headline-sm">Chronic Pain</h4>
+                    <div class="condition-bar">
+                        <div class="condition-fill" style="width: 42%"></div>
+                    </div>
+                </div>
+                <span class="condition-count">56 patients</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Performance Insights -->
+    <section class="insights-section">
+        <div class="section-header">
+            <h2 class="headline-md">AI-Powered Insights</h2>
+        </div>
+        <div class="insights-list">
+            <div class="insight-card positive">
+                <i data-lucide="trending-up" class="insight-icon"></i>
+                <div class="insight-content">
+                    <h4 class="headline-sm">Excellent Response Time</h4>
+                    <p class="body-sm">Your average response time is 35% faster than the platform average. Patients appreciate your quick replies!</p>
+                </div>
+            </div>
+            <div class="insight-card info">
+                <i data-lucide="users" class="insight-icon"></i>
+                <div class="insight-content">
+                    <h4 class="headline-sm">Growing Patient Base</h4>
+                    <p class="body-sm">You've gained 42 new patients this month. Consider adjusting your availability to accommodate demand.</p>
+                </div>
+            </div>
+            <div class="insight-card warning">
+                <i data-lucide="calendar" class="insight-icon"></i>
+                <div class="insight-content">
+                    <h4 class="headline-sm">Peak Hours Identified</h4>
+                    <p class="body-sm">Most appointment requests come between 2-4 PM. Consider blocking additional slots during these hours.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+@code {
+    // Component logic here
+}
+
+<style>
+    .content-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 2rem;
+    }
+
+    .header-left h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #191c1e;
+        margin: 0.5rem;
+        font-family: 'Manrope', sans-serif;
+    }
+
+    .header-left p {
+        color: #434654;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .status-indicator {
+        color: #10b981;
+        font-size: 0.75rem;
+    }
+
+    .header-right {
+        display: flex;
+        gap: 1rem;
+    }
+
+    .period-selector {
+        padding: 0.75rem 1.5rem;
+        border: 1px solid #e6e8ea;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        background: white;
+    }
+
+    .period-selector:focus {
+        outline: none;
+        border-color: #1e40af;
+    }
+
+    .content-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 2rem;
+    }
+
+    .metrics-section {
+        grid-column: span 2;
+        background: white;
+        padding: 2rem;
+        border-radius: 16px;
+    }
+
+    .metrics-section h2 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #191c1e;
+        margin-bottom: 1.5rem;
+    }
+
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.5rem;
+    }
+
+    .metric-card {
+        padding: 1.5rem;
+        background: #f7f9fb;
+        border-radius: 12px;
+    }
+
+    .metric-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .metric-icon {
+        width: 40px;
+        height: 40px;
+        background: #1e40af;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        color: white;
+    }
+
+    .trend {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+    }
+
+    .trend.positive {
+        color: #065f46;
+        background: #d1fae5;
+    }
+
+    .metric-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #191c1e;
+        margin-bottom: 0.25rem;
+    }
+
+    .metric-label {
+        color: #434654;
+        font-size: 0.875rem;
+        margin-bottom: 1rem;
+    }
+
+    .metric-chart {
+        display: flex;
+        align-items: flex-end;
+        gap: 0.25rem;
+        height: 40px;
+    }
+
+    .chart-bar {
+        flex: 1;
+        background: #10b981;
+        border-radius: 2px;
+        min-height: 4px;
+    }
+
+    .demographics-section {
+        grid-column: span 1;
+        background: white;
+        padding: 2rem;
+        border-radius: 16px;
+    }
+
+    .section-header {
+        margin-bottom: 1.5rem;
+    }
+
+    .section-header h2 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #191c1e;
+    }
+
+    .demographics-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 2rem;
+    }
+
+    .demo-card h4 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #191c1e;
+        margin-bottom: 1rem;
+    }
+
+    .demo-bars {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .demo-bar-item {
+        display: grid;
+        grid-template-columns: 60px 1fr 50px;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .demo-label {
+        font-size: 0.875rem;
+        color: #434654;
+        font-weight: 500;
+    }
+
+    .demo-bar {
+        height: 24px;
+        background: #e6e8ea;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+
+    .demo-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #1e40af, #10b981);
+        border-radius: 4px;
+    }
+
+    .demo-value {
+        font-size: 0.875rem;
+        color: #191c1e;
+        font-weight: 600;
+        text-align: right;
+    }
+
+    .gender-stats {
+        display: flex;
+        justify-content: space-around;
+        gap: 1rem;
+    }
+
+    .gender-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .gender-circle {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.25rem;
+        font-weight: 700;
+    }
+
+    .gender-item p {
+        color: #434654;
+        font-weight: 500;
+    }
+
+    .conditions-section {
+        grid-column: span 1;
+        background: white;
+        padding: 2rem;
+        border-radius: 16px;
+    }
+
+    .conditions-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .condition-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem;
+        background: #f7f9fb;
+        border-radius: 12px;
+    }
+
+    .condition-rank {
+        width: 32px;
+        height: 32px;
+        background: #1e40af;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.875rem;
+    }
+
+    .condition-info {
+        flex: 1;
+    }
+
+    .condition-info h4 {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: #191c1e;
+        margin-bottom: 0.5rem;
+    }
+
+    .condition-bar {
+        height: 8px;
+        background: #e6e8ea;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+
+    .condition-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #1e40af, #10b981);
+        border-radius: 4px;
+    }
+
+    .condition-count {
+        font-size: 0.8125rem;
+        color: #434654;
+        font-weight: 500;
+        white-space: nowrap;
+    }
+
+    .insights-section {
+        grid-column: span 2;
+        background: white;
+        padding: 2rem;
+        border-radius: 16px;
+    }
+
+    .insights-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .insight-card {
+        display: flex;
+        gap: 1rem;
+        padding: 1.5rem;
+        border-radius: 12px;
+        border-left: 4px solid;
+    }
+
+    .insight-card.positive {
+        background: #f0fdf4;
+        border-left-color: #10b981;
+    }
+
+    .insight-card.info {
+        background: #eff6ff;
+        border-left-color: #1e40af;
+    }
+
+    .insight-card.warning {
+        background: #fffbeb;
+        border-left-color: #f59e0b;
+    }
+
+    .insight-icon {
+        width: 48px;
+        height: 48px;
+        min-width: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+
+    .insight-card.positive .insight-icon {
+        background: #d1fae5;
+        color: #059669;
+    }
+
+    .insight-card.info .insight-icon {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+
+    .insight-card.warning .insight-icon {
+        background: #fef3c7;
+        color: #d97706;
+    }
+
+    .insight-content h4 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #191c1e;
+        margin-bottom: 0.5rem;
+    }
+
+    .insight-content p {
+        color: #434654;
+        line-height: 1.5;
+    }
+
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: none;
+        font-size: 0.875rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn-primary {
+        background: #1e40af;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #1e3a8a;
+        transform: translateY(-1px);
+    }
+
+    @@media (max-width: 1200px) {
+        .metrics-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @@media (max-width: 1024px) {
+        .content-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .metrics-section,
+        .demographics-section,
+        .conditions-section,
+        .insights-section {
+            grid-column: span 1;
+        }
+    }
+
+    @@media (max-width: 768px) {
+        .metrics-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>

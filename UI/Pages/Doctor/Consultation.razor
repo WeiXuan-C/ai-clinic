@@ -1,0 +1,945 @@
+@page "/doctor/consultation"
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@layout Components.Layout.DoctorSidebarLayout
+@inject ai_clinic.Controller.DoctorProfileController DoctorController
+@inject ai_clinic.Controller.ConversationController ConversationController
+@inject NavigationManager Navigation
+
+<PageTitle>Consultations - AI Medical Clinic</PageTitle>
+
+<link rel="stylesheet" href="/css/stitch-design-system.css" />
+
+<!-- Header -->
+<header class="content-header">
+    <div class="header-left">
+        <h1>My Consultations</h1>
+        <p class="body-md" style="margin: 0.5rem;">
+            <span class="status-indicator @GetStatusClass()">●</span>
+            @activeChatrooms active chatrooms
+        </p>
+    </div>
+    <div class="header-right">
+        <div class="availability-selector">
+            <label class="body-sm">Availability:</label>
+            <select class="availability-dropdown" @bind="currentAvailability" @bind:after="UpdateAvailability">
+                <option value="available">🟢 Available</option>
+                <option value="busy">🟡 Busy</option>
+                <option value="away">🟠 Away</option>
+                <option value="offline">🔴 Offline</option>
+            </select>
+        </div>
+        <button class="btn btn-secondary" @onclick="RefreshChatrooms">
+            <i data-lucide="refresh-cw"></i>
+            Refresh
+        </button>
+    </div>
+</header>
+
+<!-- Filter Tabs -->
+<div class="filter-tabs">
+    <button class="tab-btn @(selectedFilter == "all" ? "active" : "")" @onclick='() => selectedFilter = "all"'>
+        All Chatrooms (@conversations.Count())
+    </button>
+    <button class="tab-btn @(selectedFilter == "active" ? "active" : "")" @onclick='() => selectedFilter = "active"'>
+        Active (@conversations.Count(c => c.Status == "active"))
+    </button>
+    <button class="tab-btn @(selectedFilter == "pending" ? "active" : "")" @onclick='() => selectedFilter = "pending"'>
+        Pending (@conversations.Count(c => c.ConsultationStatus == "pending"))
+    </button>
+    <button class="tab-btn @(selectedFilter == "completed" ? "active" : "")" @onclick='() => selectedFilter = "completed"'>
+        Completed (@conversations.Count(c => c.Status == "closed"))
+    </button>
+</div>
+
+<!-- Content Grid -->
+<div class="content-grid">
+    <!-- Chatroom List -->
+    <section class="chatrooms-section">
+        <div class="section-header">
+            <h2 class="headline-md">Chatrooms</h2>
+            <div class="search-box">
+                <i data-lucide="search"></i>
+                <input type="text" placeholder="Search chatrooms..." @bind="searchQuery" @bind:event="oninput" />
+            </div>
+        </div>
+        
+        @if (isLoading)
+        {
+            <div class="loading-state">
+                <i data-lucide="loader"></i>
+                <p>Loading chatrooms...</p>
+            </div>
+        }
+        else if (!FilteredConversations.Any())
+        {
+            <div class="empty-state">
+                <i data-lucide="message-circle"></i>
+                <h3>No chatrooms found</h3>
+                <p>You don't have any @(selectedFilter == "all" ? "" : selectedFilter) chatrooms yet.</p>
+            </div>
+        }
+        else
+        {
+            <div class="chatrooms-list">
+                @foreach (var conversation in FilteredConversations)
+                {
+                    <div class="chatroom-item @GetChatroomClass(conversation)" @onclick="() => EnterChatroom(conversation.Id)">
+                        <div class="chatroom-avatar">
+                            <span>@GetPatientInitials(conversation)</span>
+                        </div>
+                        <div class="chatroom-info">
+                            <h4 class="headline-sm">@(conversation.Title ?? "Patient Consultation")</h4>
+                            <p class="body-sm">
+                                @if (conversation.InitialSymptoms != null && conversation.InitialSymptoms.Any())
+                                {
+                                    <text>Symptoms: @string.Join(", ", conversation.InitialSymptoms.Take(2))</text>
+                                }
+                                else
+                                {
+                                    <text>No symptoms recorded</text>
+                                }
+                            </p>
+                            <p class="body-sm">
+                                Messages: @conversation.TotalMessages 
+                                @if (conversation.AiMessagesCount > 0)
+                                {
+                                    <span class="ai-badge">
+                                        <i data-lucide="bot"></i>
+                                        @conversation.AiMessagesCount AI
+                                    </span>
+                                }
+                            </p>
+                        </div>
+                        <div class="chatroom-meta">
+                            <span class="badge @GetStatusBadgeClass(conversation)">@GetStatusText(conversation)</span>
+                            <span class="time-badge">@GetTimeAgo(conversation.LastMessageAt)</span>
+                            @if (conversation.RequiredSpecialization != null)
+                            {
+                                <span class="specialization-tag">@conversation.RequiredSpecialization</span>
+                            }
+                        </div>
+                        <div class="chatroom-actions">
+                            <button class="btn-primary-sm" @onclick:stopPropagation="true" @onclick="() => EnterChatroom(conversation.Id)">
+                                <i data-lucide="message-circle"></i>
+                                Enter Chat
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </section>
+
+    <!-- Quick Stats -->
+    <section class="stats-sidebar">
+        <h3 class="headline-md">Overview</h3>
+        
+        <div class="availability-card">
+            <div class="availability-header">
+                <i data-lucide="activity"></i>
+                <h4 class="headline-sm">Your Status</h4>
+            </div>
+            <div class="availability-display">
+                <span class="status-dot @GetStatusClass()"></span>
+                <span class="status-text">@GetAvailabilityText()</span>
+            </div>
+            @if (!string.IsNullOrEmpty(statusMessage))
+            {
+                <p class="status-message">@statusMessage</p>
+            }
+        </div>
+
+        <div class="stats-list">
+            <div class="stat-item">
+                <i data-lucide="message-circle" class="stat-icon"></i>
+                <div class="stat-info">
+                    <h4 class="headline-lg">@conversations.Count</h4>
+                    <p class="body-sm">Total Chatrooms</p>
+                </div>
+            </div>
+            <div class="stat-item">
+                <i data-lucide="activity" class="stat-icon active"></i>
+                <div class="stat-info">
+                    <h4 class="headline-lg">@conversations.Count(c => c.Status == "active")</h4>
+                    <p class="body-sm">Active</p>
+                </div>
+            </div>
+            <div class="stat-item">
+                <i data-lucide="clock" class="stat-icon"></i>
+                <div class="stat-info">
+                    <h4 class="headline-lg">@conversations.Count(c => c.ConsultationStatus == "pending")</h4>
+                    <p class="body-sm">Pending</p>
+                </div>
+            </div>
+            <div class="stat-item">
+                <i data-lucide="check-circle" class="stat-icon success"></i>
+                <div class="stat-info">
+                    <h4 class="headline-lg">@conversations.Count(c => c.Status == "closed")</h4>
+                    <p class="body-sm">Completed</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="ai-summary">
+            <div class="ai-header">
+                <i data-lucide="bot"></i>
+                <h4 class="headline-sm">AI Insights</h4>
+            </div>
+            <p class="body-sm">
+                @conversations.Count(c => c.AiMessagesCount > 0) chatrooms have AI pre-assessments.
+                @if (conversations.Any())
+                {
+                    <text>Average messages per chat: @((int)conversations.Average(c => c.TotalMessages))</text>
+                }
+            </p>
+        </div>
+    </section>
+</div>
+
+@code {
+    private List<ai_clinic.Interfaces.Conversation> conversations = new();
+    private string currentAvailability = "available";
+    private string selectedFilter = "all";
+    private string searchQuery = "";
+    private bool isLoading = true;
+    private string statusMessage = "";
+    private int activeChatrooms => conversations.Count(c => c.Status == "active");
+
+    private IEnumerable<ai_clinic.Interfaces.Conversation> FilteredConversations
+    {
+        get
+        {
+            var filtered = conversations.AsEnumerable();
+
+            // Apply status filter
+            filtered = selectedFilter switch
+            {
+                "active" => filtered.Where(c => c.Status == "active"),
+                "pending" => filtered.Where(c => c.ConsultationStatus == "pending"),
+                "completed" => filtered.Where(c => c.Status == "closed"),
+                _ => filtered
+            };
+
+            // Apply search filter
+            if (!string.IsNullOrWhiteSpace(searchQuery))
+            {
+                filtered = filtered.Where(c =>
+                    (c.Title?.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                    (c.InitialSymptoms?.Any(s => s.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)) ?? false) ||
+                    (c.RequiredSpecialization?.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ?? false)
+                );
+            }
+
+            return filtered.OrderByDescending(c => c.LastMessageAt);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadChatrooms();
+        await LoadDoctorAvailability();
+    }
+
+    private async Task LoadChatrooms()
+    {
+        isLoading = true;
+        try
+        {
+            // TODO: Get current doctor's user ID from auth service
+            var doctorUserId = Guid.Parse("00000000-0000-0000-0000-000000000001"); // Placeholder
+            
+            var allConversations = await ConversationController.GetConversationsByUserIdAsync(doctorUserId.ToString());
+            conversations = allConversations.Cast<ai_clinic.Interfaces.Conversation>().ToList();
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Error loading chatrooms: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadDoctorAvailability()
+    {
+        try
+        {
+            // TODO: Load actual doctor profile and get availability
+            currentAvailability = "available";
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Error loading availability: {ex.Message}";
+        }
+    }
+
+    private async Task UpdateAvailability()
+    {
+        try
+        {
+            var result = await DoctorController.UpdateAvailabilityAsync(currentAvailability);
+            if (result.Success)
+            {
+                statusMessage = $"Status updated to {GetAvailabilityText()}";
+                StateHasChanged();
+                
+                // Clear message after 3 seconds
+                await Task.Delay(3000);
+                statusMessage = "";
+                StateHasChanged();
+            }
+            else
+            {
+                statusMessage = result.Message;
+            }
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Error updating availability: {ex.Message}";
+        }
+    }
+
+    private async Task RefreshChatrooms()
+    {
+        await LoadChatrooms();
+        statusMessage = "Chatrooms refreshed";
+        StateHasChanged();
+        await Task.Delay(2000);
+        statusMessage = "";
+        StateHasChanged();
+    }
+
+    private void EnterChatroom(Guid conversationId)
+    {
+        Navigation.NavigateTo($"/doctor/chat/{conversationId}");
+    }
+
+    private string GetStatusClass()
+    {
+        return currentAvailability switch
+        {
+            "available" => "status-available",
+            "busy" => "status-busy",
+            "away" => "status-away",
+            "offline" => "status-offline",
+            _ => ""
+        };
+    }
+
+    private string GetAvailabilityText()
+    {
+        return currentAvailability switch
+        {
+            "available" => "Available",
+            "busy" => "Busy",
+            "away" => "Away",
+            "offline" => "Offline",
+            _ => "Unknown"
+        };
+    }
+
+    private string GetChatroomClass(ai_clinic.Interfaces.Conversation conversation)
+    {
+        if (conversation.ConsultationStatus == "urgent") return "urgent";
+        if (conversation.Status == "active") return "active";
+        return "";
+    }
+
+    private string GetPatientInitials(ai_clinic.Interfaces.Conversation conversation)
+    {
+        // TODO: Get actual patient name from patient profile
+        return "PT";
+    }
+
+    private string GetStatusBadgeClass(ai_clinic.Interfaces.Conversation conversation)
+    {
+        return conversation.Status switch
+        {
+            "active" => "badge-active",
+            "closed" => "badge-completed",
+            _ => conversation.ConsultationStatus switch
+            {
+                "pending" => "badge-pending",
+                "urgent" => "badge-urgent",
+                _ => "badge-default"
+            }
+        };
+    }
+
+    private string GetStatusText(ai_clinic.Interfaces.Conversation conversation)
+    {
+        if (conversation.Status == "closed") return "COMPLETED";
+        if (conversation.ConsultationStatus == "urgent") return "URGENT";
+        if (conversation.ConsultationStatus == "pending") return "PENDING";
+        return "ACTIVE";
+    }
+
+    private string GetTimeAgo(DateTime dateTime)
+    {
+        var timeSpan = DateTime.UtcNow - dateTime;
+        
+        if (timeSpan.TotalMinutes < 1) return "Just now";
+        if (timeSpan.TotalMinutes < 60) return $"{(int)timeSpan.TotalMinutes} min ago";
+        if (timeSpan.TotalHours < 24) return $"{(int)timeSpan.TotalHours} hour{((int)timeSpan.TotalHours != 1 ? "s" : "")} ago";
+        if (timeSpan.TotalDays < 7) return $"{(int)timeSpan.TotalDays} day{((int)timeSpan.TotalDays != 1 ? "s" : "")} ago";
+        
+        return dateTime.ToString("MMM dd");
+    }
+}
+
+<style>
+    .content-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 2rem;
+    }
+
+    .header-left h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #191c1e;
+        margin: 0.5rem;
+        font-family: 'Manrope', sans-serif;
+    }
+
+    .header-left p {
+        color: #434654;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .status-indicator {
+        font-size: 0.75rem;
+    }
+
+    .status-indicator.status-available {
+        color: #10b981;
+    }
+
+    .status-indicator.status-busy {
+        color: #f59e0b;
+    }
+
+    .status-indicator.status-away {
+        color: #f97316;
+    }
+
+    .status-indicator.status-offline {
+        color: #6b7280;
+    }
+
+    .header-right {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+    }
+
+    .availability-selector {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1rem;
+        background: white;
+        border-radius: 8px;
+        border: 1px solid #e6e8ea;
+    }
+
+    .availability-selector label {
+        color: #434654;
+        font-weight: 500;
+    }
+
+    .availability-dropdown {
+        padding: 0.5rem 1rem;
+        border: 1px solid #e6e8ea;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        cursor: pointer;
+        background: white;
+        transition: all 0.2s;
+    }
+
+    .availability-dropdown:focus {
+        outline: none;
+        border-color: #1e40af;
+    }
+
+    .filter-tabs {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        overflow-x: auto;
+        padding-bottom: 0.5rem;
+    }
+
+    .tab-btn {
+        padding: 0.75rem 1.5rem;
+        background: white;
+        border: 1px solid #e6e8ea;
+        border-radius: 8px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        white-space: nowrap;
+        font-size: 0.875rem;
+    }
+
+    .tab-btn:hover {
+        background: #f7f9fb;
+    }
+
+    .tab-btn.active {
+        background: #1e40af;
+        color: white;
+        border-color: #1e40af;
+    }
+
+    .content-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 2rem;
+    }
+
+    .chatrooms-section {
+        grid-column: span 1;
+        background: white;
+        padding: 2rem;
+        border-radius: 16px;
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.75rem;
+    }
+
+    .section-header h2 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #191c1e;
+    }
+
+    .search-box {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 1rem;
+        background: #f7f9fb;
+        border-radius: 8px;
+        min-width: 300px;
+    }
+
+    .search-box input {
+        border: none;
+        background: transparent;
+        outline: none;
+        font-size: 0.875rem;
+        width: 100%;
+    }
+
+    .loading-state,
+    .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 4rem 2rem;
+        text-align: center;
+        color: #434654;
+    }
+
+    .loading-state i,
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        color: #9ca3af;
+    }
+
+    .empty-state h3 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #191c1e;
+        margin-bottom: 0.5rem;
+    }
+
+    .chatrooms-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .chatroom-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1.25rem;
+        background: #f7f9fb;
+        border-radius: 12px;
+        border-left: 4px solid #e6e8ea;
+        transition: all 0.2s;
+        cursor: pointer;
+    }
+
+    .chatroom-item:hover {
+        background: #eceef0;
+        transform: translateX(4px);
+    }
+
+    .chatroom-item.urgent {
+        border-left-color: #ef4444;
+        background: #fef2f2;
+    }
+
+    .chatroom-item.active {
+        border-left-color: #10b981;
+        background: #f0fdf4;
+    }
+
+    .chatroom-avatar {
+        width: 56px;
+        height: 56px;
+        min-width: 56px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #1e40af, #1e3a8a);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 600;
+        font-size: 1.125rem;
+    }
+
+    .chatroom-info {
+        flex: 1;
+    }
+
+    .chatroom-info h4 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #191c1e;
+        margin-bottom: 0.25rem;
+    }
+
+    .chatroom-info p {
+        font-size: 0.8125rem;
+        color: #434654;
+        margin-bottom: 0.125rem;
+    }
+
+    .ai-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.125rem 0.5rem;
+        background: #f3e8ff;
+        border-radius: 4px;
+        color: #7c3aed;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-left: 0.5rem;
+    }
+
+    .chatroom-meta {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 0.5rem;
+    }
+
+    .badge {
+        padding: 0.375rem 0.75rem;
+        border-radius: 6px;
+        font-size: 0.625rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        white-space: nowrap;
+    }
+
+    .badge-urgent {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .badge-active {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .badge-pending {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .badge-completed {
+        background: #e0e7ff;
+        color: #3730a3;
+    }
+
+    .badge-default {
+        background: #f3f4f6;
+        color: #4b5563;
+    }
+
+    .time-badge {
+        font-size: 0.75rem;
+        color: #434654;
+        font-weight: 500;
+    }
+
+    .specialization-tag {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+        background: #dbeafe;
+        color: #1e40af;
+        border-radius: 4px;
+        font-weight: 500;
+    }
+
+    .chatroom-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .btn-primary-sm {
+        padding: 0.5rem 1rem;
+        background: #1e40af;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn-primary-sm:hover {
+        background: #1e3a8a;
+    }
+
+    .stats-sidebar {
+        grid-column: span 1;
+        background: white;
+        padding: 2rem;
+        border-radius: 16px;
+        height: fit-content;
+    }
+
+    .stats-sidebar h3 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #191c1e;
+        margin-bottom: 1.5rem;
+    }
+
+    .availability-card {
+        padding: 1.5rem;
+        background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+        border-radius: 12px;
+        margin-bottom: 1.5rem;
+    }
+
+    .availability-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+        color: #1e40af;
+    }
+
+    .availability-header h4 {
+        font-size: 1rem;
+        font-weight: 600;
+    }
+
+    .availability-display {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .status-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+    }
+
+    .status-dot.status-available {
+        background: #10b981;
+    }
+
+    .status-dot.status-busy {
+        background: #f59e0b;
+    }
+
+    .status-dot.status-away {
+        background: #f97316;
+    }
+
+    .status-dot.status-offline {
+        background: #6b7280;
+    }
+
+    .status-text {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: #191c1e;
+    }
+
+    .status-message {
+        font-size: 0.8125rem;
+        color: #059669;
+        font-weight: 500;
+        margin-top: 0.5rem;
+    }
+
+    .stats-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem;
+        background: #f7f9fb;
+        border-radius: 12px;
+    }
+
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        min-width: 48px;
+        background: #1e40af;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: white;
+    }
+
+    .stat-icon.active {
+        background: #10b981;
+    }
+
+    .stat-icon.success {
+        background: #10b981;
+    }
+
+    .stat-info h4 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #191c1e;
+        margin-bottom: 0.25rem;
+    }
+
+    .stat-info p {
+        color: #434654;
+        font-size: 0.875rem;
+    }
+
+    .ai-summary {
+        padding: 1.5rem;
+        background: linear-gradient(135deg, #f3e8ff, #e9d5ff);
+        border-radius: 12px;
+    }
+
+    .ai-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+        color: #7c3aed;
+    }
+
+    .ai-header h4 {
+        font-size: 1rem;
+        font-weight: 600;
+    }
+
+    .ai-summary p {
+        color: #6b21a8;
+        margin-bottom: 0;
+        line-height: 1.5;
+        font-size: 0.875rem;
+    }
+
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: none;
+        font-size: 0.875rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn-primary {
+        background: #1e40af;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #1e3a8a;
+        transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+        background: #e6e8ea;
+        color: #191c1e;
+    }
+
+    .btn-secondary:hover {
+        background: #d8dadc;
+    }
+
+    @@media (max-width: 1024px) {
+        .content-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .chatrooms-section,
+        .stats-sidebar {
+            grid-column: span 1;
+        }
+
+        .search-box {
+            min-width: 200px;
+        }
+    }
+
+    @@media (max-width: 768px) {
+        .chatroom-item {
+            flex-wrap: wrap;
+        }
+
+        .chatroom-actions {
+            width: 100%;
+            justify-content: flex-end;
+        }
+
+        .header-right {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .availability-selector {
+            width: 100%;
+        }
+    }
+</style>
