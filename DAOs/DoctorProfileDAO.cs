@@ -20,7 +20,7 @@ public class DoctorProfileDAO : IDoctorRepository
     {
         try
         {
-            return await _supabase.GetSingleAsync<Doctor>("doctors", $"id=eq.{id}");
+            return await _supabase.GetSingleAsync<Doctor>("doctor_profiles", $"id=eq.{id}");
         }
         catch
         {
@@ -30,31 +30,47 @@ public class DoctorProfileDAO : IDoctorRepository
 
     public async Task<IEnumerable<Doctor>> GetAllAsync()
     {
-        return await _supabase.GetAsync<Doctor>("doctors");
+        return await _supabase.GetAsync<Doctor>("doctor_profiles");
     }
 
     public async Task<Doctor> AddAsync(Doctor entity)
     {
-        var result = await _supabase.PostAsync<Doctor>("doctors", entity);
+        Console.WriteLine($"🎯 DoctorProfileDAO.AddAsync called");
+        Console.WriteLine($"   Entity: Id={entity.Id}, UserId={entity.UserId}, FullName={entity.FullName}");
+        Console.WriteLine($"   LicenseNumber={entity.LicenseNumber}, Specialization={entity.PrimarySpecialization}");
+        Console.WriteLine($"   CreatedAt={entity.CreatedAt}, UpdatedAt={entity.UpdatedAt}");
+        
+        Console.WriteLine($"📞 Calling _supabase.PostAsync...");
+        var result = await _supabase.PostAsync<Doctor>("doctor_profiles", entity);
+        
+        if (result == null)
+        {
+            Console.WriteLine($"❌ _supabase.PostAsync returned null");
+        }
+        else
+        {
+            Console.WriteLine($"✅ _supabase.PostAsync succeeded: {result.Id}");
+        }
+        
         return result ?? entity;
     }
 
     public async Task<Doctor> UpdateAsync(Doctor entity)
     {
-        var result = await _supabase.PatchAsync<Doctor>("doctors", $"user_id=eq.{entity.UserId}", entity);
+        var result = await _supabase.PatchAsync<Doctor>("doctor_profiles", $"user_id=eq.{entity.UserId}", entity);
         return result ?? entity;
     }
 
     public async Task<bool> DeleteAsync(Guid id)
     {
-        return await _supabase.DeleteAsync("doctors", $"id=eq.{id}");
+        return await _supabase.DeleteAsync("doctor_profiles", $"id=eq.{id}");
     }
 
     public async Task<Doctor?> GetByUserIdAsync(Guid userId)
     {
         try
         {
-            return await _supabase.GetSingleAsync<Doctor>("doctors", $"user_id=eq.{userId}");
+            return await _supabase.GetSingleAsync<Doctor>("doctor_profiles", $"user_id=eq.{userId}");
         }
         catch
         {
@@ -65,13 +81,13 @@ public class DoctorProfileDAO : IDoctorRepository
     public async Task<IEnumerable<Doctor>> GetAvailableDoctorsAsync()
     {
         var filter = "availability_status=eq.available&is_active=eq.true&is_verified=eq.true";
-        return await _supabase.GetAsync<Doctor>("doctors", filter);
+        return await _supabase.GetAsync<Doctor>("doctor_profiles", filter);
     }
 
     public async Task<IEnumerable<Doctor>> GetBySpecializationAsync(string specialization)
     {
         var filter = $"primary_specialization=eq.{specialization}&is_active=eq.true&is_verified=eq.true&order=average_rating.desc";
-        return await _supabase.GetAsync<Doctor>("doctors", filter);
+        return await _supabase.GetAsync<Doctor>("doctor_profiles", filter);
     }
 
     public async Task UpdateAvailabilityStatusAsync(Guid doctorId, string status)

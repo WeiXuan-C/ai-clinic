@@ -1,48 +1,151 @@
 @page "/patient/chat-example"
+@page "/patient/chat"
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@layout Components.Layout.SidebarLayout
 @using ai_clinic.Controller
 @using ai_clinic.Interfaces
 @inject ConversationController ConversationController
 @inject MessageController MessageController
 @inject AuthController AuthController
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
 @implements IDisposable
 
-<PageTitle>AI Clinic - Chat Example</PageTitle>
+<PageTitle>AI Clinic - Chat</PageTitle>
 
+<link rel="stylesheet" href="/css/stitch-design-system.css" />
+
+@if (!AuthController.IsAuthenticated())
+{
+    <div class="auth-checking">
+        <div class="spinner"></div>
+        <p>Checking authentication...</p>
+    </div>
+}
+else
+{
 <div class="chat-example-container">
     <div class="chat-header">
-        <h2>AI Clinic Consultation</h2>
-        @if (hasAssignedDoctor)
+        <div class="header-info">
+            <h2>AI Clinic Consultation</h2>
+            @if (currentConversation != null && currentConversation.AssignedDoctorId != null)
+            {
+                <span class="doctor-badge">
+                    <i data-lucide="user-check"></i>
+                    Doctor Assigned
+                </span>
+            }
+            else
+            {
+                <span class="ai-badge">
+                    <i data-lucide="bot"></i>
+                    AI Assistant
+                </span>
+            }
+        </div>
+        @if (currentConversation != null)
         {
-            <span class="doctor-badge">👨‍⚕️ Doctor Assigned</span>
-        }
-        else
-        {
-            <span class="ai-badge">🤖 AI Assistant</span>
+            <div class="conversation-stats">
+                <span class="stat-item">
+                    <i data-lucide="message-circle"></i>
+                    @currentConversation.TotalMessages messages
+                </span>
+                <span class="stat-item">
+                    <i data-lucide="clock"></i>
+                    Started @currentConversation.StartedAt.ToString("MMM dd, HH:mm")
+                </span>
+            </div>
         }
     </div>
 
-    <div class="messages-area">
-        @if (isLoading)
+    <div class="messages-area" @ref="messagesContainer">
+        @if (isLoadingConversation)
         {
-            <div class="loading">Loading conversation...</div>
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>Loading conversation...</p>
+            </div>
         }
         else if (!string.IsNullOrEmpty(errorMessage))
         {
-            <div class="error">@errorMessage</div>
+            <div class="error-state">
+                <i data-lucide="alert-circle"></i>
+                <p>@errorMessage</p>
+                <button class="btn btn-primary" @onclick="LoadConversation">
+                    <i data-lucide="refresh-cw"></i>
+                    Retry
+                </button>
+            </div>
+        }
+        else if (currentConversation == null)
+        {
+            <div class="empty-state">
+                <i data-lucide="message-square"></i>
+                <h3>Start a New Conversation</h3>
+                <p>Send a message to begin your consultation with our AI assistant</p>
+            </div>
+        }
+        else if (!messages.Any())
+        {
+            <div class="empty-state">
+                <i data-lucide="sparkles"></i>
+                <h3>Welcome to AI Clinic</h3>
+                <p>How can I help you today? Describe your symptoms or health concerns.</p>
+            </div>
         }
         else
         {
             @foreach (var message in messages)
             {
                 <div class="message @GetMessageClass(message)">
-                    <div class="message-sender">
-                        @GetSenderName(message)
+                    <div class="message-avatar">
+                        @if (message.SenderType == MessageSenderType.Patient)
+                        {
+                            <i data-lucide="user"></i>
+                        }
+                        else if (message.SenderType == MessageSenderType.Doctor)
+                        {
+                            <i data-lucide="stethoscope"></i>
+                        }
+                        else if (message.SenderType == MessageSenderType.AI)
+                        {
+                            <i data-lucide="bot"></i>
+                        }
+                        else
+                        {
+                            <i data-lucide="info"></i>
+                        }
                     </div>
-                    <div class="message-content">
-                        @message.Content
+                    <div class="message-bubble">
+                        <div class="message-header">
+                            <span class="message-sender">@GetSenderName(message)</span>
+                            <span class="message-time">@message.SentAt.ToString("HH:mm")</span>
+                        </div>
+                        <div class="message-content">
+                            @message.Content
+                        </div>
+                        @if (message.AiConfidenceScore != null)
+                        {
+                            <div class="ai-confidence">
+                                <i data-lucide="zap"></i>
+                                Confidence: @((message.AiConfidenceScore * 100).Value.ToString("F0"))%
+                            </div>
+                        }
                     </div>
-                    <div class="message-time">
-                        @message.SentAt.ToString("HH:mm")
+                </div>
+            }
+            @if (isSendingMessage)
+            {
+                <div class="message typing-indicator">
+                    <div class="message-avatar">
+                        <i data-lucide="bot"></i>
+                    </div>
+                    <div class="message-bubble">
+                        <div class="typing-dots">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                        </div>
                     </div>
                 </div>
             }
@@ -50,51 +153,121 @@
     </div>
 
     <div class="input-area">
-        <input 
-            type="text" 
+        <textarea 
             class="message-input" 
-            placeholder="Type your message..." 
+            placeholder="Type your message... (Press Enter to send, Shift+Enter for new line)" 
             @bind="messageInput"
-            @onkeypress="HandleKeyPress"
-            disabled="@isLoading" />
+            @onkeydown="HandleKeyDown"
+            rows="1"
+            disabled="@isSendingMessage"></textarea>
         
         <button 
             class="send-button" 
             @onclick="SendMessage"
-            disabled="@(string.IsNullOrWhiteSpace(messageInput) || isLoading)">
-            Send
+            disabled="@(string.IsNullOrWhiteSpace(messageInput) || isSendingMessage)">
+            @if (isSendingMessage)
+            {
+                <div class="button-spinner"></div>
+            }
+            else
+            {
+                <i data-lucide="send"></i>
+            }
         </button>
     </div>
 
     <div class="actions-area">
-        <button class="action-button" @onclick="RequestDoctor">
-            Request Human Doctor
+        @if (currentConversation != null && currentConversation.AssignedDoctorId == null)
+        {
+            <button class="action-button" @onclick="RequestDoctor" disabled="@isRequestingDoctor">
+                <i data-lucide="user-plus"></i>
+                @(isRequestingDoctor ? "Requesting..." : "Request Human Doctor")
+            </button>
+        }
+        <button class="action-button secondary" @onclick="LoadConversation" disabled="@isLoadingConversation">
+            <i data-lucide="refresh-cw"></i>
+            Refresh
         </button>
-        <button class="action-button secondary" @onclick="LoadConversation">
-            Refresh Conversation
-        </button>
+        @if (currentConversation != null)
+        {
+            <button class="action-button secondary" @onclick="CreateNewConversation">
+                <i data-lucide="plus-circle"></i>
+                New Conversation
+            </button>
+        }
     </div>
 </div>
+}
 
 @code {
+    private ElementReference messagesContainer;
     private string messageInput = string.Empty;
-    private bool isLoading = false;
-    private bool hasAssignedDoctor = false;
+    private bool isLoadingConversation = false;
+    private bool isSendingMessage = false;
+    private bool isRequestingDoctor = false;
     private string? errorMessage;
-    private List<Message> messages = new();
-    private string? currentConversationId = null;
+    private List<IMessage> messages = new();
+    private IConversation? currentConversation = null;
+    private System.Threading.Timer? refreshTimer;
 
     protected override async Task OnInitializedAsync()
     {
-        // Load conversation
+        if (!AuthController.IsAuthenticated())
+        {
+            Navigation.NavigateTo("/auth/signin");
+            return;
+        }
+        
         await LoadConversation();
+        
+        // Auto-refresh every 5 seconds
+        refreshTimer = new System.Threading.Timer(async _ =>
+        {
+            await InvokeAsync(async () =>
+            {
+                if (!isSendingMessage && !isLoadingConversation)
+                {
+                    await LoadMessages(silent: true);
+                }
+            });
+        }, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("eval", "if (window.lucide) lucide.createIcons();");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error initializing Lucide icons: {ex.Message}");
+            }
+        }
+        
+        // Scroll to bottom after messages load
+        if (messages.Any())
+        {
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("eval", @"
+                    const messagesArea = document.querySelector('.messages-area');
+                    if (messagesArea) {
+                        messagesArea.scrollTop = messagesArea.scrollHeight;
+                    }
+                ");
+            }
+            catch { }
+        }
     }
 
     private async Task LoadConversation()
     {
         try
         {
-            isLoading = true;
+            isLoadingConversation = true;
             errorMessage = null;
             StateHasChanged();
 
@@ -102,294 +275,679 @@
             if (currentUser == null)
             {
                 errorMessage = "Please sign in to continue";
+                Navigation.NavigateTo("/auth/signin");
                 return;
             }
 
-            // Get conversations for current user
+            // Get or create conversation for current user
             var conversationsResult = await ConversationController.GetConversationsByUserIdAsync(currentUser.Id.ToString());
-            
-            // Get the first active conversation if available
             var conversations = conversationsResult?.ToList();
+            
             if (conversations != null && conversations.Any())
             {
-                var activeConversation = conversations.FirstOrDefault();
-                if (activeConversation != null)
-                {
-                    currentConversationId = activeConversation.Id.ToString();
-                }
+                // Get the most recent active conversation
+                currentConversation = conversations
+                    .Where(c => c.Status == "active")
+                    .OrderByDescending(c => c.LastMessageAt)
+                    .FirstOrDefault();
             }
             
-            // TODO: Load messages for the conversation
-            messages.Clear();
+            // If no active conversation, create one
+            if (currentConversation == null)
+            {
+                var createRequest = new CreateConversationRequest(
+                    PatientId: currentUser.Id.ToString(),
+                    DoctorId: null
+                );
+                
+                currentConversation = await ConversationController.CreateConversationAsync(createRequest);
+            }
+            
+            // Load messages
+            if (currentConversation != null)
+            {
+                await LoadMessages();
+            }
         }
         catch (Exception ex)
         {
             errorMessage = $"Failed to load conversation: {ex.Message}";
+            Console.WriteLine($"Error loading conversation: {ex}");
         }
         finally
         {
-            isLoading = false;
+            isLoadingConversation = false;
             StateHasChanged();
+        }
+    }
+
+    private async Task LoadMessages(bool silent = false)
+    {
+        if (currentConversation == null) return;
+        
+        try
+        {
+            if (!silent)
+            {
+                isLoadingConversation = true;
+                StateHasChanged();
+            }
+
+            var messagesResult = await MessageController.GetMessagesByConversationIdAsync(currentConversation.Id.ToString());
+            var newMessages = messagesResult?.OrderBy(m => m.CreatedAt).ToList() ?? new List<IMessage>();
+            
+            // Only update if messages changed
+            if (newMessages.Count != messages.Count || 
+                (newMessages.Any() && messages.Any() && newMessages.Last().Id != messages.Last().Id))
+            {
+                messages = newMessages;
+                if (!silent)
+                {
+                    StateHasChanged();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            if (!silent)
+            {
+                errorMessage = $"Failed to load messages: {ex.Message}";
+            }
+            Console.WriteLine($"Error loading messages: {ex}");
+        }
+        finally
+        {
+            if (!silent)
+            {
+                isLoadingConversation = false;
+                StateHasChanged();
+            }
         }
     }
 
     private async Task SendMessage()
     {
-        if (string.IsNullOrWhiteSpace(messageInput))
+        if (string.IsNullOrWhiteSpace(messageInput) || currentConversation == null)
             return;
 
         try
         {
-            isLoading = true;
-            var content = messageInput;
+            isSendingMessage = true;
+            var content = messageInput.Trim();
             messageInput = string.Empty;
             StateHasChanged();
 
             var currentUser = AuthController.GetCurrentUser();
-            if (currentUser == null || string.IsNullOrEmpty(currentConversationId))
+            if (currentUser == null)
             {
-                errorMessage = "Unable to send message";
+                errorMessage = "User not authenticated";
                 return;
             }
 
             var request = new SendMessageRequest(
-                ConversationId: currentConversationId,
+                ConversationId: currentConversation.Id.ToString(),
                 SenderId: currentUser.Id.ToString(),
                 Content: content,
                 AttachmentUrl: null
             );
 
-            await MessageController.SendMessageAsync(request);
-            await LoadConversation(); // Reload to show new message
+            var sentMessage = await MessageController.SendMessageAsync(request);
+            
+            if (sentMessage != null)
+            {
+                // Add message to list immediately for better UX
+                messages.Add(sentMessage);
+                StateHasChanged();
+                
+                // Reload to get AI response
+                await Task.Delay(1000); // Give AI time to respond
+                await LoadMessages();
+            }
         }
         catch (Exception ex)
         {
             errorMessage = $"Failed to send message: {ex.Message}";
+            Console.WriteLine($"Error sending message: {ex}");
         }
         finally
         {
-            isLoading = false;
+            isSendingMessage = false;
             StateHasChanged();
+            
+            // Reinitialize icons
+            await Task.Delay(100);
+            await JSRuntime.InvokeVoidAsync("eval", "if (window.lucide) lucide.createIcons();");
         }
     }
 
     private async Task RequestDoctor()
     {
-        // TODO: Implement doctor request functionality
-        errorMessage = "Doctor request feature coming soon";
-        StateHasChanged();
+        if (currentConversation == null) return;
+        
+        try
+        {
+            isRequestingDoctor = true;
+            StateHasChanged();
+
+            // Update conversation to request doctor
+            var updateRequest = new UpdateConversationRequest(
+                Status: "awaiting_doctor",
+                LastMessageAt: DateTime.UtcNow
+            );
+            
+            await ConversationController.UpdateConversationAsync(currentConversation.Id.ToString(), updateRequest);
+            
+            // Reload conversation
+            await LoadConversation();
+            
+            errorMessage = null;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to request doctor: {ex.Message}";
+        }
+        finally
+        {
+            isRequestingDoctor = false;
+            StateHasChanged();
+        }
     }
 
-    private async Task HandleKeyPress(KeyboardEventArgs e)
+    private async Task CreateNewConversation()
     {
-        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(messageInput))
+        currentConversation = null;
+        messages.Clear();
+        await LoadConversation();
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !e.ShiftKey && !string.IsNullOrWhiteSpace(messageInput))
         {
             await SendMessage();
         }
     }
 
-    private string GetMessageClass(Message message)
+    private string GetMessageClass(IMessage message)
     {
         return message.SenderType switch
         {
             MessageSenderType.Patient => "patient-message",
             MessageSenderType.Doctor => "doctor-message",
             MessageSenderType.AI => "ai-message",
+            MessageSenderType.System => "system-message",
             _ => ""
         };
     }
 
-    private string GetSenderName(Message message)
+    private string GetSenderName(IMessage message)
     {
         return message.SenderType switch
         {
             MessageSenderType.Patient => "You",
             MessageSenderType.Doctor => "Doctor",
             MessageSenderType.AI => "AI Assistant",
+            MessageSenderType.System => "System",
             _ => "Unknown"
         };
     }
 
     public void Dispose()
     {
-        // No state subscriptions to clean up
+        refreshTimer?.Dispose();
     }
 }
 
 <style>
-    .chat-example-container {
-        max-width: 800px;
-        margin: 0 auto;
-        padding: 20px;
+    .auth-checking {
         display: flex;
         flex-direction: column;
-        height: calc(100vh - 100px);
+        align-items: center;
+        justify-content: center;
+        min-height: 400px;
+        gap: 1rem;
+    }
+
+    .spinner {
+        width: 48px;
+        height: 48px;
+        border: 4px solid #e6e8ea;
+        border-top-color: #0052cc;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @@keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .chat-example-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 120px);
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 4px 24px rgba(25, 28, 30, 0.08);
+        overflow: hidden;
     }
 
     .chat-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 20px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 1.5rem 2rem;
+        background: linear-gradient(135deg, #0052cc 0%, #003d9b 100%);
         color: white;
-        border-radius: 12px 12px 0 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .header-info {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
     }
 
     .chat-header h2 {
         margin: 0;
-        font-size: 24px;
+        font-size: 1.5rem;
+        font-weight: 700;
+        font-family: 'Manrope', sans-serif;
     }
 
     .doctor-badge, .ai-badge {
-        padding: 8px 16px;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
         background: rgba(255, 255, 255, 0.2);
         border-radius: 20px;
-        font-size: 14px;
-        font-weight: 500;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+
+    .conversation-stats {
+        display: flex;
+        gap: 1.5rem;
+        font-size: 0.875rem;
+        opacity: 0.9;
+    }
+
+    .stat-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
     }
 
     .messages-area {
         flex: 1;
         overflow-y: auto;
-        padding: 20px;
-        background: #f5f7fa;
+        padding: 2rem;
+        background: #f7f9fb;
         display: flex;
         flex-direction: column;
-        gap: 16px;
+        gap: 1rem;
     }
 
-    .loading, .error {
+    .loading, .error-state, .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
         text-align: center;
-        padding: 20px;
-        color: #6b7280;
+        padding: 3rem 2rem;
+        gap: 1rem;
+        color: #434654;
     }
 
-    .error {
-        color: #ef4444;
+    .error-state {
+        color: #d32f2f;
+    }
+
+    .error-state i, .empty-state i {
+        font-size: 3rem;
+        opacity: 0.5;
+    }
+
+    .empty-state h3 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #191c1e;
+        margin: 0;
+    }
+
+    .empty-state p {
+        color: #434654;
+        max-width: 400px;
     }
 
     .message {
-        max-width: 70%;
-        padding: 12px 16px;
-        border-radius: 12px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        display: flex;
+        gap: 1rem;
+        max-width: 80%;
+        animation: slideIn 0.3s ease-out;
+    }
+
+    @@keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 
     .patient-message {
         align-self: flex-end;
-        background: #3b82f6;
+        flex-direction: row-reverse;
+    }
+
+    .doctor-message, .ai-message, .system-message {
+        align-self: flex-start;
+    }
+
+    .message-avatar {
+        width: 40px;
+        height: 40px;
+        min-width: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+    }
+
+    .patient-message .message-avatar {
+        background: #0052cc;
         color: white;
     }
 
-    .doctor-message {
-        align-self: flex-start;
+    .doctor-message .message-avatar {
         background: #8b5cf6;
         color: white;
     }
 
-    .ai-message {
-        align-self: flex-start;
-        background: #10b981;
+    .ai-message .message-avatar {
+        background: #76f3ea;
+        color: #006a65;
+    }
+
+    .system-message .message-avatar {
+        background: #e6e8ea;
+        color: #434654;
+    }
+
+    .message-bubble {
+        flex: 1;
+        padding: 1rem 1.25rem;
+        border-radius: 16px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    }
+
+    .patient-message .message-bubble {
+        background: #0052cc;
         color: white;
+        border-bottom-right-radius: 4px;
+    }
+
+    .doctor-message .message-bubble {
+        background: white;
+        color: #191c1e;
+        border-bottom-left-radius: 4px;
+    }
+
+    .ai-message .message-bubble {
+        background: white;
+        color: #191c1e;
+        border-bottom-left-radius: 4px;
+        border-left: 3px solid #76f3ea;
+    }
+
+    .system-message .message-bubble {
+        background: #f7f9fb;
+        color: #434654;
+        border-left: 3px solid #e6e8ea;
+    }
+
+    .message-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.5rem;
     }
 
     .message-sender {
-        font-size: 12px;
-        font-weight: 600;
-        margin-bottom: 4px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
         opacity: 0.8;
     }
 
-    .message-content {
-        font-size: 14px;
-        line-height: 1.5;
-        margin-bottom: 4px;
+    .message-time {
+        font-size: 0.75rem;
+        opacity: 0.6;
     }
 
-    .message-time {
-        font-size: 11px;
+    .message-content {
+        font-size: 0.9375rem;
+        line-height: 1.6;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+    }
+
+    .ai-confidence {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid #e6e8ea;
+        font-size: 0.75rem;
+        color: #434654;
+    }
+
+    .typing-indicator {
         opacity: 0.7;
-        text-align: right;
+    }
+
+    .typing-dots {
+        display: flex;
+        gap: 0.375rem;
+        padding: 0.5rem 0;
+    }
+
+    .typing-dots span {
+        width: 8px;
+        height: 8px;
+        background: #434654;
+        border-radius: 50%;
+        animation: typing 1.4s infinite;
+    }
+
+    .typing-dots span:nth-child(2) {
+        animation-delay: 0.2s;
+    }
+
+    .typing-dots span:nth-child(3) {
+        animation-delay: 0.4s;
+    }
+
+    @@keyframes typing {
+        0%, 60%, 100% {
+            transform: translateY(0);
+            opacity: 0.7;
+        }
+        30% {
+            transform: translateY(-10px);
+            opacity: 1;
+        }
     }
 
     .input-area {
         display: flex;
-        gap: 12px;
-        padding: 20px;
+        gap: 1rem;
+        padding: 1.5rem 2rem;
         background: white;
-        border-top: 1px solid #e5e7eb;
+        border-top: 1px solid #e6e8ea;
     }
 
     .message-input {
         flex: 1;
-        padding: 12px 16px;
-        border: 2px solid #e5e7eb;
-        border-radius: 8px;
-        font-size: 14px;
+        padding: 1rem 1.25rem;
+        border: 2px solid #e6e8ea;
+        border-radius: 12px;
+        font-size: 0.9375rem;
+        font-family: 'Inter', sans-serif;
         outline: none;
+        resize: none;
+        max-height: 120px;
+        transition: all 0.2s;
     }
 
     .message-input:focus {
-        border-color: #3b82f6;
+        border-color: #0052cc;
+        box-shadow: 0 0 0 3px rgba(0, 82, 204, 0.1);
     }
 
     .message-input:disabled {
-        background: #f3f4f6;
+        background: #f7f9fb;
         cursor: not-allowed;
+        opacity: 0.6;
     }
 
     .send-button {
-        padding: 12px 24px;
-        background: #3b82f6;
+        width: 56px;
+        height: 56px;
+        min-width: 56px;
+        background: #0052cc;
         color: white;
         border: none;
-        border-radius: 8px;
-        font-size: 14px;
-        font-weight: 500;
+        border-radius: 12px;
+        font-size: 1.25rem;
         cursor: pointer;
-        transition: background 0.2s;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .send-button:hover:not(:disabled) {
-        background: #2563eb;
+        background: #003d9b;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 82, 204, 0.3);
     }
 
     .send-button:disabled {
         background: #d1d5db;
         cursor: not-allowed;
+        transform: none;
+    }
+
+    .button-spinner {
+        width: 20px;
+        height: 20px;
+        border: 3px solid rgba(255, 255, 255, 0.3);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
     }
 
     .actions-area {
         display: flex;
-        gap: 12px;
-        padding: 20px;
+        gap: 1rem;
+        padding: 1rem 2rem 1.5rem;
         background: white;
-        border-radius: 0 0 12px 12px;
+        border-top: 1px solid #e6e8ea;
     }
 
     .action-button {
         flex: 1;
-        padding: 12px 24px;
-        background: #10b981;
+        padding: 0.75rem 1.5rem;
+        background: #0052cc;
         color: white;
         border: none;
         border-radius: 8px;
-        font-size: 14px;
-        font-weight: 500;
+        font-size: 0.875rem;
+        font-weight: 600;
         cursor: pointer;
-        transition: background 0.2s;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
     }
 
-    .action-button:hover {
-        background: #059669;
+    .action-button:hover:not(:disabled) {
+        background: #003d9b;
+        transform: translateY(-1px);
+    }
+
+    .action-button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
     }
 
     .action-button.secondary {
-        background: #6b7280;
+        background: #e6e8ea;
+        color: #191c1e;
     }
 
-    .action-button.secondary:hover {
-        background: #4b5563;
+    .action-button.secondary:hover:not(:disabled) {
+        background: #d8dadc;
+    }
+
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: none;
+        font-size: 0.875rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .btn-primary {
+        background: #0052cc;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #003d9b;
+        transform: translateY(-1px);
+    }
+
+    /* Responsive */
+    @@media (max-width: 768px) {
+        .chat-example-container {
+            height: calc(100vh - 80px);
+            border-radius: 0;
+        }
+
+        .chat-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .conversation-stats {
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .message {
+            max-width: 90%;
+        }
+
+        .actions-area {
+            flex-direction: column;
+        }
     }
 </style>

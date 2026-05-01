@@ -192,8 +192,14 @@ public class DoctorProfileService
         await Task.CompletedTask;
     }
     
-    public async Task CreateDoctorProfileAsync(Guid userId, string fullName, string licenseNumber, string specialization)
+    public async Task<IDoctorProfile?> CreateDoctorProfileAsync(Guid userId, string fullName, string licenseNumber, string specialization)
     {
+        Console.WriteLine($"🎯 DoctorProfileService.CreateDoctorProfileAsync called");
+        Console.WriteLine($"   UserId: {userId}");
+        Console.WriteLine($"   FullName: {fullName}");
+        Console.WriteLine($"   LicenseNumber: {licenseNumber}");
+        Console.WriteLine($"   Specialization: {specialization}");
+        
         var doctor = new Doctor
         {
             Id = Guid.NewGuid(),
@@ -208,7 +214,22 @@ public class DoctorProfileService
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
-        await CreateProfileAsync(doctor);
+        
+        Console.WriteLine($"📦 Doctor object created: Id={doctor.Id}, UserId={doctor.UserId}");
+        Console.WriteLine($"📞 Calling CreateProfileAsync...");
+        
+        var result = await CreateProfileAsync(doctor);
+        
+        if (result == null)
+        {
+            Console.WriteLine($"❌ CreateProfileAsync returned null");
+        }
+        else
+        {
+            Console.WriteLine($"✅ CreateProfileAsync succeeded: {result.Id}");
+        }
+        
+        return result;
     }
     
     public async Task<IDoctorProfile?> CreateDoctorProfileAsync(IDoctorProfile doctor)

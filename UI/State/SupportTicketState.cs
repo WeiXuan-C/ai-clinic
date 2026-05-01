@@ -1,24 +1,22 @@
 using ai_clinic.Interfaces;
-using ai_clinic.Database;
 
 namespace ai_clinic.UI.State;
 
 /// <summary>
 /// Scoped Support Ticket State for Blazor (Redux-like pattern)
-/// State owns Supabase HTTP Client and makes all database calls
-/// Manages cache and returns standardized objects
+/// Manages support ticket data, cache, and Supabase CRUD operations
 /// </summary>
 public class SupportTicketState
 {
-    private readonly SupabaseHttpClient _supabase;
+    private readonly ISupportTicketRepository _repository;
     private List<SupportTicket> _tickets = [];
     private SupportTicket? _selectedTicket;
     private bool _isLoading;
     private string? _errorMessage;
 
-    public SupportTicketState(SupabaseHttpClient supabase)
+    public SupportTicketState(ISupportTicketRepository repository)
     {
-        _supabase = supabase;
+        _repository = repository;
     }
 
     public event Action? OnChange;
@@ -46,8 +44,7 @@ public class SupportTicketState
             _errorMessage = null;
             NotifyStateChanged();
 
-            var filter = "order=created_at.desc";
-            var tickets = await _supabase.GetAsync<SupportTicket>("support_tickets", filter);
+            var tickets = await _repository.GetAllAsync();
             _tickets = [.. tickets];
             return tickets;
         }
@@ -71,7 +68,7 @@ public class SupportTicketState
             _errorMessage = null;
             NotifyStateChanged();
 
-            var ticket = await _supabase.GetSingleAsync<SupportTicket>("support_tickets", $"id=eq.{id}");
+            var ticket = await _repository.GetByIdAsync(id);
             
             if (ticket != null)
             {
@@ -104,8 +101,7 @@ public class SupportTicketState
             _errorMessage = null;
             NotifyStateChanged();
 
-            var filter = $"user_id=eq.{userId}&order=created_at.desc";
-            var tickets = await _supabase.GetAsync<SupportTicket>("support_tickets", filter);
+            var tickets = await _repository.GetByUserIdAsync(userId);
             _tickets = [.. tickets];
             return tickets;
         }
@@ -129,8 +125,7 @@ public class SupportTicketState
             _errorMessage = null;
             NotifyStateChanged();
 
-            var filter = $"status=eq.{status}&order=created_at.desc";
-            var tickets = await _supabase.GetAsync<SupportTicket>("support_tickets", filter);
+            var tickets = await _repository.GetByStatusAsync(status);
             _tickets = [.. tickets];
             return tickets;
         }
@@ -154,7 +149,7 @@ public class SupportTicketState
             _errorMessage = null;
             NotifyStateChanged();
 
-            var created = await _supabase.PostAsync<SupportTicket>("support_tickets", ticket);
+            var created = await _repository.AddAsync(ticket);
             if (created != null)
                 _tickets.Add(created);
             
@@ -180,7 +175,7 @@ public class SupportTicketState
             _errorMessage = null;
             NotifyStateChanged();
 
-            var updated = await _supabase.PatchAsync<SupportTicket>("support_tickets", $"id=eq.{ticket.Id}", ticket);
+            var updated = await _repository.UpdateAsync(ticket);
             if (updated != null)
             {
                 var index = _tickets.FindIndex(t => t.Id == ticket.Id);
@@ -213,7 +208,7 @@ public class SupportTicketState
             _errorMessage = null;
             NotifyStateChanged();
 
-            var success = await _supabase.DeleteAsync("support_tickets", $"id=eq.{id}");
+            var success = await _repository.DeleteAsync(id);
             
             if (success)
             {

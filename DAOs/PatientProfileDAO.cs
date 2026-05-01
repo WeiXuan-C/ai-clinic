@@ -35,7 +35,22 @@ public class PatientProfileDAO : IPatientProfileRepository
 
     public async Task<PatientProfile> AddAsync(PatientProfile entity)
     {
+        Console.WriteLine($"🎯 PatientProfileDAO.AddAsync called");
+        Console.WriteLine($"   Entity: Id={entity.Id}, UserId={entity.UserId}, FullName={entity.FullName}");
+        Console.WriteLine($"   CreatedAt={entity.CreatedAt}, UpdatedAt={entity.UpdatedAt}");
+        
+        Console.WriteLine($"📞 Calling _supabase.PostAsync...");
         var result = await _supabase.PostAsync<PatientProfile>("patient_profiles", entity);
+        
+        if (result == null)
+        {
+            Console.WriteLine($"❌ _supabase.PostAsync returned null");
+        }
+        else
+        {
+            Console.WriteLine($"✅ _supabase.PostAsync succeeded: {result.Id}");
+        }
+        
         return result ?? entity;
     }
 

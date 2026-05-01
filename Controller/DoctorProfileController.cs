@@ -30,13 +30,30 @@ public class DoctorProfileController(DoctorProfileService doctorProfileService)
     /// </summary>
     public async Task<(bool Success, string Message)> CreateDoctorProfileAsync(Guid userId, string fullName, string licenseNumber, string specialization)
     {
+        Console.WriteLine($"🎯 DoctorProfileController.CreateDoctorProfileAsync called");
+        Console.WriteLine($"   UserId: {userId}");
+        Console.WriteLine($"   FullName: {fullName}");
+        Console.WriteLine($"   LicenseNumber: {licenseNumber}");
+        Console.WriteLine($"   Specialization: {specialization}");
+        
         try
         {
-            await doctorProfileService.CreateDoctorProfileAsync(userId, fullName, licenseNumber, specialization);
+            Console.WriteLine($"📞 Calling doctorProfileService.CreateDoctorProfileAsync...");
+            var profile = await doctorProfileService.CreateDoctorProfileAsync(userId, fullName, licenseNumber, specialization);
+            
+            if (profile == null)
+            {
+                Console.WriteLine($"❌ Profile creation returned null");
+                return (false, "Failed to create doctor profile");
+            }
+            
+            Console.WriteLine($"✅ Profile created successfully: {profile.Id}");
             return (true, "Doctor profile created successfully");
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"❌ Exception in CreateDoctorProfileAsync: {ex.Message}");
+            Console.WriteLine($"   Stack trace: {ex.StackTrace}");
             return (false, $"Error creating profile: {ex.Message}");
         }
     }

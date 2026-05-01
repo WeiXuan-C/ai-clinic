@@ -21,10 +21,12 @@ public class SupabaseHttpClient
         _supabaseKey = supabaseKey;
         _httpClient = new HttpClient();
         
-        // Configure JSON serializer to work with private setters
+        // Configure JSON serializer to work with private setters and snake_case
+        // Note: JsonNamingPolicy.SnakeCaseLower is available in .NET 8.0+
         _jsonOptions = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
+            PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
             DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
         };
     }
@@ -86,6 +88,9 @@ public class SupabaseHttpClient
         var url = $"{_supabaseUrl}/rest/v1/{table}";
 
         var json = JsonSerializer.Serialize(data, _jsonOptions);
+        Console.WriteLine($"📤 POST REQUEST to {url}");
+        Console.WriteLine($"📦 PAYLOAD: {json}");
+        
         var content = new StringContent(json, Encoding.UTF8, "application/json");
 
         var request = new HttpRequestMessage(HttpMethod.Post, url);
@@ -94,12 +99,24 @@ public class SupabaseHttpClient
         request.Headers.Add("Prefer", "return=representation");
         request.Content = content;
 
-        var response = await _httpClient.SendAsync(request);
-        response.EnsureSuccessStatusCode();
+        try
+        {
+            var response = await _httpClient.SendAsync(request);
+            var responseJson = await response.Content.ReadAsStringAsync();
+            
+            Console.WriteLine($"📥 RESPONSE STATUS: {response.StatusCode}");
+            Console.WriteLine($"📥 RESPONSE BODY: {responseJson}");
+            
+            response.EnsureSuccessStatusCode();
 
-        var responseJson = await response.Content.ReadAsStringAsync();
-        var result = JsonSerializer.Deserialize<List<T>>(responseJson, _jsonOptions);
-        return result?.FirstOrDefault();
+            var result = JsonSerializer.Deserialize<List<T>>(responseJson, _jsonOptions);
+            return result?.FirstOrDefault();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ POST ERROR: {ex.Message}");
+            throw;
+        }
     }
 
     /// <summary>

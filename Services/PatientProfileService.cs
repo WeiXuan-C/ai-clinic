@@ -71,8 +71,34 @@ public class PatientProfileService
     /// </summary>
     public async Task<IPatientProfile?> CreateProfileAsync(Guid userId, string fullName)
     {
-        var profile = new PatientProfile { UserId = userId, FullName = fullName, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
-        return await _state.CreateAsync(profile);
+        Console.WriteLine($"🎯 PatientProfileService.CreateProfileAsync called");
+        Console.WriteLine($"   UserId: {userId}");
+        Console.WriteLine($"   FullName: {fullName}");
+        
+        var profile = new PatientProfile 
+        { 
+            UserId = userId, 
+            FullName = fullName, 
+            CreatedAt = DateTime.UtcNow, 
+            UpdatedAt = DateTime.UtcNow 
+        };
+        
+        Console.WriteLine($"📦 Profile object created: Id={profile.Id}, UserId={profile.UserId}");
+        Console.WriteLine($"📞 Calling _state.CreateAsync...");
+        
+        var result = await _state.CreateAsync(profile);
+        
+        if (result == null)
+        {
+            Console.WriteLine($"❌ _state.CreateAsync returned null");
+            Console.WriteLine($"   Error message from state: {_state.ErrorMessage}");
+        }
+        else
+        {
+            Console.WriteLine($"✅ _state.CreateAsync succeeded: {result.Id}");
+        }
+        
+        return result;
     }
 
     /// <summary>

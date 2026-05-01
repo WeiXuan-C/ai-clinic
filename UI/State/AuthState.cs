@@ -3,21 +3,31 @@ using ai_clinic.Interfaces;
 namespace ai_clinic.UI.State;
 
 /// <summary>
-/// Scoped Authentication State for Blazor (Redux-like pattern)
-/// ONLY manages state - NO business logic, NO DAO calls, NO API calls
+/// Authentication State - State Management Layer
+/// Manages authentication state, user data, and calls DAOs for database operations
 /// </summary>
 public class AuthState
 {
+    private readonly IUserRepository _userRepository;
+    private readonly ISupabaseAuthClient _supabaseAuth;
     private User? _currentUser;
     private bool _isAuthenticated;
     private string? _accessToken;
     private string? _refreshToken;
     private bool _isLoading;
     private string? _errorMessage;
+    private readonly Dictionary<string, User> _userCache = new();
+
+    public AuthState(
+        IUserRepository userRepository,
+        ISupabaseAuthClient supabaseAuth)
+    {
+        _userRepository = userRepository;
+        _supabaseAuth = supabaseAuth;
+    }
 
     /// <summary>
     /// Event triggered when authentication state changes
-    /// Components should subscribe to this and call StateHasChanged()
     /// </summary>
     public event Action? OnChange;
 
@@ -30,6 +40,7 @@ public class AuthState
         set
         {
             _currentUser = value;
+            _isAuthenticated = value != null;
             NotifyStateChanged();
         }
     }
@@ -125,27 +136,408 @@ public class AuthState
     public bool IsAdmin => HasRole("admin");
 
     /// <summary>
-    /// Sets authentication state with user and tokens
+    /// Sends OTP to user's email
     /// </summary>
-    public void SetAuthentication(User user, string? accessToken, string? refreshToken)
+    public async Task<bool> SendOtpAsync(string email)
     {
-        _currentUser = user;
-        _isAuthenticated = true;
-        _accessToken = accessToken;
-        _refreshToken = refreshToken;
-        NotifyStateChanged();
+        try
+        {
+            IsLoading = true;
+            ErrorMessage = null;
+
+            var success = await _supabaseAuth.SendOtpAsync(email);
+
+            if (!success)
+            {
+                ErrorMessage = "Failed to send OTP";
+            }
+
+            return success;
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+            return false;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
     }
 
     /// <summary>
-    /// Logs out the current user (clears all state)
+    /// Verifies OTP and authenticates user
     /// </summary>
-    public void Logout()
+    public async Task<(bool Success, IUser? User, string? Error, string? AccessToken, string? RefreshToken)> VerifyOtpAsync(string email, string otp)
     {
-        _currentUser = null;
-        _isAuthenticated = false;
-        _accessToken = null;
-        _refreshToken = null;
-        NotifyStateChanged();
+        try
+        {
+            IsLoading = true;
+            ErrorMessage = null;
+
+            // Verify OTP with Supabase Auth
+            var (success, accessToken, refreshToken, error) = await _supabaseAuth.VerifyOtpAsync(email, otp);
+
+            if (!success)
+            {
+                ErrorMessage = error;
+                return (false, null, error, null, null);
+            }
+
+            // Check if user exists in local database
+            var user = await _userRepository.GetByEmailAsync(email);
+
+            if (user == null)
+            {
+                // New user - OTP verified but not in local DB yet
+                Console.WriteLine($"📝 New user verified: {email}");
+                
+                // Store tokens
+                _accessToken = accessToken;
+                _refreshToken = refreshToken;
+                
+                return (true, null, null, accessToken, refreshToken);
+            }
+
+            // Existing user - update login timestamp
+            var updatedUser = user.WithUpdatedLogin();
+            await _userRepository.UpdateAsync(updatedUser);
+
+            // Update state
+            _currentUser = updatedUser;
+            _isAuthenticated = true;
+            _accessToken = accessToken;
+            _refreshToken = refreshToken;
+            _userCache[email.ToLower()] = updatedUser;
+
+            Console.WriteLine($"✅ Existing user logged in: {email}");
+
+            NotifyStateChanged();
+
+            return (true, updatedUser, null, accessToken, refreshToken);
+        }
+        catch (Exception ex)
+        {
+            var errorMessage = ex.Message.ToLower() switch
+            {
+                var msg when msg.Contains("expired") => "OTP code has expired. Please click 'Resend Code' to get a new one.",
+                var msg when msg.Contains("invalid") => "Invalid OTP code. Please check your email and try again.",
+                var msg when msg.Contains("too many") => "Too many attempts. Please wait a few minutes and try again.",
+                _ => $"Verification failed: {ex.Message}"
+            };
+
+            ErrorMessage = errorMessage;
+            return (false, null, errorMessage, null, null);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// Restores session from stored tokens
+    /// </summary>
+    public async Task<bool> RestoreSessionAsync(string accessToken, string refreshToken)
+    {
+        try
+        {
+            IsLoading = true;
+            ErrorMessage = null;
+
+            var success = await _supabaseAuth.RestoreSessionAsync(accessToken, refreshToken);
+
+            if (success)
+            {
+                _accessToken = accessToken;
+                _refreshToken = refreshToken;
+            }
+
+            return success;
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+            return false;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// Refreshes the current session
+    /// </summary>
+    public async Task<(bool Success, string? AccessToken, string? RefreshToken)> RefreshSessionAsync()
+    {
+        try
+        {
+            IsLoading = true;
+            ErrorMessage = null;
+
+            var (success, accessToken, refreshToken) = await _supabaseAuth.RefreshSessionAsync();
+
+            if (success && accessToken != null)
+            {
+                _accessToken = accessToken;
+                _refreshToken = refreshToken;
+            }
+
+            return (success, accessToken, refreshToken);
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+            return (false, null, null);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// Signs out the current user
+    /// </summary>
+    public async Task SignOutAsync()
+    {
+        try
+        {
+            IsLoading = true;
+
+            await _supabaseAuth.SignOutAsync();
+
+            // Clear state
+            _currentUser = null;
+            _isAuthenticated = false;
+            _accessToken = null;
+            _refreshToken = null;
+            _userCache.Clear();
+
+            Console.WriteLine("✅ User signed out");
+
+            NotifyStateChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Error signing out: {ex.Message}");
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// Gets user by ID from repository
+    /// </summary>
+    public async Task<IUser?> GetUserByIdAsync(Guid userId)
+    {
+        try
+        {
+            IsLoading = true;
+            return await _userRepository.GetByIdAsync(userId);
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+            return null;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// Gets user by email from repository
+    /// </summary>
+    public async Task<IUser?> GetUserByEmailAsync(string email)
+    {
+        try
+        {
+            IsLoading = true;
+            
+            // Check cache first
+            var emailKey = email.ToLower();
+            if (_userCache.TryGetValue(emailKey, out var cached))
+            {
+                return cached;
+            }
+
+            // Get from database
+            var user = await _userRepository.GetByEmailAsync(email);
+            
+            // Update cache
+            if (user != null)
+            {
+                _userCache[emailKey] = user;
+            }
+            
+            return user;
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+            return null;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// Updates user profile
+    /// </summary>
+    public async Task<IUser?> UpdateUserAsync(IUser user)
+    {
+        try
+        {
+            IsLoading = true;
+
+            var concreteUser = user as User ?? new User
+            {
+                Id = user.Id,
+                Email = user.Email,
+                Phone = user.Phone,
+                Role = user.Role,
+                IsActive = user.IsActive,
+                CreatedAt = user.CreatedAt,
+                UpdatedAt = DateTime.UtcNow,
+                LastLoginAt = user.LastLoginAt,
+                DataSharingEnabled = user.DataSharingEnabled,
+                AiAnalysisEnabled = user.AiAnalysisEnabled,
+                ActivityTrackingEnabled = user.ActivityTrackingEnabled,
+                IsDeactivated = user.IsDeactivated,
+                DeactivatedAt = user.DeactivatedAt
+            };
+
+            var updated = await _userRepository.UpdateAsync(concreteUser);
+
+            // Update cache and current user if applicable
+            _userCache[updated.Email.ToLower()] = updated;
+            if (_currentUser?.Id == user.Id)
+            {
+                _currentUser = updated;
+                NotifyStateChanged();
+            }
+
+            return updated;
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+            return null;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// Creates a new user with role and profile
+    /// </summary>
+    public async Task<IUser?> CreateUserWithProfileAsync(string email, string fullName, string role)
+    {
+        try
+        {
+            IsLoading = true;
+
+            email = email.ToLower();
+
+            // Check if user already exists
+            var existingUser = await _userRepository.GetByEmailAsync(email);
+            if (existingUser != null)
+            {
+                Console.WriteLine($"⚠️ User already exists: {email}");
+                return existingUser;
+            }
+
+            // Create new user
+            var user = new User
+            {
+                Id = Guid.NewGuid(),
+                Email = email,
+                Role = role,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                DataSharingEnabled = true,
+                AiAnalysisEnabled = true,
+                ActivityTrackingEnabled = true
+            };
+
+            var createdUser = await _userRepository.AddAsync(user);
+
+            Console.WriteLine($"✅ User created: {email} with role: {role}");
+
+            // Update state
+            _currentUser = createdUser;
+            _userCache[email] = createdUser;
+
+            NotifyStateChanged();
+
+            return createdUser;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Error creating user: {ex.Message}");
+            ErrorMessage = ex.Message;
+            return null;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// Gets all users
+    /// </summary>
+    public async Task<IEnumerable<User>> GetAllUsersAsync()
+    {
+        try
+        {
+            IsLoading = true;
+            return await _userRepository.GetAllAsync();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+            return Enumerable.Empty<User>();
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// Checks if user exists by email
+    /// </summary>
+    public async Task<bool> UserExistsAsync(string email)
+    {
+        try
+        {
+            return await _userRepository.ExistsAsync(email);
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Clears the user cache
+    /// </summary>
+    public void ClearCache()
+    {
+        _userCache.Clear();
     }
 
     /// <summary>
@@ -153,7 +545,7 @@ public class AuthState
     /// </summary>
     public void ClearError()
     {
-        _errorMessage = null;
+        ErrorMessage = null;
         NotifyStateChanged();
     }
 

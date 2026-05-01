@@ -1,5 +1,12 @@
 @page "/general/doctors"
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @layout Components.Layout.MainLayout
+@using ai_clinic.UI.State
+@using ai_clinic.Interfaces
+@inject DoctorProfileState DoctorProfileState
+@inject DoctorRatingState DoctorRatingState
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
 
 <PageTitle>Find Doctors - AI Medical Clinic</PageTitle>
 
@@ -12,7 +19,7 @@
                     <i data-lucide="search" class="search-icon"></i>
                     <input type="text" @bind="searchQuery" @bind:event="oninput" placeholder="Search by name, specialty, or condition..." class="search-input" />
                 </div>
-                <button class="btn-available-today" @onclick="FilterAvailableToday">
+                <button class="btn-available-today @(showAvailableOnly ? "active" : "")" @onclick="FilterAvailableToday">
                     <i data-lucide="calendar" class="calendar-icon"></i>
                     Available Today
                 </button>
@@ -22,275 +29,320 @@
         <!-- Filters Section -->
         <section class="filters-section">
             <div class="filter-buttons">
-                <button class="filter-btn" @onclick="ToggleSpecialtyFilter">
-                    Specialty <span class="dropdown-arrow">▼</span>
-                </button>
-                <button class="filter-btn" @onclick="ToggleOrganizationFilter">
-                    Organization <span class="dropdown-arrow">▼</span>
-                </button>
-                <button class="filter-btn" @onclick="ToggleRatingFilter">
-                    Rating <span class="dropdown-arrow">▼</span>
-                </button>
-                <button class="filter-btn" @onclick="ToggleInsuranceFilter">
-                    Insurance <span class="dropdown-arrow">▼</span>
-                </button>
+                <select class="filter-select" @bind="selectedSpecialty">
+                    <option value="">All Specialties</option>
+                    @foreach (var specialty in specialties)
+                    {
+                        <option value="@specialty">@specialty</option>
+                    }
+                </select>
+                <select class="filter-select" @bind="minRating">
+                    <option value="0">All Ratings</option>
+                    <option value="4">4+ Stars</option>
+                    <option value="4.5">4.5+ Stars</option>
+                </select>
             </div>
             <div class="results-count">@FilteredDoctors.Count() specialists found</div>
         </section>
 
-        <!-- Doctors Grid -->
-        <section class="doctors-grid">
-            @foreach (var doctor in FilteredDoctors)
-            {
-                <div class="doctor-card">
-                    <button class="bookmark-btn" @onclick="@(() => ToggleBookmark(doctor.Id))">
-                        <i data-lucide="bookmark" class="bookmark-icon @(doctor.IsBookmarked ? "filled" : "")"></i>
-                    </button>
-                    
-                    <div class="doctor-card-header">
-                        <div class="doctor-photo">
-                            <div class="photo-placeholder" style="background: @doctor.PhotoColor;">
-                                @doctor.Name.Substring(0, 1)
-                            </div>
-                            @if (doctor.IsOnline)
-                            {
-                                <span class="online-badge"></span>
-                            }
-                        </div>
-                        
-                        <div class="doctor-info">
-                            <h3 class="doctor-name">@doctor.Name</h3>
-                            <div class="doctor-tags">
-                                <span class="specialty-tag">@doctor.Specialty.ToUpper()</span>
-                                <span class="organization-tag">@doctor.Organization.ToUpper()</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="doctor-rating">
-                        <div class="stars">
-                            @for (int i = 0; i < 5; i++)
-                            {
-                                <i data-lucide="star" class="star @(i < Math.Floor(doctor.Rating) ? "filled" : "")"></i>
-                            }
-                        </div>
-                        <span class="rating-text">@doctor.Rating.ToString("0.0") <span class="review-count">(@doctor.ReviewCount reviews)</span></span>
-                    </div>
-                    
-                    <div class="availability-card">
-                        <div class="availability-info">
-                            <i data-lucide="clock" class="clock-icon"></i>
-                            <div class="availability-text">
-                                <div class="availability-label">Next Available</div>
-                                <div class="availability-time">@doctor.NextAvailable</div>
-                            </div>
-                        </div>
-                        @if (doctor.IsAvailableToday)
-                        {
-                            <span class="availability-badge">✦ AVAILABILITY</span>
-                        }
-                        @if (doctor.IsOnline && !doctor.IsAvailableToday)
-                        {
-                            <span class="ai-assist-badge">✦ AI ASSIST READY</span>
-                        }
-                    </div>
-                </div>
-            }
-        </section>
-
-        @if (!FilteredDoctors.Any())
+        @if (isLoading)
+        {
+            <div class="loading-state">
+                <div class="spinner"></div>
+                <p>Loading doctors...</p>
+            </div>
+        }
+        else if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-error">
+                <i data-lucide="alert-circle"></i>
+                @errorMessage
+            </div>
+        }
+        else if (!FilteredDoctors.Any())
         {
             <div class="empty-state">
+                <i data-lucide="user-x"></i>
+                <h3>No doctors found</h3>
                 <p class="empty-message">No doctors found matching your criteria</p>
                 <button class="btn-primary" @onclick="ClearFilters">Clear Filters</button>
             </div>
+        }
+        else
+        {
+            <!-- Doctors Grid -->
+            <section class="doctors-grid">
+                @foreach (var doctor in FilteredDoctors)
+                {
+                    var avgRating = doctorRatings.ContainsKey(doctor.Id) ? doctorRatings[doctor.Id] : (double)doctor.AverageRating;
+                    
+                    <div class="doctor-card">
+                        <div class="doctor-card-header">
+                            <div class="doctor-photo">
+                                @if (!string.IsNullOrEmpty(doctor.ProfilePhotoUrl))
+                                {
+                                    <img src="@doctor.ProfilePhotoUrl" alt="@doctor.FullName" class="photo-img" />
+                                }
+                                else
+                                {
+                                    <div class="photo-placeholder" style="background: @GetDoctorColor(doctor.Id);">
+                                        @doctor.FullName.Substring(0, 1)
+                                    </div>
+                                }
+                                @if (doctor.AvailabilityStatus == "available")
+                                {
+                                    <span class="online-badge"></span>
+                                }
+                            </div>
+                            
+                            <div class="doctor-info">
+                                <h3 class="doctor-name">
+                                    @if (!string.IsNullOrEmpty(doctor.Title))
+                                    {
+                                        <span>@doctor.Title </span>
+                                    }
+                                    @doctor.FullName
+                                    @if (doctor.IsVerified)
+                                    {
+                                        <i data-lucide="badge-check" class="verified-icon" title="Verified"></i>
+                                    }
+                                </h3>
+                                <div class="doctor-tags">
+                                    <span class="specialty-tag">@doctor.PrimarySpecialization.ToUpper()</span>
+                                    @if (doctor.YearsOfExperience.HasValue)
+                                    {
+                                        <span class="experience-tag">@doctor.YearsOfExperience yrs exp</span>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="doctor-rating">
+                            <div class="stars">
+                                @for (int i = 0; i < 5; i++)
+                                {
+                                    <i data-lucide="star" class="star @(i < Math.Floor(avgRating) ? "filled" : "")"></i>
+                                }
+                            </div>
+                            <span class="rating-text">@avgRating.ToString("0.0") <span class="review-count">(@doctor.TotalRatings reviews)</span></span>
+                        </div>
+
+                        @if (doctor.LanguagesSpoken != null && doctor.LanguagesSpoken.Length > 0)
+                        {
+                            <div class="doctor-languages">
+                                <i data-lucide="languages"></i>
+                                <span>@string.Join(", ", doctor.LanguagesSpoken.Take(3))</span>
+                            </div>
+                        }
+
+                        @if (doctor.MedicalExpertiseTags != null && doctor.MedicalExpertiseTags.Length > 0)
+                        {
+                            <div class="expertise-tags">
+                                @foreach (var tag in doctor.MedicalExpertiseTags.Take(3))
+                                {
+                                    <span class="expertise-tag">@tag</span>
+                                }
+                            </div>
+                        }
+                        
+                        <div class="availability-card">
+                            <div class="availability-info">
+                                <i data-lucide="clock" class="clock-icon"></i>
+                                <div class="availability-text">
+                                    <div class="availability-label">Status</div>
+                                    <div class="availability-time">@GetAvailabilityText(doctor.AvailabilityStatus)</div>
+                                </div>
+                            </div>
+                            @if (doctor.AvailabilityStatus == "available" && doctor.IsAcceptingPatients)
+                            {
+                                <span class="availability-badge">✦ AVAILABLE</span>
+                            }
+                            else if (doctor.IsAcceptingPatients)
+                            {
+                                <span class="ai-assist-badge">✦ ACCEPTING</span>
+                            }
+                        </div>
+
+                        <div class="doctor-stats">
+                            <div class="stat-item">
+                                <i data-lucide="users"></i>
+                                <span>@doctor.TotalConsultations consultations</span>
+                            </div>
+                            @if (doctor.CurrentActiveConversations > 0)
+                            {
+                                <div class="stat-item">
+                                    <i data-lucide="message-circle"></i>
+                                    <span>@doctor.CurrentActiveConversations active</span>
+                                </div>
+                            }
+                        </div>
+
+                        <div class="card-actions">
+                            <button class="btn-view-profile" @onclick="() => ViewProfile(doctor.Id)">
+                                View Profile
+                            </button>
+                            <button class="btn-book-consultation" @onclick="() => BookAppointment(doctor.Id)" disabled="@(!doctor.IsAcceptingPatients)">
+                                Book Consultation
+                            </button>
+                        </div>
+                    </div>
+                }
+            </section>
         }
     </div>
 </div>
 
 @code {
-    [Inject]
-    public NavigationManager NavigationManager { get; set; } = default!;
-    
+    private List<Doctor> doctors = new();
+    private Dictionary<Guid, double> doctorRatings = new();
     private string searchQuery = "";
     private bool showAvailableOnly = false;
-    private int currentPage = 1;
-    private List<Doctor> doctors = new();
+    private string selectedSpecialty = "";
+    private double minRating = 0;
+    private bool isLoading = false;
+    private string? errorMessage;
+
+    private List<string> specialties = new();
 
     private IEnumerable<Doctor> FilteredDoctors =>
         doctors.Where(d =>
             (string.IsNullOrEmpty(searchQuery) || 
-             d.Name.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) || 
-             d.Specialty.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)) &&
-            (!showAvailableOnly || d.IsAvailableToday)
+             d.FullName.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) || 
+             d.PrimarySpecialization.Contains(searchQuery, StringComparison.OrdinalIgnoreCase) ||
+             (d.MedicalExpertiseTags != null && d.MedicalExpertiseTags.Any(t => t.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)))) &&
+            (!showAvailableOnly || (d.AvailabilityStatus == "available" && d.IsAcceptingPatients)) &&
+            (string.IsNullOrEmpty(selectedSpecialty) || d.PrimarySpecialization == selectedSpecialty) &&
+            (minRating == 0 || (double)d.AverageRating >= minRating)
         );
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        // TODO: Load from Supabase
-        doctors = new List<Doctor>
+        await LoadDoctors();
+        await JSRuntime.InvokeVoidAsync("lucide.createIcons");
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
         {
-            new Doctor
+            await JSRuntime.InvokeVoidAsync("lucide.createIcons");
+        }
+    }
+
+    private async Task LoadDoctors()
+    {
+        isLoading = true;
+        errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var allDoctors = await DoctorProfileState.GetAllAsync();
+            doctors = allDoctors.Where(d => d.IsActive).ToList();
+
+            // Extract unique specialties
+            specialties = doctors
+                .Select(d => d.PrimarySpecialization)
+                .Distinct()
+                .OrderBy(s => s)
+                .ToList();
+
+            // Load ratings for each doctor
+            foreach (var doctor in doctors)
             {
-                Id = 1,
-                Name = "Dr. Sarah Jenkins",
-                Specialty = "Cardiology",
-                Organization = "Mayo Clinic",
-                Rating = 4.8,
-                ReviewCount = 124,
-                NextAvailable = "Today, 2:30 PM",
-                IsAvailableToday = true,
-                PhotoColor = "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
-            },
-            new Doctor
-            {
-                Id = 2,
-                Name = "Dr. Michael Chen",
-                Specialty = "Neurology",
-                Organization = "Stanford Med",
-                Rating = 5.0,
-                ReviewCount = 89,
-                NextAvailable = "Tue, Sep 12",
-                IsAvailableToday = false,
-                PhotoColor = "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)"
-            },
-            new Doctor
-            {
-                Id = 3,
-                Name = "Dr. Elena Rodriguez",
-                Specialty = "Pediatrics",
-                Organization = "Children's National",
-                Rating = 4.2,
-                ReviewCount = 278,
-                NextAvailable = "Today, 4:45 PM",
-                IsAvailableToday = true,
-                PhotoColor = "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)"
-            },
-            new Doctor
-            {
-                Id = 4,
-                Name = "Dr. James Wilson",
-                Specialty = "Psychiatry",
-                Organization = "Mindwell Inst.",
-                Rating = 4.9,
-                ReviewCount = 342,
-                NextAvailable = "Wed, Sep 13",
-                IsAvailableToday = false,
-                PhotoColor = "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)"
-            },
-            new Doctor
-            {
-                Id = 5,
-                Name = "Dr. Amara Okoro",
-                Specialty = "Dermatology",
-                Organization = "City Health",
-                Rating = 4.8,
-                ReviewCount = 196,
-                NextAvailable = "Tomorrow, 10:00 AM",
-                IsAvailableToday = false,
-                IsOnline = true,
-                PhotoColor = "linear-gradient(135deg, #fa709a 0%, #fee140 100%)"
-            },
-            new Doctor
-            {
-                Id = 6,
-                Name = "Dr. David Thorne",
-                Specialty = "Endocrinology",
-                Organization = "Mercy General",
-                Rating = 5.0,
-                ReviewCount = 67,
-                NextAvailable = "Mon, Sep 18",
-                IsAvailableToday = false,
-                PhotoColor = "linear-gradient(135deg, #30cfd0 0%, #330867 100%)"
+                try
+                {
+                    var avgRating = await DoctorRatingState.GetAverageRatingAsync(doctor.Id);
+                    doctorRatings[doctor.Id] = avgRating;
+                }
+                catch
+                {
+                    // Use the stored average rating if fetching fails
+                    doctorRatings[doctor.Id] = (double)doctor.AverageRating;
+                }
             }
-        };
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load doctors: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
     }
 
     private void FilterAvailableToday()
     {
         showAvailableOnly = !showAvailableOnly;
+        StateHasChanged();
     }
 
-    private void ToggleSpecialtyFilter() { }
-    private void ToggleOrganizationFilter() { }
-    private void ToggleRatingFilter() { }
-    private void ToggleInsuranceFilter() { }
-
-    private void ToggleBookmark(int doctorId)
+    private void BookAppointment(Guid doctorId)
     {
-        var doctor = doctors.FirstOrDefault(d => d.Id == doctorId);
-        if (doctor != null)
-        {
-            doctor.IsBookmarked = !doctor.IsBookmarked;
-        }
+        Navigation.NavigateTo($"/patient/consultation?doctorId={doctorId}");
     }
 
-    private void BookAppointment(int doctorId)
+    private void ViewProfile(Guid doctorId)
     {
-        NavigationManager.NavigateTo($"/book/{doctorId}");
-    }
-
-    private void ViewProfile(int doctorId)
-    {
-        NavigationManager.NavigateTo($"/doctor/{doctorId}");
+        Navigation.NavigateTo($"/doctor/{doctorId}");
     }
 
     private void ClearFilters()
     {
         searchQuery = "";
         showAvailableOnly = false;
+        selectedSpecialty = "";
+        minRating = 0;
+        StateHasChanged();
     }
 
-    private void GoToPage(int page)
+    private string GetAvailabilityText(string status)
     {
-        currentPage = page;
+        return status switch
+        {
+            "available" => "Available Now",
+            "busy" => "Currently Busy",
+            "offline" => "Offline",
+            _ => "Unknown"
+        };
     }
 
-    private void PreviousPage()
+    private string GetDoctorColor(Guid doctorId)
     {
-        if (currentPage > 1) currentPage--;
-    }
-
-    private void NextPage()
-    {
-        if (currentPage < 12) currentPage++;
-    }
-
-    public class Doctor
-    {
-        public int Id { get; set; }
-        public string Name { get; set; } = "";
-        public string Specialty { get; set; } = "";
-        public string Organization { get; set; } = "";
-        public double Rating { get; set; }
-        public int ReviewCount { get; set; }
-        public string NextAvailable { get; set; } = "";
-        public bool IsAvailableToday { get; set; }
-        public bool IsOnline { get; set; }
-        public bool IsBookmarked { get; set; }
-        public string PhotoColor { get; set; } = "";
+        var colors = new[]
+        {
+            "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+            "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+            "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+            "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)",
+            "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
+            "linear-gradient(135deg, #30cfd0 0%, #330867 100%)"
+        };
+        
+        var hash = doctorId.GetHashCode();
+        var index = Math.Abs(hash) % colors.Length;
+        return colors[index];
     }
 }
 
 <style>
+    .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+
     /* Header Section */
     .page-header-section {
         margin-bottom: 3rem;
-    }
-
-    .page-title {
-        font-family: var(--font-headline);
-        font-size: 2.5rem;
-        font-weight: 700;
-        color: var(--on-surface);
-        margin-bottom: 2rem;
     }
 
     .search-row {
         display: flex;
         gap: 1rem;
         align-items: center;
-        margin: 3rem;
     }
 
     .search-container {
@@ -298,10 +350,11 @@
         position: relative;
         display: flex;
         align-items: center;
-        background: var(--surface-container-lowest);
-        border-radius: var(--radius-full);
+        background: white;
+        border-radius: 12px;
         padding: 0.75rem 1.5rem;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        border: 1px solid #e6e8ea;
     }
 
     .search-icon {
@@ -314,14 +367,14 @@
         flex: 1;
         border: none;
         background: transparent;
-        font-family: var(--font-body);
+        font-family: 'Inter', sans-serif;
         font-size: 1rem;
-        color: var(--on-surface);
+        color: #191c1e;
         outline: none;
     }
 
     .search-input::placeholder {
-        color: var(--on-surface-variant);
+        color: #434654;
     }
 
     .btn-available-today {
@@ -329,11 +382,11 @@
         align-items: center;
         gap: 0.5rem;
         padding: 0.75rem 1.5rem;
-        background: var(--secondary-container);
-        color: var(--on-surface);
-        border: none;
-        border-radius: var(--radius-full);
-        font-family: var(--font-body);
+        background: white;
+        color: #191c1e;
+        border: 1px solid #e6e8ea;
+        border-radius: 12px;
+        font-family: 'Inter', sans-serif;
         font-size: 1rem;
         font-weight: 500;
         cursor: pointer;
@@ -341,9 +394,11 @@
         transition: all 0.3s ease;
     }
 
-    .btn-available-today:hover {
-        background: var(--secondary);
-        color: var(--on-secondary);
+    .btn-available-today:hover,
+    .btn-available-today.active {
+        background: #0052cc;
+        color: white;
+        border-color: #0052cc;
         transform: translateY(-2px);
     }
 
@@ -358,7 +413,7 @@
         align-items: center;
         margin-bottom: 2rem;
         padding-bottom: 1.5rem;
-        border-bottom: 1px solid var(--outline-variant);
+        border-bottom: 1px solid #e6e8ea;
     }
 
     .filter-buttons {
@@ -366,34 +421,85 @@
         gap: 0.75rem;
     }
 
-    .filter-btn {
+    .filter-select {
         padding: 0.625rem 1.25rem;
-        background: var(--surface-container-low);
-        color: var(--on-surface);
-        border: none;
-        border-radius: var(--radius-full);
-        font-family: var(--font-body);
+        background: white;
+        color: #191c1e;
+        border: 1px solid #e6e8ea;
+        border-radius: 12px;
+        font-family: 'Inter', sans-serif;
         font-size: 0.9375rem;
         font-weight: 500;
         cursor: pointer;
         transition: all 0.3s ease;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
     }
 
-    .filter-btn:hover {
-        background: var(--surface-container-high);
-    }
-
-    .dropdown-arrow {
-        font-size: 0.75rem;
-        opacity: 0.7;
+    .filter-select:hover {
+        border-color: #0052cc;
     }
 
     .results-count {
-        color: var(--on-surface-variant);
+        color: #434654;
         font-size: 0.9375rem;
+    }
+
+    /* Loading & Empty States */
+    .loading-state,
+    .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 4rem 2rem;
+        text-align: center;
+    }
+
+    .loading-state .spinner {
+        width: 48px;
+        height: 48px;
+        border: 4px solid #f7f9fb;
+        border-top-color: #0052cc;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 1rem;
+    }
+
+    @@keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .empty-state i {
+        font-size: 3rem;
+        color: #434654;
+        margin-bottom: 1rem;
+    }
+
+    .empty-state h3 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #191c1e;
+        margin-bottom: 0.5rem;
+    }
+
+    .empty-message {
+        color: #434654;
+        font-size: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .alert {
+        padding: 1rem;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 2rem;
+    }
+
+    .alert-error {
+        background: #ffebee;
+        color: #c62828;
+        border: 1px solid #ef5350;
     }
 
     /* Doctors Grid */
@@ -406,36 +512,18 @@
 
     .doctor-card {
         position: relative;
-        background: var(--surface-container-lowest);
-        border-radius: var(--radius-xl);
+        background: white;
+        border-radius: 16px;
         padding: 1.5rem;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
         transition: all 0.3s ease;
-        border: 1px solid var(--outline-variant);
+        border: 1px solid #e6e8ea;
     }
 
     .doctor-card:hover {
         transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        border-color: var(--primary-container);
-    }
-
-    .bookmark-btn {
-        position: absolute;
-        top: 1rem;
-        right: 1rem;
-        background: transparent;
-        border: none;
-        cursor: pointer;
-        font-size: 1.25rem;
-        opacity: 0.3;
-        transition: opacity 0.3s ease;
-        z-index: 10;
-        padding: 0.25rem;
-    }
-
-    .bookmark-btn:hover {
-        opacity: 1;
+        border-color: #0052cc;
     }
 
     .doctor-card-header {
@@ -450,16 +538,18 @@
         flex-shrink: 0;
     }
 
-    .photo-placeholder {
+    .photo-placeholder,
+    .photo-img {
         width: 64px;
         height: 64px;
-        border-radius: var(--radius-lg);
+        border-radius: 12px;
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 1.75rem;
         font-weight: 700;
         color: white;
+        object-fit: cover;
     }
 
     .online-badge {
@@ -469,7 +559,7 @@
         width: 14px;
         height: 14px;
         background: #10b981;
-        border: 2px solid var(--surface-container-lowest);
+        border: 2px solid white;
         border-radius: 50%;
     }
 
@@ -479,12 +569,21 @@
     }
 
     .doctor-name {
-        font-family: var(--font-headline);
+        font-family: 'Manrope', sans-serif;
         font-size: 1.125rem;
         font-weight: 700;
-        color: var(--on-surface);
+        color: #191c1e;
         margin-bottom: 0.5rem;
         line-height: 1.3;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .verified-icon {
+        width: 18px;
+        height: 18px;
+        color: #0052cc;
     }
 
     .doctor-tags {
@@ -497,22 +596,20 @@
         padding: 0.25rem 0.625rem;
         background: #dbeafe;
         color: #1e40af;
-        border-radius: var(--radius-md);
+        border-radius: 6px;
         font-size: 0.6875rem;
         font-weight: 600;
         letter-spacing: 0.03em;
         text-transform: uppercase;
     }
 
-    .organization-tag {
+    .experience-tag {
         padding: 0.25rem 0.625rem;
         background: #f3f4f6;
         color: #6b7280;
-        border-radius: var(--radius-md);
+        border-radius: 6px;
         font-size: 0.6875rem;
         font-weight: 500;
-        letter-spacing: 0.03em;
-        text-transform: uppercase;
     }
 
     .doctor-rating {
@@ -521,7 +618,7 @@
         gap: 0.5rem;
         margin-bottom: 1rem;
         padding-bottom: 1rem;
-        border-bottom: 1px solid var(--outline-variant);
+        border-bottom: 1px solid #e6e8ea;
     }
 
     .stars {
@@ -530,32 +627,59 @@
     }
 
     .star {
-        font-size: 0.875rem;
-        filter: grayscale(100%);
-        opacity: 0.3;
+        width: 14px;
+        height: 14px;
+        color: #d1d5db;
     }
 
     .star.filled {
-        filter: grayscale(0%);
-        opacity: 1;
-        color: #0d9488;
+        color: #fbbf24;
     }
 
     .rating-text {
         font-size: 0.9375rem;
         font-weight: 700;
-        color: var(--on-surface);
+        color: #191c1e;
     }
 
     .review-count {
         font-weight: 400;
-        color: var(--on-surface-variant);
+        color: #434654;
         font-size: 0.8125rem;
+    }
+
+    .doctor-languages {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.75rem;
+        font-size: 0.875rem;
+        color: #434654;
+    }
+
+    .doctor-languages i {
+        width: 16px;
+        height: 16px;
+    }
+
+    .expertise-tags {
+        display: flex;
+        gap: 0.375rem;
+        flex-wrap: wrap;
+        margin-bottom: 1rem;
+    }
+
+    .expertise-tag {
+        padding: 0.25rem 0.625rem;
+        background: #f7f9fb;
+        color: #434654;
+        border-radius: 6px;
+        font-size: 0.75rem;
     }
 
     .availability-card {
         background: #f9fafb;
-        border-radius: var(--radius-lg);
+        border-radius: 12px;
         padding: 0.875rem;
         margin-bottom: 1rem;
         display: flex;
@@ -580,14 +704,14 @@
 
     .availability-label {
         font-size: 0.6875rem;
-        color: var(--on-surface-variant);
+        color: #434654;
         font-weight: 500;
         margin-bottom: 0.125rem;
     }
 
     .availability-time {
         font-size: 0.875rem;
-        color: var(--on-surface);
+        color: #191c1e;
         font-weight: 700;
     }
 
@@ -595,7 +719,7 @@
         padding: 0.375rem 0.625rem;
         background: #d1fae5;
         color: #065f46;
-        border-radius: var(--radius-md);
+        border-radius: 6px;
         font-size: 0.625rem;
         font-weight: 700;
         letter-spacing: 0.05em;
@@ -606,11 +730,34 @@
         padding: 0.375rem 0.625rem;
         background: #e0e7ff;
         color: #3730a3;
-        border-radius: var(--radius-md);
+        border-radius: 6px;
         font-size: 0.625rem;
         font-weight: 700;
         letter-spacing: 0.05em;
         white-space: nowrap;
+    }
+
+    .doctor-stats {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+        padding: 0.75rem;
+        background: #f7f9fb;
+        border-radius: 8px;
+    }
+
+    .stat-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.8125rem;
+        color: #434654;
+    }
+
+    .stat-item i {
+        width: 14px;
+        height: 14px;
     }
 
     .card-actions {
@@ -622,10 +769,10 @@
         flex: 1;
         padding: 0.75rem 1rem;
         background: #f3f4f6;
-        color: var(--on-surface);
+        color: #191c1e;
         border: none;
-        border-radius: var(--radius-lg);
-        font-family: var(--font-body);
+        border-radius: 8px;
+        font-family: 'Inter', sans-serif;
         font-size: 0.875rem;
         font-weight: 600;
         cursor: pointer;
@@ -639,44 +786,35 @@
     .btn-book-consultation {
         flex: 1;
         padding: 0.75rem 1rem;
-        background: #1e40af;
+        background: #0052cc;
         color: white;
         border: none;
-        border-radius: var(--radius-lg);
-        font-family: var(--font-body);
+        border-radius: 8px;
+        font-family: 'Inter', sans-serif;
         font-size: 0.875rem;
         font-weight: 600;
         cursor: pointer;
         transition: all 0.3s ease;
     }
 
-    .btn-book-consultation:hover {
-        background: #1e3a8a;
+    .btn-book-consultation:hover:not(:disabled) {
+        background: #003d9b;
         transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(30, 64, 175, 0.3);
+        box-shadow: 0 4px 12px rgba(0, 82, 204, 0.3);
     }
 
-    /* Empty State */
-    .empty-state {
-        text-align: center;
-        padding: 4rem 2rem;
-        background: var(--surface-container-lowest);
-        border-radius: var(--radius-xl);
-    }
-
-    .empty-message {
-        color: var(--on-surface-variant);
-        font-size: 1.125rem;
-        margin-bottom: 1.5rem;
+    .btn-book-consultation:disabled {
+        background: #ccc;
+        cursor: not-allowed;
     }
 
     .btn-primary {
         padding: 0.75rem 2rem;
-        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-container) 100%);
-        color: var(--on-primary);
+        background: #0052cc;
+        color: white;
         border: none;
-        border-radius: var(--radius-full);
-        font-family: var(--font-body);
+        border-radius: 12px;
+        font-family: 'Inter', sans-serif;
         font-size: 1rem;
         font-weight: 600;
         cursor: pointer;
@@ -684,53 +822,9 @@
     }
 
     .btn-primary:hover {
+        background: #003d9b;
         transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 61, 155, 0.3);
-    }
-
-    /* Pagination */
-    .pagination {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        gap: 0.5rem;
-        margin-top: 3rem;
-    }
-
-    .page-btn {
-        min-width: 40px;
-        height: 40px;
-        padding: 0.5rem;
-        background: var(--surface-container-lowest);
-        color: var(--on-surface);
-        border: 1px solid var(--outline-variant);
-        border-radius: var(--radius-lg);
-        font-family: var(--font-body);
-        font-size: 0.9375rem;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.3s ease;
-    }
-
-    .page-btn:hover:not(:disabled) {
-        background: var(--surface-container-high);
-        border-color: var(--primary-container);
-    }
-
-    .page-btn.active {
-        background: var(--primary-container);
-        color: var(--on-primary);
-        border-color: var(--primary-container);
-    }
-
-    .page-btn:disabled {
-        opacity: 0.3;
-        cursor: not-allowed;
-    }
-
-    .page-dots {
-        color: var(--on-surface-variant);
-        padding: 0 0.5rem;
+        box-shadow: 0 4px 12px rgba(0, 82, 204, 0.3);
     }
 
     /* Responsive */
@@ -762,6 +856,11 @@
 
         .filter-buttons {
             flex-wrap: wrap;
+            width: 100%;
+        }
+
+        .filter-select {
+            flex: 1;
         }
 
         .card-actions {

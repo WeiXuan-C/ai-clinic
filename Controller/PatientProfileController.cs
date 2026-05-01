@@ -22,19 +22,28 @@ public class PatientProfileController(PatientProfileService patientProfileServic
     /// </summary>
     public async Task<(bool Success, string Message)> CreateProfileAsync(Guid userId, string fullName)
     {
+        Console.WriteLine($"🎯 PatientProfileController.CreateProfileAsync called");
+        Console.WriteLine($"   UserId: {userId}");
+        Console.WriteLine($"   FullName: {fullName}");
+        
         try
         {
+            Console.WriteLine($"📞 Calling patientProfileService.CreateProfileAsync...");
             var profile = await patientProfileService.CreateProfileAsync(userId, fullName);
 
             if (profile == null)
             {
+                Console.WriteLine($"❌ Profile creation returned null");
                 return (false, "Failed to create patient profile");
             }
 
+            Console.WriteLine($"✅ Profile created successfully: {profile.Id}");
             return (true, "Patient profile created successfully");
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"❌ Exception in CreateProfileAsync: {ex.Message}");
+            Console.WriteLine($"   Stack trace: {ex.StackTrace}");
             return (false, $"Error creating profile: {ex.Message}");
         }
     }

@@ -341,7 +341,20 @@
         // Step 2: Create appropriate profile based on role
         if (signupModel.Role.ToLower() == "patient")
         {
+            Console.WriteLine($"🎯 Signup.razor: Creating patient profile for user {response.User?.Id}");
+            Console.WriteLine($"   FullName: {signupModel.FullName}");
+            Console.WriteLine($"   PatientController is null: {PatientController == null}");
+            
+            if (response.User == null)
+            {
+                errorMessage = "User object is null after creation";
+                return;
+            }
+            
             var profileResult = await PatientController.CreateProfileAsync(response.User.Id, signupModel.FullName);
+            
+            Console.WriteLine($"📥 Profile creation result: Success={profileResult.Success}, Message={profileResult.Message}");
+            
             if (!profileResult.Success)
             {
                 errorMessage = $"User created but profile creation failed: {profileResult.Message}";
@@ -350,6 +363,16 @@
         }
         else if (signupModel.Role.ToLower() == "doctor")
         {
+            Console.WriteLine($"🎯 Signup.razor: Creating doctor profile for user {response.User?.Id}");
+            Console.WriteLine($"   FullName: {signupModel.FullName}");
+            Console.WriteLine($"   DoctorController is null: {DoctorController == null}");
+            
+            if (response.User == null)
+            {
+                errorMessage = "User object is null after creation";
+                return;
+            }
+            
             // For doctors, we need additional info (license, specialization)
             // For now, create with placeholder values - they can complete profile later
             var profileResult = await DoctorController.CreateDoctorProfileAsync(
@@ -358,6 +381,8 @@
                 "PENDING", // License number to be filled later
                 "General Practice" // Default specialization
             );
+            
+            Console.WriteLine($"📥 Profile creation result: Success={profileResult.Success}, Message={profileResult.Message}");
             
             if (!profileResult.Success)
             {

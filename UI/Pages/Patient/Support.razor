@@ -1,6 +1,12 @@
 @page "/patient/support"
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 @layout Components.Layout.SidebarLayout
+@using ai_clinic.UI.State
+@using ai_clinic.Interfaces
+@inject SupportTicketState SupportTicketState
+@inject AuthState AuthState
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
 
 <PageTitle>Support - AI Medical Clinic</PageTitle>
 
@@ -16,9 +22,9 @@
         </p>
     </div>
     <div class="header-right">
-        <button class="btn btn-primary">
-            <i data-lucide="message-circle"></i>
-            Start Live Chat
+        <button class="btn btn-primary" @onclick="ShowMyTickets">
+            <i data-lucide="ticket"></i>
+            My Tickets (@myTickets.Count)
         </button>
     </div>
 </header>
@@ -128,62 +134,162 @@
     <!-- Contact Form -->
     <section class="contact-form-section">
         <div class="section-header">
-            <h2 class="headline-md">Send Us a Message</h2>
-            <p class="body-sm">We typically respond within 24 hours</p>
+            <h2 class="headline-md">@(showTicketList ? "My Support Tickets" : "Create Support Ticket")</h2>
+            @if (showTicketList)
+            {
+                <button class="btn btn-secondary" @onclick="() => showTicketList = false">
+                    <i data-lucide="plus"></i>
+                    New Ticket
+                </button>
+            }
+            else
+            {
+                <p class="body-sm">We typically respond within 24 hours</p>
+            }
         </div>
         
-        <form class="contact-form">
-            <div class="form-group">
-                <label class="body-sm">Subject</label>
-                <select class="form-input">
-                    <option>Select a topic...</option>
-                    <option>Technical Support</option>
-                    <option>Billing Question</option>
-                    <option>Appointment Issue</option>
-                    <option>Medical Records</option>
-                    <option>General Inquiry</option>
-                    <option>Feedback</option>
-                </select>
-            </div>
-            
-            <div class="form-group">
-                <label class="body-sm">Priority</label>
-                <div class="priority-options">
-                    <label class="radio-option">
-                        <input type="radio" name="priority" value="low" checked />
-                        <span>Low</span>
-                    </label>
-                    <label class="radio-option">
-                        <input type="radio" name="priority" value="medium" />
-                        <span>Medium</span>
-                    </label>
-                    <label class="radio-option">
-                        <input type="radio" name="priority" value="high" />
-                        <span>High</span>
-                    </label>
-                    <label class="radio-option">
-                        <input type="radio" name="priority" value="urgent" />
-                        <span>Urgent</span>
-                    </label>
+        @if (showTicketList)
+        {
+            <!-- Ticket List -->
+            @if (isLoadingTickets)
+            {
+                <div class="loading-state">
+                    <div class="spinner"></div>
+                    <p>Loading your tickets...</p>
                 </div>
-            </div>
-
-            <div class="form-group">
-                <label class="body-sm">Message</label>
-                <textarea class="form-input" rows="6" placeholder="Describe your issue or question..."></textarea>
-            </div>
-
-            <div class="form-group">
-                <label class="body-sm">Attachments (optional)</label>
-                <div class="file-upload">
-                    <i data-lucide="paperclip"></i>
-                    <span>Click to upload or drag and drop</span>
-                    <input type="file" multiple />
+            }
+            else if (myTickets.Count == 0)
+            {
+                <div class="empty-state">
+                    <i data-lucide="inbox"></i>
+                    <h3>No tickets yet</h3>
+                    <p>Create your first support ticket to get help</p>
+                    <button class="btn btn-primary" @onclick="() => showTicketList = false">
+                        Create Ticket
+                    </button>
                 </div>
-            </div>
+            }
+            else
+            {
+                <div class="ticket-list">
+                    @foreach (var ticket in myTickets.OrderByDescending(t => t.CreatedAt))
+                    {
+                        <div class="ticket-card @GetStatusClass(ticket.Status)">
+                            <div class="ticket-header">
+                                <div class="ticket-info">
+                                    <h4 class="headline-sm">@ticket.Subject</h4>
+                                    <span class="ticket-id">#@ticket.Id.ToString().Substring(0, 8)</span>
+                                </div>
+                                <div class="ticket-badges">
+                                    <span class="badge badge-@ticket.Priority">@ticket.Priority.ToUpper()</span>
+                                    <span class="badge badge-@ticket.Status">@ticket.Status.ToUpper()</span>
+                                </div>
+                            </div>
+                            <p class="ticket-description">@ticket.Description</p>
+                            <div class="ticket-footer">
+                                <span class="ticket-date">
+                                    <i data-lucide="clock"></i>
+                                    Created @ticket.CreatedAt.ToString("MMM dd, yyyy")
+                                </span>
+                                @if (ticket.Status == "open" || ticket.Status == "in_progress")
+                                {
+                                    <button class="btn btn-sm btn-outline" @onclick="() => CloseTicket(ticket.Id)">
+                                        Close Ticket
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        }
+        else
+        {
+            <!-- Create Ticket Form -->
+            <form class="contact-form" @onsubmit="HandleSubmit" @onsubmit:preventDefault>
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="alert alert-error">
+                        <i data-lucide="alert-circle"></i>
+                        @errorMessage
+                    </div>
+                }
 
-            <button type="submit" class="btn btn-primary">Send Message</button>
-        </form>
+                @if (!string.IsNullOrEmpty(successMessage))
+                {
+                    <div class="alert alert-success">
+                        <i data-lucide="check-circle"></i>
+                        @successMessage
+                    </div>
+                }
+
+                <div class="form-group">
+                    <label class="body-sm">Subject *</label>
+                    <input type="text" 
+                           class="form-input" 
+                           @bind="ticketSubject" 
+                           placeholder="Brief description of your issue"
+                           required />
+                </div>
+
+                <div class="form-group">
+                    <label class="body-sm">Category</label>
+                    <select class="form-input" @bind="ticketCategory">
+                        <option value="">Select a category...</option>
+                        <option value="technical">Technical Support</option>
+                        <option value="billing">Billing Question</option>
+                        <option value="appointment">Appointment Issue</option>
+                        <option value="records">Medical Records</option>
+                        <option value="general">General Inquiry</option>
+                        <option value="feedback">Feedback</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="body-sm">Priority *</label>
+                    <div class="priority-options">
+                        <label class="radio-option">
+                            <input type="radio" name="priority" value="low" @onchange="() => ticketPriority = \"low\"" checked="@(ticketPriority == \"low\")" />
+                            <span>Low</span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="priority" value="medium" @onchange="() => ticketPriority = \"medium\"" checked="@(ticketPriority == \"medium\")" />
+                            <span>Medium</span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="priority" value="high" @onchange="() => ticketPriority = \"high\"" checked="@(ticketPriority == \"high\")" />
+                            <span>High</span>
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="priority" value="urgent" @onchange="() => ticketPriority = \"urgent\"" checked="@(ticketPriority == \"urgent\")" />
+                            <span>Urgent</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="body-sm">Description *</label>
+                    <textarea class="form-input" 
+                              rows="6" 
+                              @bind="ticketDescription" 
+                              placeholder="Describe your issue or question in detail..."
+                              required></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                    @if (isSubmitting)
+                    {
+                        <span class="spinner-sm"></span>
+                        <span>Creating Ticket...</span>
+                    }
+                    else
+                    {
+                        <i data-lucide="send"></i>
+                        <span>Create Ticket</span>
+                    }
+                </button>
+            </form>
+        }
     </section>
 
     <!-- Support Resources -->
@@ -257,7 +363,189 @@
 </div>
 
 @code {
-    // Component logic here
+    // State
+    private List<SupportTicket> myTickets = new();
+    private bool isLoadingTickets = false;
+    private bool isSubmitting = false;
+    private bool showTicketList = false;
+    private string? errorMessage;
+    private string? successMessage;
+
+    // Form fields
+    private string ticketSubject = string.Empty;
+    private string ticketDescription = string.Empty;
+    private string ticketCategory = string.Empty;
+    private string ticketPriority = "medium";
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Check authentication
+        if (!AuthState.IsAuthenticated || AuthState.CurrentUser == null)
+        {
+            Navigation.NavigateTo("/auth/signin");
+            return;
+        }
+
+        // Load user's tickets
+        await LoadTickets();
+
+        // Initialize Lucide icons
+        await JSRuntime.InvokeVoidAsync("lucide.createIcons");
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            await JSRuntime.InvokeVoidAsync("lucide.createIcons");
+        }
+    }
+
+    private async Task LoadTickets(bool silent = false)
+    {
+        if (!silent)
+        {
+            isLoadingTickets = true;
+            StateHasChanged();
+        }
+
+        try
+        {
+            if (AuthState.CurrentUser?.Id != null)
+            {
+                var tickets = await SupportTicketState.GetByUserIdAsync(AuthState.CurrentUser.Id);
+                myTickets = tickets.ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to load tickets: {ex.Message}";
+        }
+        finally
+        {
+            isLoadingTickets = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        errorMessage = null;
+        successMessage = null;
+
+        // Validation
+        if (string.IsNullOrWhiteSpace(ticketSubject))
+        {
+            errorMessage = "Please enter a subject";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(ticketDescription))
+        {
+            errorMessage = "Please enter a description";
+            return;
+        }
+
+        if (AuthState.CurrentUser?.Id == null)
+        {
+            errorMessage = "User not authenticated";
+            return;
+        }
+
+        isSubmitting = true;
+        StateHasChanged();
+
+        try
+        {
+            var newTicket = new SupportTicket
+            {
+                Id = Guid.NewGuid(),
+                UserId = AuthState.CurrentUser.Id,
+                Subject = ticketSubject.Trim(),
+                Description = ticketDescription.Trim(),
+                Category = string.IsNullOrWhiteSpace(ticketCategory) ? null : ticketCategory,
+                Priority = ticketPriority,
+                Status = "open",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            var created = await SupportTicketState.CreateAsync(newTicket);
+
+            if (created != null)
+            {
+                successMessage = "Support ticket created successfully! We'll respond within 24 hours.";
+                
+                // Clear form
+                ticketSubject = string.Empty;
+                ticketDescription = string.Empty;
+                ticketCategory = string.Empty;
+                ticketPriority = "medium";
+
+                // Reload tickets
+                await LoadTickets(silent: true);
+
+                // Show success for 3 seconds, then switch to ticket list
+                await Task.Delay(3000);
+                successMessage = null;
+                showTicketList = true;
+            }
+            else
+            {
+                errorMessage = "Failed to create ticket. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error creating ticket: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task CloseTicket(Guid ticketId)
+    {
+        try
+        {
+            var ticket = myTickets.FirstOrDefault(t => t.Id == ticketId);
+            if (ticket != null)
+            {
+                ticket.Status = "closed";
+                ticket.ClosedAt = DateTime.UtcNow;
+                ticket.UpdatedAt = DateTime.UtcNow;
+
+                await SupportTicketState.UpdateAsync(ticket);
+                await LoadTickets(silent: true);
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to close ticket: {ex.Message}";
+        }
+    }
+
+    private void ShowMyTickets()
+    {
+        showTicketList = true;
+        errorMessage = null;
+        successMessage = null;
+        StateHasChanged();
+    }
+
+    private string GetStatusClass(string status)
+    {
+        return status.ToLower() switch
+        {
+            "open" => "status-open",
+            "in_progress" => "status-progress",
+            "resolved" => "status-resolved",
+            "closed" => "status-closed",
+            _ => ""
+        };
+    }
 }
 
 <style>
@@ -710,6 +998,265 @@
     .btn-primary:hover {
         background: #003d9b;
         transform: translateY(-1px);
+    }
+
+    .btn-primary:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .btn-secondary {
+        background: #f7f9fb;
+        color: #191c1e;
+        border: 1px solid #e6e8ea;
+    }
+
+    .btn-secondary:hover {
+        background: #eceef0;
+    }
+
+    .btn-outline {
+        background: transparent;
+        color: #0052cc;
+        border: 1px solid #0052cc;
+    }
+
+    .btn-outline:hover {
+        background: #e3f2fd;
+    }
+
+    .btn-sm {
+        padding: 0.5rem 1rem;
+        font-size: 0.8125rem;
+    }
+
+    /* Loading & Empty States */
+    .loading-state,
+    .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 3rem;
+        text-align: center;
+    }
+
+    .loading-state .spinner {
+        width: 48px;
+        height: 48px;
+        border: 4px solid #f7f9fb;
+        border-top-color: #0052cc;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 1rem;
+    }
+
+    .spinner-sm {
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @@keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .empty-state i {
+        font-size: 3rem;
+        color: #434654;
+        margin-bottom: 1rem;
+    }
+
+    .empty-state h3 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #191c1e;
+        margin-bottom: 0.5rem;
+    }
+
+    .empty-state p {
+        color: #434654;
+        margin-bottom: 1.5rem;
+    }
+
+    /* Alerts */
+    .alert {
+        padding: 1rem;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+
+    .alert-error {
+        background: #ffebee;
+        color: #c62828;
+        border: 1px solid #ef5350;
+    }
+
+    .alert-success {
+        background: #e8f5e9;
+        color: #2e7d32;
+        border: 1px solid #66bb6a;
+    }
+
+    .alert i {
+        font-size: 1.25rem;
+    }
+
+    /* Ticket List */
+    .ticket-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .ticket-card {
+        padding: 1.5rem;
+        background: #f7f9fb;
+        border-radius: 12px;
+        border-left: 4px solid #e6e8ea;
+        transition: all 0.2s;
+    }
+
+    .ticket-card:hover {
+        background: #eceef0;
+        transform: translateX(4px);
+    }
+
+    .ticket-card.status-open {
+        border-left-color: #0052cc;
+    }
+
+    .ticket-card.status-progress {
+        border-left-color: #ff9800;
+    }
+
+    .ticket-card.status-resolved {
+        border-left-color: #4caf50;
+    }
+
+    .ticket-card.status-closed {
+        border-left-color: #9e9e9e;
+    }
+
+    .ticket-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 0.75rem;
+    }
+
+    .ticket-info {
+        flex: 1;
+    }
+
+    .ticket-info h4 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #191c1e;
+        margin-bottom: 0.25rem;
+    }
+
+    .ticket-id {
+        font-size: 0.75rem;
+        color: #434654;
+        font-family: monospace;
+    }
+
+    .ticket-badges {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .badge {
+        padding: 0.25rem 0.625rem;
+        border-radius: 6px;
+        font-size: 0.625rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+
+    .badge-low {
+        background: #e3f2fd;
+        color: #1976d2;
+    }
+
+    .badge-medium {
+        background: #fff3e0;
+        color: #f57c00;
+    }
+
+    .badge-high {
+        background: #ffebee;
+        color: #d32f2f;
+    }
+
+    .badge-urgent {
+        background: #fce4ec;
+        color: #c2185b;
+    }
+
+    .badge-open {
+        background: #e3f2fd;
+        color: #1976d2;
+    }
+
+    .badge-in_progress {
+        background: #fff3e0;
+        color: #f57c00;
+    }
+
+    .badge-resolved {
+        background: #e8f5e9;
+        color: #388e3c;
+    }
+
+    .badge-closed {
+        background: #f5f5f5;
+        color: #616161;
+    }
+
+    .badge-success {
+        background: #76f3ea;
+        color: #006a65;
+    }
+
+    .ticket-description {
+        color: #434654;
+        line-height: 1.6;
+        margin-bottom: 1rem;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .ticket-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-top: 1rem;
+        border-top: 1px solid #e6e8ea;
+    }
+
+    .ticket-date {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.8125rem;
+        color: #434654;
+    }
+
+    .ticket-date i {
+        width: 14px;
+        height: 14px;
     }
 
     /* Responsive */

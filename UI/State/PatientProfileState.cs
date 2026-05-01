@@ -98,18 +98,34 @@ public class PatientProfileState
 
     public async Task<PatientProfile?> CreateAsync(PatientProfile profile)
     {
+        Console.WriteLine($"🎯 PatientProfileState.CreateAsync called");
+        Console.WriteLine($"   Profile: Id={profile.Id}, UserId={profile.UserId}, FullName={profile.FullName}");
+        
         try
         {
             _isLoading = true;
             _errorMessage = null;
             NotifyStateChanged();
 
+            Console.WriteLine($"📞 Calling _repository.AddAsync...");
             var created = await _repository.AddAsync(profile);
+            
+            if (created == null)
+            {
+                Console.WriteLine($"❌ _repository.AddAsync returned null");
+            }
+            else
+            {
+                Console.WriteLine($"✅ _repository.AddAsync succeeded: {created.Id}");
+            }
+            
             _currentProfile = created;
             return created;
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"❌ Exception in PatientProfileState.CreateAsync: {ex.Message}");
+            Console.WriteLine($"   Stack trace: {ex.StackTrace}");
             _errorMessage = ex.Message;
             return null;
         }

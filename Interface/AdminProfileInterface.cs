@@ -25,17 +25,37 @@ public interface IAdminProfile
 /// <summary>
 /// AdminProfile entity implementation
 /// </summary>
+[Table("admin_profiles")]
 public class AdminProfile : BaseModel, IAdminProfile
 {
+    [PrimaryKey("id", false)]
     public Guid Id { get; set; }
+    
+    [Column("user_id")]
     public Guid UserId { get; set; }
+    
+    [Column("full_name")]
     public string FullName { get; set; } = string.Empty;
+    
+    [Column("created_at")]
     public DateTime CreatedAt { get; set; }
+    
+    [Column("updated_at")]
     public DateTime UpdatedAt { get; set; }
+    
+    [Column("manage_users")]
     public bool ManageUsers { get; set; }
+    
+    [Column("manage_ai")]
     public bool ManageAi { get; set; }
+    
+    [Column("manage_doctors")]
     public bool ManageDoctors { get; set; }
+    
+    [Column("manage_tickets")]
     public bool ManageTickets { get; set; }
+    
+    [Column("manage_permissions")]
     public bool ManagePermissions { get; set; }
 }
 
