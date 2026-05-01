@@ -249,19 +249,19 @@
                     <label class="body-sm">Priority *</label>
                     <div class="priority-options">
                         <label class="radio-option">
-                            <input type="radio" name="priority" value="low" checked="@(ticketPriority == "low")" @onchange="@(() => ticketPriority = "low")" />
+                            <input type="radio" name="priority" value="low" checked="@(ticketPriority == "low")" @onclick="@(() => SetPriority("low"))" />
                             <span>Low</span>
                         </label>
                         <label class="radio-option">
-                            <input type="radio" name="priority" value="medium" checked="@(ticketPriority == "medium")" @onchange="@(() => ticketPriority = "medium")" />
+                            <input type="radio" name="priority" value="medium" checked="@(ticketPriority == "medium")" @onclick="@(() => SetPriority("medium"))" />
                             <span>Medium</span>
                         </label>
                         <label class="radio-option">
-                            <input type="radio" name="priority" value="high" checked="@(ticketPriority == "high")" @onchange="@(() => ticketPriority = "high")" />
+                            <input type="radio" name="priority" value="high" checked="@(ticketPriority == "high")" @onclick="@(() => SetPriority("high"))" />
                             <span>High</span>
                         </label>
                         <label class="radio-option">
-                            <input type="radio" name="priority" value="urgent" checked="@(ticketPriority == "urgent")" @onchange="@(() => ticketPriority = "urgent")" />
+                            <input type="radio" name="priority" value="urgent" checked="@(ticketPriority == "urgent")" @onclick="@(() => SetPriority("urgent"))" />
                             <span>Urgent</span>
                         </label>
                     </div>
@@ -532,6 +532,12 @@
         showTicketList = true;
         errorMessage = null;
         successMessage = null;
+        StateHasChanged();
+    }
+
+    private void SetPriority(string priority)
+    {
+        ticketPriority = priority;
         StateHasChanged();
     }
 

@@ -87,7 +87,9 @@ public class SupabaseHttpClient
     {
         var url = $"{_supabaseUrl}/rest/v1/{table}";
 
-        var json = JsonSerializer.Serialize(data, _jsonOptions);
+        // Convert to DTO to avoid serializing Postgrest attributes
+        var dto = ConvertToDto(data);
+        var json = JsonSerializer.Serialize(dto, _jsonOptions);
         Console.WriteLine($"📤 POST REQUEST to {url}");
         Console.WriteLine($"📦 PAYLOAD: {json}");
         
@@ -126,7 +128,9 @@ public class SupabaseHttpClient
     {
         var url = $"{_supabaseUrl}/rest/v1/{table}?{filter}";
 
-        var json = JsonSerializer.Serialize(data, _jsonOptions);
+        // Convert to DTO to avoid serializing Postgrest attributes
+        var dto = ConvertToDto(data);
+        var json = JsonSerializer.Serialize(dto, _jsonOptions);
         var content = new StringContent(json, Encoding.UTF8, "application/json");
 
         var request = new HttpRequestMessage(HttpMethod.Patch, url);
@@ -156,5 +160,75 @@ public class SupabaseHttpClient
 
         var response = await _httpClient.SendAsync(request);
         return response.IsSuccessStatusCode;
+    }
+
+    /// <summary>
+    /// Converts an entity with Postgrest attributes to a plain DTO for serialization
+    /// This avoids serialization errors with Postgrest attributes
+    /// </summary>
+    private Dictionary<string, object?> ConvertToDto(object entity)
+    {
+        var dto = new Dictionary<string, object?>();
+        var type = entity.GetType();
+        var properties = type.GetProperties();
+
+        foreach (var prop in properties)
+        {
+            // Skip properties from BaseModel that shouldn't be serialized
+            if (prop.Name == "PrimaryKey" || prop.Name == "TableName")
+                continue;
+
+            var value = prop.GetValue(entity);
+            
+            // Get the Column attribute to determine the database column name
+            var columnAttr = prop.GetCustomAttributes(typeof(Postgrest.Attributes.ColumnAttribute), false)
+                .FirstOrDefault() as Postgrest.Attributes.ColumnAttribute;
+            
+            var columnName = columnAttr?.ColumnName ?? ToSnakeCase(prop.Name);
+            
+            // Only include non-null values or explicitly set values
+            if (value != null || ShouldIncludeNull(prop.Name))
+            {
+                dto[columnName] = value;
+            }
+        }
+
+        return dto;
+    }
+
+    /// <summary>
+    /// Converts PascalCase to snake_case
+    /// </summary>
+    private string ToSnakeCase(string str)
+    {
+        if (string.IsNullOrEmpty(str))
+            return str;
+
+        var sb = new StringBuilder();
+        sb.Append(char.ToLower(str[0]));
+
+        for (int i = 1; i < str.Length; i++)
+        {
+            if (char.IsUpper(str[i]))
+            {
+                sb.Append('_');
+                sb.Append(char.ToLower(str[i]));
+            }
+            else
+            {
+                sb.Append(str[i]);
+            }
+        }
+
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Determines if a null value should be included in the DTO
+    /// </summary>
+    private bool ShouldIncludeNull(string propertyName)
+    {
+        // Don't include null for optional fields
+        return false;
     }
 }
