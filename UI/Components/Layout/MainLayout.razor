@@ -2,6 +2,18 @@
 @inject NavigationManager NavigationManager
 @implements IDisposable
 
+@code {
+    private bool IsActive(string path)
+    {
+        return NavigationManager.Uri.Contains(path, StringComparison.OrdinalIgnoreCase);
+    }
+
+    public void Dispose()
+    {
+        // Cleanup if needed
+    }
+}
+
 <link rel="stylesheet" href="/css/stitch-design-system.css" />
 
 <div class="page">

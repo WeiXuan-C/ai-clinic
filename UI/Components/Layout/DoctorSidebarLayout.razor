@@ -5,6 +5,27 @@
 @inject IJSRuntime JSRuntime
 @inject NavigationManager Navigation
 
+@code {
+    private string? userName;
+    private string? userEmail;
+    private string? userInitials;
+
+    protected override void OnInitialized()
+    {
+        // Initialize user data
+    }
+
+    private void HandleLogout()
+    {
+        Navigation.NavigateTo("/auth/signin");
+    }
+
+    public void Dispose()
+    {
+        // Cleanup if needed
+    }
+}
+
 <link rel="stylesheet" href="/css/stitch-design-system.css" />
 
 <div class="dashboard-layout">
