@@ -1,5 +1,6 @@
-using ai_clinic;
 using MudBlazor.Services;
+using ai_clinic.Data;
+using ai_clinic;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,6 +10,9 @@ builder.Services.AddRazorComponents()
 
 // Add MudBlazor services
 builder.Services.AddMudServices();
+
+// 🔒 Singleton Pattern: DbClient 通过静态 Instance 属性访问
+// 不需要在 DI 容器中注册，因为它自己管理生命周期
 
 // Configure SignalR for Blazor Server
 builder.Services.AddSignalR(options =>
@@ -20,9 +24,23 @@ builder.Services.AddSignalR(options =>
 });
 
 // Add application services with dependency injection
-// builder.Services.AddApplicationServices(builder.Configuration);
+builder.Services.AddApplicationServices();
 
 var app = builder.Build();
+
+// 确保数据库已创建
+try
+{
+    using var db = DbClient.Instance.GetDb();
+    await db.Database.EnsureCreatedAsync();
+    var logger = app.Services.GetRequiredService<ILogger<Program>>();
+    logger.LogInformation("数据库已准备就绪");
+}
+catch (Exception ex)
+{
+    var logger = app.Services.GetRequiredService<ILogger<Program>>();
+    logger.LogError(ex, "数据库初始化时发生错误");
+}
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())

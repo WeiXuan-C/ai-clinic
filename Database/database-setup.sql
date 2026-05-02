@@ -24,6 +24,7 @@ CREATE TYPE document_type AS ENUM ('medical_record', 'lab_result', 'prescription
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
     phone VARCHAR(20),
     role user_role NOT NULL DEFAULT 'patient',
     is_active BOOLEAN DEFAULT TRUE,

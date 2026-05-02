@@ -1,4 +1,17 @@
 @inherits LayoutComponentBase
+@inject IJSRuntime JSRuntime
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Initialize Lucide icons for pages using this layout
+            await JSRuntime.InvokeVoidAsync("initializeLucide");
+        }
+        await base.OnAfterRenderAsync(firstRender);
+    }
+}
 
 <link rel="stylesheet" href="/css/stitch-design-system.css" />
 

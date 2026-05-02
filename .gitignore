@@ -1,6 +1,11 @@
 bin/
 obj/
 
+# Database files
+*.db
+*.db-shm
+*.db-wal
+
 # SENSITIVE - Never commit these files
 appsettings.Development.json
 appsettings.Production.json

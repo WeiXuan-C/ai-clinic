@@ -1,6 +1,12 @@
 @page "/auth/signin"
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 @layout Components.Layout.EmptyLayout
+@using ai_clinic.Models
+@using ai_clinic.Services
+@inject AuthFacade AuthFacade
+@inject AuthStateService AuthState
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
 
 <PageTitle>Sign In - AI Clinic</PageTitle>
 
@@ -45,17 +51,40 @@
                     <h2 class="form-title">Welcome to AI Clinic</h2>
                     <p class="form-subtitle">Access your medical sanctuary. Secure, private, and precise.</p>
                     
-                    <form>
+                    <form @onsubmit="HandleSignIn" @onsubmit:preventDefault="true">
                         <div class="form-group">
                             <label class="form-label">EMAIL ADDRESS</label>
                             <div class="input-wrapper">
-                                <input type="email" class="form-input" placeholder="Enter your email" />
+                                <input type="email" class="form-input" placeholder="Enter your email" @bind="email" />
                                 <i data-lucide="mail" class="input-icon"></i>
                             </div>
                         </div>
                         
-                        <button type="submit" class="btn-send-code">
-                            <span>Send Code</span>
+                        <div class="form-group">
+                            <label class="form-label">PASSWORD</label>
+                            <div class="input-wrapper">
+                                <input type="@(showPassword ? "text" : "password")" class="form-input" placeholder="Enter your password" @bind="password" />
+                                <i data-lucide="@(showPassword ? "eye-off" : "eye")" class="input-icon clickable" @onclick="TogglePasswordVisibility"></i>
+                            </div>
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(errorMessage))
+                        {
+                            <div class="error-message">
+                                <i data-lucide="alert-circle"></i>
+                                <span>@errorMessage</span>
+                            </div>
+                        }
+                        
+                        <button type="submit" class="btn-send-code" disabled="@isLoading">
+                            @if (isLoading)
+                            {
+                                <span>Signing in...</span>
+                            }
+                            else
+                            {
+                                <span>Sign In</span>
+                            }
                         </button>
                     </form>
                     
@@ -387,6 +416,27 @@
         text-decoration: underline;
     }
 
+    .clickable {
+        cursor: pointer;
+    }
+
+    .error-message {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1rem;
+        background: #fff3f3;
+        border: 1px solid #ffcdd2;
+        border-radius: 8px;
+        color: #c62828;
+        font-size: 0.875rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .error-message i {
+        font-size: 1rem;
+    }
+
     /* Responsive */
     @@media (max-width: 1024px) {
         .login-container {
@@ -406,3 +456,103 @@
         }
     }
 </style>
+
+@code {
+    private string email = "";
+    private string password = "";
+    private bool showPassword = false;
+    private bool isLoading = false;
+    private string errorMessage = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Check if already logged in
+        await AuthFacade.InitializeAuthStateAsync();
+        
+        if (AuthState.IsAuthenticated && AuthState.CurrentUser != null)
+        {
+            // Redirect to appropriate dashboard (no force reload needed here)
+            var targetUrl = AuthState.CurrentUser.Role switch
+            {
+                UserRole.Patient => "/patient/dashboard",
+                UserRole.Doctor => "/doctor/dashboard",
+                UserRole.Admin => "/admin/dashboard",
+                _ => "/"
+            };
+            
+            Navigation.NavigateTo(targetUrl);
+        }
+
+        await base.OnInitializedAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Initialize Lucide icons after first render
+            await JS.InvokeVoidAsync("initializeLucide");
+        }
+        await base.OnAfterRenderAsync(firstRender);
+    }
+
+    private void TogglePasswordVisibility()
+    {
+        showPassword = !showPassword;
+    }
+
+    private async Task HandleSignIn()
+    {
+        errorMessage = "";
+        
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            errorMessage = "Please enter your email address";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(password))
+        {
+            errorMessage = "Please enter your password";
+            return;
+        }
+
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var result = await AuthFacade.SignInAsync(email, password);
+            
+            if (result.IsSuccess && result.User != null)
+            {
+                // Wait longer for cookie to be set and propagated
+                await Task.Delay(300);
+                
+                // Force reload to ensure cookie is read properly
+                var targetUrl = result.User.Role switch
+                {
+                    UserRole.Patient => "/patient/dashboard",
+                    UserRole.Doctor => "/doctor/dashboard",
+                    UserRole.Admin => "/admin/dashboard",
+                    _ => "/"
+                };
+                
+                Navigation.NavigateTo(targetUrl, forceLoad: true);
+            }
+            else
+            {
+                errorMessage = result.ErrorMessage ?? "Sign in failed";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+}

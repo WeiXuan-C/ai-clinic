@@ -1,0 +1,170 @@
+@using ai_clinic.Services
+@inject AuthStateService AuthState
+@inject UserService UserService
+@inject PatientProfileService PatientProfileService
+@inject DoctorProfileService DoctorProfileService
+@inject NavigationManager Navigation
+@implements IDisposable
+
+@if (isLoading)
+{
+    <div class="auth-guard-loading">
+        <div class="spinner"></div>
+        <p>Loading...</p>
+    </div>
+}
+else if (isAuthenticated)
+{
+    @ChildContent
+}
+
+<style>
+    .auth-guard-loading {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        gap: 1rem;
+    }
+
+    .spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #0052cc;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @@keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+
+@code {
+    [Parameter]
+    public RenderFragment? ChildContent { get; set; }
+
+    [Parameter]
+    public string? RequiredRole { get; set; }
+
+    [Parameter]
+    public string RedirectTo { get; set; } = "/auth/signin";
+
+    [Parameter]
+    public bool EnablePeriodicCheck { get; set; } = false;
+
+    [Parameter]
+    public int CheckIntervalSeconds { get; set; } = 30;
+
+    private bool isLoading = true;
+    private bool isAuthenticated = false;
+    private System.Threading.Timer? periodicTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Subscribe to auth state changes
+        AuthState.OnAuthStateChanged += HandleAuthStateChanged;
+
+        // Don't check auth here - wait for OnAfterRenderAsync
+        // This avoids JavaScript interop issues during prerendering
+
+        // Start periodic check if enabled
+        if (EnablePeriodicCheck)
+        {
+            periodicTimer = new System.Threading.Timer(
+                async _ => await CheckAuthenticationAsync(),
+                null,
+                TimeSpan.FromSeconds(CheckIntervalSeconds),
+                TimeSpan.FromSeconds(CheckIntervalSeconds)
+            );
+        }
+
+        await base.OnInitializedAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Give more time to ensure JavaScript interop is ready and cookies are available
+            await Task.Delay(150);
+            
+            // Initialize authentication after first render
+            // This ensures JavaScript interop is available for cookie reading
+            await CheckAuthenticationAsync();
+        }
+
+        await base.OnAfterRenderAsync(firstRender);
+    }
+
+    private async Task CheckAuthenticationAsync()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            // Initialize auth state if not already initialized
+            if (!AuthState.IsInitialized)
+            {
+                await AuthState.InitializeAsync(UserService, PatientProfileService, DoctorProfileService);
+            }
+
+            // Check authentication
+            isAuthenticated = AuthState.IsAuthenticated;
+
+            // Debug logging
+            Console.WriteLine($"[AuthGuard] IsAuthenticated: {isAuthenticated}");
+            Console.WriteLine($"[AuthGuard] CurrentUser: {AuthState.CurrentUser?.Email ?? "null"}");
+            Console.WriteLine($"[AuthGuard] RequiredRole: {RequiredRole}");
+
+            // Check role if required
+            if (isAuthenticated && !string.IsNullOrEmpty(RequiredRole))
+            {
+                var currentRole = AuthState.CurrentUser?.Role.ToString();
+                Console.WriteLine($"[AuthGuard] CurrentRole: {currentRole}");
+                
+                if (currentRole != RequiredRole)
+                {
+                    Console.WriteLine($"[AuthGuard] Role mismatch! Required: {RequiredRole}, Current: {currentRole}");
+                    isAuthenticated = false;
+                }
+            }
+
+            isLoading = false;
+
+            // Redirect if not authenticated
+            if (!isAuthenticated)
+            {
+                Console.WriteLine($"[AuthGuard] Redirecting to {RedirectTo}");
+                Navigation.NavigateTo(RedirectTo, forceLoad: true);
+            }
+            else
+            {
+                Console.WriteLine("[AuthGuard] Authentication successful, showing content");
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[AuthGuard] Exception: {ex.Message}");
+            isAuthenticated = false;
+            isLoading = false;
+            Navigation.NavigateTo(RedirectTo, forceLoad: true);
+        }
+    }
+
+    private async void HandleAuthStateChanged()
+    {
+        await CheckAuthenticationAsync();
+    }
+
+    public void Dispose()
+    {
+        AuthState.OnAuthStateChanged -= HandleAuthStateChanged;
+        periodicTimer?.Dispose();
+    }
+}

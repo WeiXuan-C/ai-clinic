@@ -1,9 +1,15 @@
 @using Microsoft.AspNetCore.Components.Web
 @using Microsoft.AspNetCore.Components.Routing
+@using ai_clinic.Services
+@using ai_clinic.UI.Components
 @inherits LayoutComponentBase
 @implements IDisposable
 @inject IJSRuntime JSRuntime
 @inject NavigationManager Navigation
+@inject AuthStateService AuthState
+@inject UserService UserService
+@inject PatientProfileService PatientProfileService
+@inject DoctorProfileService DoctorProfileService
 
 @code {
     private string? userName;
@@ -13,6 +19,16 @@
     protected override void OnInitialized()
     {
         // Initialize user data
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Initialize Lucide icons for all pages using this layout
+            await JSRuntime.InvokeVoidAsync("initializeLucide");
+        }
+        await base.OnAfterRenderAsync(firstRender);
     }
 
     private void HandleLogout()
@@ -28,6 +44,8 @@
 
 
 <link rel="stylesheet" href="/css/stitch-design-system.css" />
+
+<AuthGuard RequiredRole="Patient">
 
 <div class="dashboard-layout">
     <!-- Left Sidebar -->
@@ -93,6 +111,8 @@
         @Body
     </main>
 </div>
+
+</AuthGuard>
 
 <style>
     * {

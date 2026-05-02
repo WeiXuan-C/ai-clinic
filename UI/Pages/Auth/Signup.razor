@@ -1,6 +1,12 @@
 @page "/auth/signup"
 @layout Components.Layout.EmptyLayout
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
+@using ai_clinic.Models
+@using ai_clinic.Services
+@inject AuthFacade AuthFacade
+@inject AuthStateService AuthState
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
 
 <PageTitle>Sign Up - AI Clinic</PageTitle>
 
@@ -45,17 +51,71 @@
                     <h2 class="form-title">Create Your Account</h2>
                     <p class="form-subtitle">Enter your email to get started</p>
                     
-                    <form>
+                    <form @onsubmit="HandleSignUp" @onsubmit:preventDefault="true">
                         <div class="form-group">
                             <label class="form-label">EMAIL ADDRESS</label>
                             <div class="input-wrapper">
-                                <input type="email" class="form-input" placeholder="Enter your email" />
+                                <input type="email" class="form-input" placeholder="Enter your email" @bind="email" />
                                 <i data-lucide="mail" class="input-icon"></i>
                             </div>
                         </div>
+
+                        <div class="form-group">
+                            <label class="form-label">PASSWORD</label>
+                            <div class="input-wrapper">
+                                <input type="@(showPassword ? "text" : "password")" class="form-input" placeholder="Create a password" @bind="password" />
+                                <i data-lucide="@(showPassword ? "eye-off" : "eye")" class="input-icon clickable" @onclick="TogglePasswordVisibility"></i>
+                            </div>
+                            <small class="password-hint">At least 8 characters</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">CONFIRM PASSWORD</label>
+                            <div class="input-wrapper">
+                                <input type="@(showConfirmPassword ? "text" : "password")" class="form-input" placeholder="Confirm your password" @bind="confirmPassword" />
+                                <i data-lucide="@(showConfirmPassword ? "eye-off" : "eye")" class="input-icon clickable" @onclick="ToggleConfirmPasswordVisibility"></i>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">ACCOUNT TYPE</label>
+                            <div class="role-selector">
+                                <button type="button" class="role-option @(selectedRole == "Patient" ? "active" : "")" @onclick="@(() => SelectRole("Patient"))">
+                                    <i data-lucide="user"></i>
+                                    <span>Patient</span>
+                                </button>
+                                <button type="button" class="role-option @(selectedRole == "Doctor" ? "active" : "")" @onclick="@(() => SelectRole("Doctor"))">
+                                    <i data-lucide="stethoscope"></i>
+                                    <span>Doctor</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(errorMessage))
+                        {
+                            <div class="error-message">
+                                <i data-lucide="alert-circle"></i>
+                                <span>@errorMessage</span>
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrEmpty(successMessage))
+                        {
+                            <div class="success-message">
+                                <i data-lucide="check-circle"></i>
+                                <span>@successMessage</span>
+                            </div>
+                        }
                         
-                        <button type="submit" class="btn-send-code">
-                            <span>Continue</span>
+                        <button type="submit" class="btn-send-code" disabled="@isLoading">
+                            @if (isLoading)
+                            {
+                                <span>Creating account...</span>
+                            }
+                            else
+                            {
+                                <span>Create Account</span>
+                            }
                         </button>
                     </form>
                     
@@ -378,6 +438,88 @@
         text-decoration: underline;
     }
 
+    .clickable {
+        cursor: pointer;
+    }
+
+    .password-hint {
+        display: block;
+        margin-top: 0.5rem;
+        font-size: 0.75rem;
+        color: #a0a8b0;
+    }
+
+    .role-selector {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+    }
+
+    .role-option {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 1rem;
+        background: #f7f9fb;
+        border: 2px solid #e0e3e5;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #5a6c7d;
+    }
+
+    .role-option:hover {
+        border-color: #0052cc;
+        background: #f0f7ff;
+    }
+
+    .role-option.active {
+        border-color: #0052cc;
+        background: #f0f7ff;
+        color: #0052cc;
+    }
+
+    .role-option i {
+        font-size: 1.5rem;
+    }
+
+    .error-message {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1rem;
+        background: #fff3f3;
+        border: 1px solid #ffcdd2;
+        border-radius: 8px;
+        color: #c62828;
+        font-size: 0.875rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .error-message i {
+        font-size: 1rem;
+    }
+
+    .success-message {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1rem;
+        background: #f1f8f4;
+        border: 1px solid #c8e6c9;
+        border-radius: 8px;
+        color: #2e7d32;
+        font-size: 0.875rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .success-message i {
+        font-size: 1rem;
+    }
+
     /* Responsive */
     @@media (max-width: 1024px) {
         .login-container {
@@ -397,3 +539,143 @@
         }
     }
 </style>
+
+@code {
+    private string email = "";
+    private string password = "";
+    private string confirmPassword = "";
+    private string selectedRole = "Patient";
+    private bool showPassword = false;
+    private bool showConfirmPassword = false;
+    private bool isLoading = false;
+    private string errorMessage = "";
+    private string successMessage = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Check if already logged in
+        await AuthFacade.InitializeAuthStateAsync();
+        
+        if (AuthState.IsAuthenticated && AuthState.CurrentUser != null)
+        {
+            // Redirect to appropriate dashboard
+            switch (AuthState.CurrentUser.Role)
+            {
+                case UserRole.Patient:
+                    Navigation.NavigateTo("/patient/dashboard");
+                    break;
+                case UserRole.Doctor:
+                    Navigation.NavigateTo("/doctor/dashboard");
+                    break;
+                case UserRole.Admin:
+                    Navigation.NavigateTo("/admin/dashboard");
+                    break;
+                default:
+                    Navigation.NavigateTo("/");
+                    break;
+            }
+        }
+
+        await base.OnInitializedAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Initialize Lucide icons after first render
+            await JS.InvokeVoidAsync("initializeLucide");
+        }
+        await base.OnAfterRenderAsync(firstRender);
+    }
+
+    private void TogglePasswordVisibility()
+    {
+        showPassword = !showPassword;
+    }
+
+    private void ToggleConfirmPasswordVisibility()
+    {
+        showConfirmPassword = !showConfirmPassword;
+    }
+
+    private void SelectRole(string role)
+    {
+        selectedRole = role;
+    }
+
+    private async Task HandleSignUp()
+    {
+        errorMessage = "";
+        successMessage = "";
+        
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            errorMessage = "Please enter your email address";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(password))
+        {
+            errorMessage = "Please enter a password";
+            return;
+        }
+
+        if (password.Length < 8)
+        {
+            errorMessage = "Password must be at least 8 characters";
+            return;
+        }
+
+        if (password != confirmPassword)
+        {
+            errorMessage = "Passwords do not match";
+            return;
+        }
+
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var role = selectedRole == "Doctor" ? UserRole.Doctor : UserRole.Patient;
+            var result = await AuthFacade.RegisterAsync(email, password, role);
+            
+            if (result.IsSuccess && result.User != null)
+            {
+                successMessage = "Account created successfully! Redirecting...";
+                StateHasChanged();
+                
+                // Wait a moment to show success message
+                await Task.Delay(1500);
+                
+                // Redirect based on role
+                switch (result.User.Role)
+                {
+                    case UserRole.Patient:
+                        Navigation.NavigateTo("/patient/dashboard");
+                        break;
+                    case UserRole.Doctor:
+                        Navigation.NavigateTo("/doctor/dashboard");
+                        break;
+                    default:
+                        Navigation.NavigateTo("/");
+                        break;
+                }
+            }
+            else
+            {
+                errorMessage = result.ErrorMessage ?? "Registration failed";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+}

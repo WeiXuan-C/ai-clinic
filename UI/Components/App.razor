@@ -12,16 +12,46 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="js/sessionStorage.js"></script>
     <script>
-        // Ensure Lucide is available globally
-        window.initializeLucide = function() {
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-                return true;
+        // Global Lucide initialization - only once
+        (function() {
+            if (window.lucideInitialized) return;
+            window.lucideInitialized = true;
+
+            let initTimeout;
+            let isInitializing = false;
+
+            window.initializeLucide = function() {
+                if (isInitializing) return;
+                
+                // Clear any pending initialization
+                clearTimeout(initTimeout);
+                
+                // Debounce: wait 150ms before initializing
+                initTimeout = setTimeout(function() {
+                    if (typeof lucide !== 'undefined') {
+                        isInitializing = true;
+                        try {
+                            lucide.createIcons();
+                        } finally {
+                            isInitializing = false;
+                        }
+                    }
+                }, 150);
+            };
+
+            // Initial load
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', window.initializeLucide);
+            } else {
+                window.initializeLucide();
             }
-            return false;
-        };
+
+            // Listen to Blazor's enhanced navigation events instead of MutationObserver
+            if (window.Blazor) {
+                Blazor.addEventListener('enhancedload', window.initializeLucide);
+            }
+        })();
     </script>
     <HeadOutlet />
 </head>
@@ -42,94 +72,6 @@
     
     <script src="_framework/blazor.web.js"></script>
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
-    <script>
-        // Blazor reconnection handling
-        Blazor.start({
-            reconnectionOptions: {
-                maxRetries: 10,
-                retryIntervalMilliseconds: 2000
-            }
-        }).then(() => {
-            console.log('Blazor started successfully');
-        }).catch(err => {
-            console.error('Blazor failed to start:', err);
-        });
-    </script>
-    <script>
-        // Initialize Lucide icons
-        function initLucideIcons() {
-            if (typeof lucide !== 'undefined') {
-                try {
-                    lucide.createIcons();
-                    console.log('Lucide icons initialized');
-                } catch (e) {
-                    console.error('Error initializing Lucide:', e);
-                }
-            } else {
-                console.warn('Lucide not loaded yet');
-            }
-        }
-
-        // Initialize immediately
-        setTimeout(initLucideIcons, 100);
-
-        // Initialize after DOM is ready
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => {
-                setTimeout(initLucideIcons, 100);
-            });
-        }
-
-        // For Blazor Server/WebAssembly - reinitialize after navigation
-        if (typeof Blazor !== 'undefined') {
-            Blazor.addEventListener('enhancedload', () => {
-                setTimeout(initLucideIcons, 200);
-                
-                // Update active nav item
-                const currentPath = window.location.pathname;
-                const navItems = document.querySelectorAll('.sidebar-nav .nav-item');
-                
-                navItems.forEach(item => {
-                    item.classList.remove('active');
-                    const href = item.getAttribute('href');
-                    if (href && currentPath.includes(href)) {
-                        item.classList.add('active');
-                    }
-                });
-            });
-        }
-
-        // Watch for new icons being added to the DOM
-        const observer = new MutationObserver((mutations) => {
-            let hasNewIcons = false;
-            for (const mutation of mutations) {
-                for (const node of mutation.addedNodes) {
-                    if (node.nodeType === 1) {
-                        if (node.hasAttribute && node.hasAttribute('data-lucide')) {
-                            hasNewIcons = true;
-                            break;
-                        }
-                        if (node.querySelector && node.querySelector('[data-lucide]')) {
-                            hasNewIcons = true;
-                            break;
-                        }
-                    }
-                }
-                if (hasNewIcons) break;
-            }
-            if (hasNewIcons) {
-                setTimeout(initLucideIcons, 50);
-            }
-        });
-        
-        // Start observing after a short delay
-        setTimeout(() => {
-            observer.observe(document.body, { 
-                childList: true, 
-                subtree: true 
-            });
-        }, 500);
-    </script>
 </body>
 
 </html>
