@@ -1,5 +1,4 @@
 @page "/patient/dashboard"
-@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @layout Components.Layout.SidebarLayout
 
 <PageTitle>Dashboard - AI Medical Clinic</PageTitle>
@@ -9,7 +8,7 @@
 <!-- Header -->
 <header class="content-header">
     <div class="header-left">
-        <h1>Welcome back, @patientName</h1>
+        <h1>Welcome back, Sarah</h1>
         <p class="body-md" style="margin: 0.5rem;">
             <span class="status-indicator">●</span>
             Your Clinical Sanctuary is active and monitoring.
@@ -127,10 +126,6 @@
         </div>
     </section>
 </div>
-
-@code {
-    private string patientName = "Sarah";
-}
 
 
 <style>

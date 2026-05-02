@@ -1,7 +1,5 @@
 @page "/auth/signup"
 @layout Components.Layout.EmptyLayout
-@using System.ComponentModel.DataAnnotations
-@using Microsoft.AspNetCore.Components.Web
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 
 <PageTitle>Sign Up - AI Clinic</PageTitle>
@@ -45,106 +43,21 @@
             <div class="form-wrapper">
                 <div class="form-card">
                     <h2 class="form-title">Create Your Account</h2>
-                    <p class="form-subtitle">@GetStepDescription()</p>
+                    <p class="form-subtitle">Enter your email to get started</p>
                     
-                    <EditForm Model="@signupModel" OnValidSubmit="@HandleSubmit" FormName="SignupForm">
-                        @* Only validate fields for current step *@
-                        
-                        @if (currentStep == SignupStep.EnterEmail)
-                        {
-                            <div class="form-group">
-                                <label class="form-label">EMAIL ADDRESS</label>
-                                <div class="input-wrapper">
-                                    <InputText @bind-Value="signupModel.Email" class="form-input" placeholder="Enter your email" type="email" />
-                                    <i data-lucide="mail" class="input-icon"></i>
-                                </div>
-                            </div>
-                        }
-                        
-                        @if (currentStep == SignupStep.VerifyOtp)
-                        {
-                            <div class="form-group">
-                                <label class="form-label">VERIFICATION CODE</label>
-                                <div class="input-wrapper">
-                                    <InputText @bind-Value="signupModel.OtpCode" class="form-input" placeholder="Enter 8-digit code from email" maxlength="8" />
-                                    <i data-lucide="shield-check" class="input-icon"></i>
-                                </div>
-                            </div>
-                        }
-                        
-                        @if (currentStep == SignupStep.SelectRole)
-                        {
-                            <div class="form-group">
-                                <label class="form-label">ACCOUNT TYPE</label>
-                                <div class="role-selection">
-                                    <div class="role-card @(signupModel.Role == "patient" ? "selected" : "")" 
-                                         @onclick="@(() => signupModel.Role = "patient")">
-                                        <i data-lucide="user" class="role-icon"></i>
-                                        <h3>Patient</h3>
-                                        <p>Access consultations, medical records, and AI-powered health insights</p>
-                                    </div>
-                                    <div class="role-card @(signupModel.Role == "doctor" ? "selected" : "")" 
-                                         @onclick="@(() => signupModel.Role = "doctor")">
-                                        <i data-lucide="stethoscope" class="role-icon"></i>
-                                        <h3>Doctor</h3>
-                                        <p>Manage patients, provide consultations, and access clinical tools</p>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label class="form-label">FULL NAME</label>
-                                <div class="input-wrapper">
-                                    <InputText @bind-Value="signupModel.FullName" class="form-input" placeholder="Enter your full name" />
-                                    <i data-lucide="user-circle" class="input-icon"></i>
-                                </div>
-                            </div>
-                        }
-                        
-                        @if (!string.IsNullOrEmpty(errorMessage))
-                        {
-                            <div class="error-message">@errorMessage</div>
-                        }
-                        
-                        @if (!string.IsNullOrEmpty(successMessage))
-                        {
-                            <div class="success-message">@successMessage</div>
-                        }
-                        
-                        <button type="submit" class="btn-send-code" disabled="@isLoading">
-                            @if (isLoading)
-                            {
-                                <span>Processing...</span>
-                            }
-                            else
-                            {
-                                <span>@GetButtonText()</span>
-                            }
-                        </button>
-                        
-                        @if (currentStep == SignupStep.VerifyOtp)
-                        {
-                            <button type="button" class="btn-resend" @onclick="ResendOtp" disabled="@isLoading">
-                                Resend Code
-                            </button>
-                        }
-                    </EditForm>
-                    
-                    @if (showSuccessDialog)
-                    {
-                        <div class="dialog-overlay" @onclick="@(() => {})">
-                            <div class="dialog-content" @onclick:stopPropagation="true">
-                                <div class="dialog-icon">
-                                    <i data-lucide="check-circle" class="success-icon"></i>
-                                </div>
-                                <h3 class="dialog-title">Registration Successful!</h3>
-                                <p class="dialog-message">Your account has been created successfully. Welcome to AI Clinic!</p>
-                                <button type="button" class="btn-dialog-ok" @onclick="HandleSuccessDialogOk">
-                                    OK
-                                </button>
+                    <form>
+                        <div class="form-group">
+                            <label class="form-label">EMAIL ADDRESS</label>
+                            <div class="input-wrapper">
+                                <input type="email" class="form-input" placeholder="Enter your email" />
+                                <i data-lucide="mail" class="input-icon"></i>
                             </div>
                         </div>
-                    }
+                        
+                        <button type="submit" class="btn-send-code">
+                            <span>Continue</span>
+                        </button>
+                    </form>
                     
                     <div class="new-patient-section">
                         <p class="new-patient-label">ALREADY HAVE AN ACCOUNT?</p>
@@ -415,52 +328,6 @@
         opacity: 0.5;
     }
 
-    /* Role Selection */
-    .role-selection {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1rem;
-        margin-bottom: 1.5rem;
-    }
-
-    .role-card {
-        padding: 1.5rem;
-        border: 2px solid #e0e3e5;
-        border-radius: 12px;
-        cursor: pointer;
-        transition: all 0.3s;
-        text-align: center;
-    }
-
-    .role-card:hover {
-        border-color: #0052cc;
-        background: #f7f9fb;
-    }
-
-    .role-card.selected {
-        border-color: #0052cc;
-        background: #e6f2ff;
-    }
-
-    .role-icon {
-        font-size: 2rem;
-        margin-bottom: 0.5rem;
-        color: #0052cc;
-    }
-
-    .role-card h3 {
-        font-size: 1rem;
-        font-weight: 600;
-        color: #191c1e;
-        margin-bottom: 0.5rem;
-    }
-
-    .role-card p {
-        font-size: 0.875rem;
-        color: #5a6c7d;
-        line-height: 1.4;
-    }
-
     .btn-send-code {
         width: 100%;
         padding: 1rem;
@@ -478,30 +345,6 @@
     .btn-send-code:hover {
         transform: translateY(-2px);
         box-shadow: 0 6px 20px rgba(0, 82, 204, 0.3);
-    }
-
-    .btn-send-code:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-        transform: none;
-    }
-
-    .btn-resend {
-        width: 100%;
-        padding: 0.75rem;
-        background: transparent;
-        color: #0052cc;
-        border: 1px solid #0052cc;
-        border-radius: 12px;
-        font-size: 0.875rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s;
-        margin-top: 1rem;
-    }
-
-    .btn-resend:hover {
-        background: #f7f9fb;
     }
 
     .new-patient-section {
@@ -535,112 +378,6 @@
         text-decoration: underline;
     }
 
-    /* Success Dialog */
-    .dialog-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.5);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 1000;
-        animation: fadeIn 0.3s;
-    }
-
-    @@keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
-    }
-
-    .dialog-content {
-        background: #ffffff;
-        border-radius: 16px;
-        padding: 2.5rem;
-        max-width: 400px;
-        width: 90%;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-        text-align: center;
-        animation: slideUp 0.3s;
-    }
-
-    @@keyframes slideUp {
-        from {
-            transform: translateY(20px);
-            opacity: 0;
-        }
-        to {
-            transform: translateY(0);
-            opacity: 1;
-        }
-    }
-
-    .dialog-icon {
-        margin-bottom: 1.5rem;
-    }
-
-    .success-icon {
-        width: 64px;
-        height: 64px;
-        color: #00c853;
-    }
-
-    .dialog-title {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: #191c1e;
-        margin-bottom: 1rem;
-        font-family: 'Manrope', sans-serif;
-    }
-
-    .dialog-message {
-        font-size: 1rem;
-        color: #5a6c7d;
-        line-height: 1.6;
-        margin-bottom: 2rem;
-    }
-
-    .btn-dialog-ok {
-        width: 100%;
-        padding: 1rem;
-        background: linear-gradient(135deg, #0052cc 0%, #003d9b 100%);
-        color: #ffffff;
-        border: none;
-        border-radius: 12px;
-        font-size: 1rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s;
-        box-shadow: 0 4px 12px rgba(0, 82, 204, 0.2);
-    }
-
-    .btn-dialog-ok:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(0, 82, 204, 0.3);
-    }
-
-    .error-message {
-        padding: 1rem;
-        background: #fee;
-        border: 1px solid #fcc;
-        border-radius: 8px;
-        color: #c33;
-        font-size: 0.875rem;
-        margin-bottom: 1rem;
-    }
-
-    .success-message {
-        padding: 1rem;
-        background: #e6f7f1;
-        border: 1px solid #76f3ea;
-        border-radius: 8px;
-        color: #006a65;
-        font-size: 0.875rem;
-        margin-bottom: 1rem;
-    }
-
     /* Responsive */
     @@media (max-width: 1024px) {
         .login-container {
@@ -657,10 +394,6 @@
 
         .form-card {
             padding: 2rem;
-        }
-
-        .role-selection {
-            grid-template-columns: 1fr;
         }
     }
 </style>

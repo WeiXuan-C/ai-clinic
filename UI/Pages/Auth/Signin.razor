@@ -1,18 +1,8 @@
 @page "/auth/signin"
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 @layout Components.Layout.EmptyLayout
-@using System.ComponentModel.DataAnnotations
-@using Microsoft.AspNetCore.Components.Web
-@implements IDisposable
 
 <PageTitle>Sign In - AI Clinic</PageTitle>
-
-@code {
-    public void Dispose()
-    {
-        // Cleanup if needed
-    }
-}
 
 <link rel="stylesheet" href="/css/stitch-design-system.css" />
 
@@ -55,77 +45,19 @@
                     <h2 class="form-title">Welcome to AI Clinic</h2>
                     <p class="form-subtitle">Access your medical sanctuary. Secure, private, and precise.</p>
                     
-                    <EditForm Model="@authModel" OnValidSubmit="@HandleSubmit" FormName="SigninForm">
-                        <DataAnnotationsValidator />
-                        
+                    <form>
                         <div class="form-group">
                             <label class="form-label">EMAIL ADDRESS</label>
                             <div class="input-wrapper">
-                                <InputText @bind-Value="authModel.Credential" class="form-input" placeholder="Enter your email" type="email" />
+                                <input type="email" class="form-input" placeholder="Enter your email" />
                                 <i data-lucide="mail" class="input-icon"></i>
                             </div>
-                            <ValidationMessage For="@(() => authModel.Credential)" />
                         </div>
                         
-                        @if (!string.IsNullOrEmpty(errorMessage))
-                        {
-                            <div class="error-message">@errorMessage</div>
-                        }
-                        
-                        @if (!string.IsNullOrEmpty(successMessage))
-                        {
-                            <div class="success-message">@successMessage</div>
-                        }
-                        
-                        @if (showOtpInput)
-                        {
-                            <div class="form-group">
-                                <label class="form-label">VERIFICATION CODE</label>
-                                <div class="input-wrapper">
-                                    <InputText @bind-Value="authModel.OtpCode" class="form-input" placeholder="Enter 8-digit code from email" maxlength="8" />
-                                    <i data-lucide="shield-check" class="input-icon"></i>
-                                </div>
-                                <div class="otp-hint">
-                                    <i data-lucide="info" style="width: 14px; height: 14px;"></i>
-                                    <span>Check your email for the verification code</span>
-                                </div>
-                            </div>
-                            <button type="button" @onclick="HandleVerifyOtp" class="btn-send-code" disabled="@isLoading">
-                                @if (isLoading)
-                                {
-                                    <span>Verifying...</span>
-                                }
-                                else
-                                {
-                                    <span>Verify Code</span>
-                                }
-                            </button>
-                            
-                            <button type="button" @onclick="ResendOtp" class="btn-resend" disabled="@isLoading">
-                                @if (isLoading)
-                                {
-                                    <span>Sending...</span>
-                                }
-                                else
-                                {
-                                    <span>Resend Code</span>
-                                }
-                            </button>
-                        }
-                        else
-                        {
-                            <button type="submit" class="btn-send-code" disabled="@isLoading">
-                                @if (isLoading)
-                                {
-                                    <span>Sending...</span>
-                                }
-                                else
-                                {
-                                    <span>Send Code</span>
-                                }
-                            </button>
-                        }
-                    </EditForm>
+                        <button type="submit" class="btn-send-code">
+                            <span>Send Code</span>
+                        </button>
+                    </form>
                     
                     <div class="new-patient-section">
                         <p class="new-patient-label">NOT YET HAVING AN ACCOUNT?</p>
@@ -315,77 +247,6 @@
         font-weight: 500;
     }
 
-    .brand-footer {
-        margin-top: auto;
-        padding-top: 2rem;
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-end;
-        gap: 2rem;
-    }
-
-    .footer-left {
-        flex-shrink: 0;
-    }
-
-    .footer-title {
-        font-weight: 600;
-        color: #191c1e;
-        margin-bottom: 0.25rem;
-        font-size: 1rem;
-    }
-
-    .footer-copyright {
-        font-size: 0.75rem;
-        color: #a0a8b0;
-        letter-spacing: 0.5px;
-    }
-
-    .footer-right {
-        display: flex;
-        align-items: center;
-        gap: 2rem;
-        flex-wrap: wrap;
-        justify-content: flex-end;
-    }
-
-    .footer-links {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 1.5rem;
-        align-items: center;
-    }
-
-    .footer-link {
-        font-size: 0.875rem;
-        color: #5a6c7d;
-        text-decoration: none;
-        transition: color 0.3s;
-        white-space: nowrap;
-    }
-
-    .footer-link:hover {
-        color: #0052cc;
-    }
-
-    .encryption-badge {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-size: 0.75rem;
-        font-weight: 600;
-        color: #006a65;
-        letter-spacing: 0.5px;
-        white-space: nowrap;
-    }
-
-    .encryption-dot {
-        width: 8px;
-        height: 8px;
-        background: #00c853;
-        border-radius: 50%;
-    }
-
     /* Right Side - Form Section */
     .form-section {
         background: #ffffff;
@@ -495,39 +356,6 @@
         transform: translateY(0);
     }
 
-    .btn-resend {
-        width: 100%;
-        padding: 1rem;
-        background: transparent;
-        color: #0052cc;
-        border: 2px solid #0052cc;
-        border-radius: 12px;
-        font-size: 1rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s;
-        margin-top: 1rem;
-    }
-
-    .btn-resend:hover {
-        background: #f0f4f8;
-        transform: translateY(-2px);
-    }
-
-    .btn-resend:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
-
-    .otp-hint {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        margin-top: 0.5rem;
-        font-size: 0.875rem;
-        color: #5a6c7d;
-    }
-
     .new-patient-section {
         margin-top: 2.5rem;
         text-align: center;
@@ -559,27 +387,6 @@
         text-decoration: underline;
     }
 
-    /* Error and Success Messages */
-    .error-message {
-        padding: 1rem;
-        background: #fee;
-        border: 1px solid #fcc;
-        border-radius: 8px;
-        color: #c33;
-        font-size: 0.875rem;
-        margin-bottom: 1rem;
-    }
-
-    .success-message {
-        padding: 1rem;
-        background: #e6f7f1;
-        border: 1px solid #76f3ea;
-        border-radius: 8px;
-        color: #006a65;
-        font-size: 0.875rem;
-        margin-bottom: 1rem;
-    }
-
     /* Responsive */
     @@media (max-width: 1024px) {
         .login-container {
@@ -596,26 +403,6 @@
 
         .form-card {
             padding: 2rem;
-        }
-    }
-
-    @@media (max-width: 768px) {
-        .brand-footer {
-            flex-direction: column;
-            align-items: flex-start;
-        }
-
-        .footer-right {
-            width: 100%;
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 1rem;
-        }
-
-        .footer-links {
-            flex-direction: column;
-            gap: 0.75rem;
-            align-items: flex-start;
         }
     }
 </style>

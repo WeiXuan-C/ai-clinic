@@ -1,5 +1,4 @@
 @page "/patient/consultation"
-@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @layout Components.Layout.SidebarLayout
 
 <style>
@@ -226,198 +225,6 @@
         gap: 6px;
     }
 
-    /* Doctor Directory */
-    .doctor-directory {
-        flex: 1;
-        overflow-y: auto;
-        padding: 24px;
-        min-height: 0;
-    }
-
-    .doctor-directory::-webkit-scrollbar {
-        width: 8px;
-    }
-
-    .doctor-directory::-webkit-scrollbar-track {
-        background: #f1f1f1;
-    }
-
-    .doctor-directory::-webkit-scrollbar-thumb {
-        background: #c1c1c1;
-        border-radius: 4px;
-    }
-
-    .doctor-directory::-webkit-scrollbar-thumb:hover {
-        background: #a8a8a8;
-    }
-
-    .directory-header h2 {
-        font-size: 24px;
-        font-weight: 600;
-        color: #111827;
-        margin-bottom: 16px;
-    }
-
-    .filters {
-        display: flex;
-        gap: 12px;
-        margin-bottom: 24px;
-    }
-
-    .filter-select, .search-input {
-        padding: 10px 14px;
-        border: 1px solid #e5e7eb;
-        border-radius: 8px;
-        font-size: 14px;
-    }
-
-    .filter-select {
-        min-width: 180px;
-    }
-
-    .search-input {
-        flex: 1;
-    }
-
-    .doctor-list {
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-    }
-
-    .doctor-card {
-        display: flex;
-        gap: 16px;
-        padding: 20px;
-        border: 1px solid #e5e7eb;
-        border-radius: 12px;
-        cursor: pointer;
-        transition: all 0.2s;
-        background: white;
-    }
-
-    .doctor-card:hover {
-        border-color: #0ea5e9;
-        box-shadow: 0 4px 12px rgba(14, 165, 233, 0.1);
-    }
-
-    .doctor-avatar {
-        width: 80px;
-        height: 80px;
-        border-radius: 50%;
-        object-fit: cover;
-        background: #e5e7eb;
-    }
-
-    .doctor-info {
-        flex: 1;
-    }
-
-    .doctor-header-row {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 4px;
-    }
-
-    .doctor-info h4 {
-        font-size: 18px;
-        font-weight: 600;
-        color: #111827;
-    }
-
-    .verified-badge {
-        background: #0ea5e9;
-        color: white;
-        font-size: 12px;
-        width: 20px;
-        height: 20px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .specialty {
-        font-size: 14px;
-        color: #6b7280;
-        margin-bottom: 8px;
-    }
-
-    .doctor-meta {
-        display: flex;
-        gap: 16px;
-        margin-bottom: 8px;
-        font-size: 13px;
-    }
-
-    .rating {
-        color: #f59e0b;
-    }
-
-    .experience {
-        color: #6b7280;
-    }
-
-    .doctor-details {
-        display: flex;
-        justify-content: space-between;
-        font-size: 13px;
-        color: #6b7280;
-    }
-
-    .fee {
-        font-weight: 600;
-        color: #0ea5e9;
-    }
-
-    .next-available {
-        font-size: 12px;
-        color: #10b981;
-        margin-top: 4px;
-    }
-
-    .doctor-actions {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        align-items: flex-end;
-    }
-
-    .availability {
-        padding: 6px 12px;
-        border-radius: 6px;
-        font-size: 12px;
-        font-weight: 500;
-    }
-
-    .availability.available {
-        background: #d1fae5;
-        color: #065f46;
-    }
-
-    .availability.unavailable {
-        background: #fee2e2;
-        color: #991b1b;
-    }
-
-    .quick-book-btn {
-        padding: 6px 12px;
-        background: white;
-        color: #0ea5e9;
-        border: 1px solid #0ea5e9;
-        border-radius: 6px;
-        font-size: 12px;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-
-    .quick-book-btn:hover {
-        background: #0ea5e9;
-        color: white;
-    }
-
     /* Messages */
     .messages-container {
         flex: 1;
@@ -444,46 +251,6 @@
 
     .messages-container::-webkit-scrollbar-thumb:hover {
         background: #a8a8a8;
-    }
-
-    .typing-indicator {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 12px;
-    }
-
-    .typing-dot {
-        width: 8px;
-        height: 8px;
-        background: #6b7280;
-        border-radius: 50%;
-        animation: typing 1.4s infinite;
-    }
-
-    .typing-dot:nth-child(2) {
-        animation-delay: 0.2s;
-    }
-
-    .typing-dot:nth-child(3) {
-        animation-delay: 0.4s;
-    }
-
-    @@keyframes typing {
-        0%, 60%, 100% {
-            transform: translateY(0);
-            opacity: 0.7;
-        }
-        30% {
-            transform: translateY(-10px);
-            opacity: 1;
-        }
-    }
-
-    .typing-text {
-        font-size: 13px;
-        color: #6b7280;
-        font-style: italic;
     }
 
     .message {
@@ -520,14 +287,6 @@
         flex: 1;
     }
 
-    .review-badge {
-        font-size: 11px;
-        font-weight: 600;
-        color: #3b82f6;
-        margin-bottom: 6px;
-        letter-spacing: 0.5px;
-    }
-
     .message-text {
         padding: 12px 16px;
         border-radius: 12px;
@@ -550,33 +309,6 @@
         color: #9ca3af;
         margin-top: 4px;
         text-align: right;
-    }
-
-    .message-attachment {
-        margin-top: 8px;
-        padding: 8px 12px;
-        background: rgba(255, 255, 255, 0.5);
-        border-radius: 6px;
-        font-size: 13px;
-        cursor: pointer;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .quick-actions {
-        display: flex;
-        gap: 8px;
-        margin-top: 8px;
-    }
-
-    .quick-action-btn {
-        padding: 4px 10px;
-        background: rgba(255, 255, 255, 0.5);
-        border: 1px solid rgba(0, 0, 0, 0.1);
-        border-radius: 12px;
-        font-size: 12px;
-        cursor: pointer;
     }
 
     .ai-insight-card {
@@ -606,96 +338,12 @@
         margin: 0;
     }
 
-    .action-prompt {
-        display: flex;
-        gap: 12px;
-        padding: 16px;
-        background: #f0fdf4;
-        border-radius: 12px;
-        border: 1px solid #86efac;
-    }
-
-    .prompt-icon {
-        font-size: 24px;
-    }
-
-    .prompt-content strong {
-        font-size: 14px;
-        font-weight: 600;
-        color: #166534;
-        display: block;
-        margin-bottom: 4px;
-    }
-
-    .prompt-content p {
-        font-size: 13px;
-        color: #15803d;
-        margin-bottom: 12px;
-    }
-
-    .prompt-actions {
-        display: flex;
-        gap: 8px;
-    }
-
-    .btn-primary {
-        padding: 8px 16px;
-        background: #10b981;
-        color: white;
-        border: none;
-        border-radius: 6px;
-        font-size: 13px;
-        font-weight: 500;
-        cursor: pointer;
-    }
-
-    .btn-secondary {
-        padding: 8px 16px;
-        background: white;
-        color: #10b981;
-        border: 1px solid #10b981;
-        border-radius: 6px;
-        font-size: 13px;
-        font-weight: 500;
-        cursor: pointer;
-    }
-
     /* Input Area */
     .input-area {
         padding: 16px 24px;
         border-top: 1px solid #e5e7eb;
         background: white;
         flex-shrink: 0;
-    }
-
-    .uploaded-files-preview {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin-bottom: 12px;
-    }
-
-    .file-preview {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 8px 12px;
-        background: #e0f2fe;
-        border-radius: 8px;
-        font-size: 13px;
-    }
-
-    .file-name {
-        color: #0369a1;
-        font-weight: 500;
-    }
-
-    .remove-file-btn {
-        background: transparent;
-        border: none;
-        color: #6b7280;
-        font-size: 20px;
-        cursor: pointer;
     }
 
     .input-features {
@@ -711,16 +359,6 @@
         display: flex;
         align-items: center;
         gap: 6px;
-    }
-
-    .attach-btn {
-        padding: 6px 12px;
-        background: transparent;
-        color: #0ea5e9;
-        border: 1px solid #0ea5e9;
-        border-radius: 6px;
-        font-size: 12px;
-        cursor: pointer;
     }
 
     .input-box {
@@ -766,44 +404,6 @@
     .send-btn.disabled {
         background: #d1d5db;
         cursor: not-allowed;
-    }
-
-    .quick-suggestions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin-top: 12px;
-        padding: 12px;
-        background: #f9fafb;
-        border-radius: 8px;
-    }
-
-    .suggestion-chip {
-        padding: 8px 14px;
-        background: white;
-        border: 1px solid #e5e7eb;
-        border-radius: 20px;
-        font-size: 13px;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-
-    .suggestion-chip:hover {
-        background: #0ea5e9;
-        color: white;
-        border-color: #0ea5e9;
-    }
-
-    .back-btn {
-        margin-top: 12px;
-        padding: 8px 16px;
-        background: transparent;
-        color: #6b7280;
-        border: 1px solid #e5e7eb;
-        border-radius: 6px;
-        font-size: 13px;
-        cursor: pointer;
-        width: 100%;
     }
 
     /* Context Sidebar */
@@ -946,26 +546,29 @@
     <div class="history-sidebar">
         <div class="history-sidebar-header">
             <h3>HISTORY</h3>
-            <button class="new-consultation-btn" @onclick="StartNewConsultation">+ New</button>
+            <button class="new-consultation-btn">+ New</button>
         </div>
         <div class="history-list">
-            @foreach (var item in consultationHistory)
-            {
-                <div class="history-item @(item.Id == selectedHistoryId ? "active" : "")" @onclick="() => LoadConsultation(item.Id)">
-                    <div class="history-header">
-                        <div class="history-title">@item.Title</div>
-                        @if (item.UnreadCount > 0)
-                        {
-                            <span class="unread-badge">@item.UnreadCount</span>
-                        }
-                    </div>
-                    <div class="history-meta">@item.Date.ToString("MMM dd, yyyy") • @item.Status</div>
-                    @if (item.IsUrgent)
-                    {
-                        <span class="urgent-tag">🔴 Urgent</span>
-                    }
+            <div class="history-item active">
+                <div class="history-header">
+                    <div class="history-title">Chest Pain Follow-up</div>
+                    <span class="unread-badge">2</span>
                 </div>
-            }
+                <div class="history-meta">Oct 23, 2024 • Active</div>
+                <span class="urgent-tag">🔴 Urgent</span>
+            </div>
+            <div class="history-item">
+                <div class="history-header">
+                    <div class="history-title">Annual Checkup</div>
+                </div>
+                <div class="history-meta">Sep 15, 2024 • Completed</div>
+            </div>
+            <div class="history-item">
+                <div class="history-header">
+                    <div class="history-title">Prescription Refill</div>
+                </div>
+                <div class="history-meta">Aug 30, 2024 • Completed</div>
+            </div>
         </div>
     </div>
 
@@ -974,231 +577,83 @@
         <!-- Header with Mode Toggle -->
         <div class="chat-header">
             <div class="mode-toggle">
-                <button class="toggle-btn @(isAiMode ? "active" : "")" @onclick="() => SwitchMode(true)">
+                <button class="toggle-btn active">
                     <span class="icon">🤖</span> AI Assistant
                 </button>
-                <button class="toggle-btn @(!isAiMode ? "active" : "")" @onclick="() => SwitchMode(false)">
+                <button class="toggle-btn">
                     <span class="icon">👨‍⚕️</span> Human Doctor
                 </button>
             </div>
-            
-            @if (selectedDoctor.HasValue)
-            {
-                var doctor = doctors.FirstOrDefault(d => d.Id == selectedDoctor.Value);
-                if (doctor != null)
-                {
-                    <div class="active-doctor-info">
-                        <img src="@doctor.ImageUrl" alt="@doctor.Name" class="mini-avatar" />
-                        <div class="doctor-details-mini">
-                            <div class="doctor-name-mini">@doctor.Name</div>
-                            <div class="doctor-status">
-                                <span class="status-dot online"></span> Online
-                            </div>
-                        </div>
-                        <button class="video-call-btn" @onclick="StartVideoCall">📹 Video Call</button>
-                    </div>
-                }
-            }
         </div>
 
-        @if (!isAiMode && !selectedDoctor.HasValue)
-        {
-            <!-- Doctor Directory -->
-            <div class="doctor-directory">
-                <div class="directory-header">
-                    <h2>Select a Doctor</h2>
-                    <div class="filters">
-                        <select class="filter-select" @bind="selectedSpecialty">
-                            @foreach (var specialty in specialties)
-                            {
-                                <option value="@specialty">@specialty</option>
-                            }
-                        </select>
-                        <input type="text" class="search-input" placeholder="Search doctors..." @bind="searchQuery" @bind:event="oninput" />
-                    </div>
+        <!-- Chat Messages -->
+        <div class="messages-container">
+            <div class="message user-message">
+                <div class="message-avatar">
+                    <span class="avatar-icon">👤</span>
                 </div>
-
-                <div class="doctor-list">
-                    @foreach (var doctor in FilteredDoctors)
-                    {
-                        <div class="doctor-card" @onclick="() => SelectDoctor(doctor.Id)">
-                            <img src="@doctor.ImageUrl" alt="@doctor.Name" class="doctor-avatar" />
-                            <div class="doctor-info">
-                                <div class="doctor-header-row">
-                                    <h4>@doctor.Name</h4>
-                                    @if (doctor.IsVerified)
-                                    {
-                                        <span class="verified-badge">✓</span>
-                                    }
-                                </div>
-                                <p class="specialty">@doctor.Specialty</p>
-                                <div class="doctor-meta">
-                                    <span class="rating">⭐ @doctor.Rating (@doctor.ReviewCount)</span>
-                                    <span class="experience">@doctor.YearsExperience years exp.</span>
-                                </div>
-                                <div class="doctor-details">
-                                    <span class="languages">@string.Join(", ", doctor.Languages)</span>
-                                    <span class="fee">$@doctor.ConsultationFee</span>
-                                </div>
-                                @if (!string.IsNullOrEmpty(doctor.NextAvailable))
-                                {
-                                    <div class="next-available">Next: @doctor.NextAvailable</div>
-                                }
-                            </div>
-                            <div class="doctor-actions">
-                                <div class="availability @(doctor.IsAvailable ? "available" : "unavailable")">
-                                    @(doctor.IsAvailable ? "Available Now" : "Busy")
-                                </div>
-                                <button class="quick-book-btn" @onclick:stopPropagation="true" @onclick="() => QuickBookDoctor(doctor.Id)">
-                                    📅 Book
-                                </button>
-                            </div>
-                        </div>
-                    }
+                <div class="message-content">
+                    <div class="message-text">
+                        I've been experiencing chest pain for the past few days. Should I be concerned?
+                        <div class="message-time">10:30</div>
+                    </div>
                 </div>
             </div>
-        }
-        else
-        {
-            <!-- Chat Messages -->
-            <div class="messages-container" @ref="messagesContainer">
-                @if (isTyping)
-                {
-                    <div class="typing-indicator">
-                        <span class="typing-dot"></span>
-                        <span class="typing-dot"></span>
-                        <span class="typing-dot"></span>
-                        <span class="typing-text">@(isAiMode ? "AI" : "Doctor") is typing...</span>
-                    </div>
-                }
-                
-                @foreach (var message in messages)
-                {
-                    <div class="message @(message.IsFromUser ? "user-message" : "ai-message")">
-                        <div class="message-avatar">
-                            @if (message.IsFromUser)
-                            {
-                                <span class="avatar-icon">👤</span>
-                            }
-                            else if (message.IsAiReviewed)
-                            {
-                                <span class="avatar-icon">🔒</span>
-                            }
-                            else
-                            {
-                                <span class="avatar-icon">🤖</span>
-                            }
-                        </div>
-                        <div class="message-content">
-                            @if (message.IsAiReviewed)
-                            {
-                                <div class="review-badge">DR. ARIS • HUMAN REVIEW</div>
-                            }
-                            <div class="message-text">
-                                @message.Content
-                                <div class="message-time">@message.Timestamp.ToString("HH:mm")</div>
-                            </div>
-                            @if (message.AttachmentName != null)
-                            {
-                                <div class="message-attachment" @onclick="() => DownloadAttachment(message.AttachmentUrl)">
-                                    📎 @message.AttachmentName
-                                    <span class="download-icon">⬇️</span>
-                                </div>
-                            }
-                            @if (message.HasQuickActions)
-                            {
-                                <div class="quick-actions">
-                                    <button class="quick-action-btn">👍 Helpful</button>
-                                    <button class="quick-action-btn">📋 Copy</button>
-                                    <button class="quick-action-btn">🔖 Save</button>
-                                </div>
-                            }
-                        </div>
-                    </div>
-                }
 
-                @if (showAiInsight)
-                {
-                    <div class="ai-insight-card">
-                        <div class="insight-icon">💡</div>
-                        <div class="insight-content">
-                            <strong>AI INSIGHT CARD</strong>
-                            <p>The AI detected a correlation between your high stress logs and recent glucose spikes.</p>
-                        </div>
+            <div class="message ai-message">
+                <div class="message-avatar">
+                    <span class="avatar-icon">🤖</span>
+                </div>
+                <div class="message-content">
+                    <div class="message-text">
+                        I understand your concern about chest pain. Can you describe the pain in more detail? For example:
+                        - Is it sharp or dull?
+                        - Does it come and go, or is it constant?
+                        - Does it worsen with physical activity?
+                        - Are you experiencing any other symptoms like shortness of breath or dizziness?
+                        <div class="message-time">10:31</div>
                     </div>
-                }
-
-                @if (showActionPrompt)
-                {
-                    <div class="action-prompt">
-                        <div class="prompt-icon">💡</div>
-                        <div class="prompt-content">
-                            <strong>Prepare for your visit</strong>
-                            <p>Would you like me to summarize your activity logs from the last 7 days for Dr. Aria?</p>
-                            <div class="prompt-actions">
-                                <button class="btn-primary">Yes, summarize</button>
-                                <button class="btn-secondary">Not now</button>
-                            </div>
-                        </div>
-                    </div>
-                }
+                </div>
             </div>
 
-            <!-- Input Area -->
-            <div class="input-area">
-                @if (uploadedFiles.Any())
-                {
-                    <div class="uploaded-files-preview">
-                        @foreach (var file in uploadedFiles)
-                        {
-                            <div class="file-preview">
-                                <span class="file-icon">📄</span>
-                                <span class="file-name">@file</span>
-                                <button class="remove-file-btn" @onclick="() => RemoveFile(file)">×</button>
-                            </div>
-                        }
-                    </div>
-                }
-                
-                <div class="input-features">
-                    <span class="feature-badge">🔒 End-to-end encrypted medical sanctuary</span>
-                    <label class="attach-btn">
-                        📎 Attach Medical Docs
-                        <InputFile OnChange="HandleFileUpload" multiple hidden />
-                    </label>
+            <div class="message user-message">
+                <div class="message-avatar">
+                    <span class="avatar-icon">👤</span>
                 </div>
-                
-                <div class="input-box">
-                    <button class="icon-btn" @onclick="ToggleQuickActions">😊</button>
-                    <input type="text" 
-                           placeholder="Describe your symptoms or ask a question..." 
-                           @bind="currentMessage" 
-                           @onkeypress="HandleKeyPress"
-                           @oninput="HandleTyping" />
-                    <button class="icon-btn" @onclick="ToggleVoiceInput">🎤</button>
-                    <button class="send-btn @(string.IsNullOrWhiteSpace(currentMessage) ? "disabled" : "")" 
-                            @onclick="SendMessage" 
-                            disabled="@string.IsNullOrWhiteSpace(currentMessage)">
-                        ➤
-                    </button>
-                </div>
-                
-                @if (showQuickActions)
-                {
-                    <div class="quick-suggestions">
-                        <button class="suggestion-chip" @onclick='() => SetMessage("I need a prescription refill")'>💊 Prescription Refill</button>
-                        <button class="suggestion-chip" @onclick='() => SetMessage("I want to schedule a follow-up")'>📅 Schedule Follow-up</button>
-                        <button class="suggestion-chip" @onclick='() => SetMessage("Can you review my recent test results?")'>📊 Review Results</button>
-                        <button class="suggestion-chip" @onclick='() => SetMessage("I have questions about my medication")'>❓ Medication Questions</button>
+                <div class="message-content">
+                    <div class="message-text">
+                        It's a dull pain that comes and goes. It gets worse when I exercise. No other symptoms.
+                        <div class="message-time">10:33</div>
                     </div>
-                }
-                
-                @if (!isAiMode && selectedDoctor.HasValue)
-                {
-                    <button class="back-btn" @onclick="BackToDoctorList">← Back to Doctor List</button>
-                }
+                </div>
             </div>
-        }
+
+            <div class="ai-insight-card">
+                <div class="insight-icon">💡</div>
+                <div class="insight-content">
+                    <strong>AI INSIGHT CARD</strong>
+                    <p>Based on your symptoms and medical history, this could be related to your hypertension. I recommend scheduling an in-person consultation with a cardiologist.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Input Area -->
+        <div class="input-area">
+            <div class="input-features">
+                <span class="feature-badge">🔒 End-to-end encrypted medical sanctuary</span>
+            </div>
+            
+            <div class="input-box">
+                <button class="icon-btn">😊</button>
+                <input type="text" 
+                       placeholder="Describe your symptoms or ask a question..." 
+                       value="" />
+                <button class="icon-btn">🎤</button>
+                <button class="send-btn disabled">
+                    ➤
+                </button>
+            </div>
+        </div>
     </div>
 
     <!-- Right Sidebar: Document Context -->

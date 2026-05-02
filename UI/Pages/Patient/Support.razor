@@ -1,8 +1,5 @@
 @page "/patient/support"
-@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @layout Components.Layout.SidebarLayout
-@inject IJSRuntime JSRuntime
-@inject NavigationManager Navigation
 
 <PageTitle>Support - AI Medical Clinic</PageTitle>
 
@@ -18,9 +15,9 @@
         </p>
     </div>
     <div class="header-right">
-        <button class="btn btn-primary" @onclick="ShowMyTickets">
+        <button class="btn btn-primary">
             <i data-lucide="ticket"></i>
-            My Tickets (@myTickets.Count)
+            My Tickets (3)
         </button>
     </div>
 </header>
@@ -130,162 +127,68 @@
     <!-- Contact Form -->
     <section class="contact-form-section">
         <div class="section-header">
-            <h2 class="headline-md">@(showTicketList ? "My Support Tickets" : "Create Support Ticket")</h2>
-            @if (showTicketList)
-            {
-                <button class="btn btn-secondary" @onclick="() => showTicketList = false">
-                    <i data-lucide="plus"></i>
-                    New Ticket
-                </button>
-            }
-            else
-            {
-                <p class="body-sm">We typically respond within 24 hours</p>
-            }
+            <h2 class="headline-md">Create Support Ticket</h2>
+            <p class="body-sm">We typically respond within 24 hours</p>
         </div>
         
-        @if (showTicketList)
-        {
-            <!-- Ticket List -->
-            @if (isLoadingTickets)
-            {
-                <div class="loading-state">
-                    <div class="spinner"></div>
-                    <p>Loading your tickets...</p>
-                </div>
-            }
-            else if (myTickets.Count == 0)
-            {
-                <div class="empty-state">
-                    <i data-lucide="inbox"></i>
-                    <h3>No tickets yet</h3>
-                    <p>Create your first support ticket to get help</p>
-                    <button class="btn btn-primary" @onclick="() => showTicketList = false">
-                        Create Ticket
-                    </button>
-                </div>
-            }
-            else
-            {
-                <div class="ticket-list">
-                    @foreach (var ticket in myTickets.OrderByDescending(t => t.CreatedAt))
-                    {
-                        <div class="ticket-card @GetStatusClass(ticket.Status)">
-                            <div class="ticket-header">
-                                <div class="ticket-info">
-                                    <h4 class="headline-sm">@ticket.Subject</h4>
-                                    <span class="ticket-id">#@ticket.Id.ToString().Substring(0, 8)</span>
-                                </div>
-                                <div class="ticket-badges">
-                                    <span class="badge badge-@ticket.Priority">@ticket.Priority.ToUpper()</span>
-                                    <span class="badge badge-@ticket.Status">@ticket.Status.ToUpper()</span>
-                                </div>
-                            </div>
-                            <p class="ticket-description">@ticket.Description</p>
-                            <div class="ticket-footer">
-                                <span class="ticket-date">
-                                    <i data-lucide="clock"></i>
-                                    Created @ticket.CreatedAt.ToString("MMM dd, yyyy")
-                                </span>
-                                @if (ticket.Status == "open" || ticket.Status == "in_progress")
-                                {
-                                    <button class="btn btn-sm btn-outline" @onclick="() => CloseTicket(ticket.Id)">
-                                        Close Ticket
-                                    </button>
-                                }
-                            </div>
-                        </div>
-                    }
-                </div>
-            }
-        }
-        else
-        {
-            <!-- Create Ticket Form -->
-            <form class="contact-form" @onsubmit="HandleSubmit" @onsubmit:preventDefault>
-                @if (!string.IsNullOrEmpty(errorMessage))
-                {
-                    <div class="alert alert-error">
-                        <i data-lucide="alert-circle"></i>
-                        @errorMessage
-                    </div>
-                }
+        <!-- Create Ticket Form -->
+        <form class="contact-form">
+            <div class="form-group">
+                <label class="body-sm">Subject *</label>
+                <input type="text" 
+                       class="form-input" 
+                       placeholder="Brief description of your issue"
+                       required />
+            </div>
 
-                @if (!string.IsNullOrEmpty(successMessage))
-                {
-                    <div class="alert alert-success">
-                        <i data-lucide="check-circle"></i>
-                        @successMessage
-                    </div>
-                }
-
-                <div class="form-group">
-                    <label class="body-sm">Subject *</label>
-                    <input type="text" 
-                           class="form-input" 
-                           @bind="ticketSubject" 
-                           placeholder="Brief description of your issue"
-                           required />
+            <div class="form-group">
+                <label class="body-sm">Category</label>
+                <select class="form-input">
+                    <option value="">Select a category...</option>
+                    <option value="technical">Technical Support</option>
+                    <option value="billing">Billing Question</option>
+                    <option value="appointment">Appointment Issue</option>
+                    <option value="records">Medical Records</option>
+                    <option value="general">General Inquiry</option>
+                    <option value="feedback">Feedback</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label class="body-sm">Priority *</label>
+                <div class="priority-options">
+                    <label class="radio-option">
+                        <input type="radio" name="priority" value="low" checked />
+                        <span>Low</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="priority" value="medium" />
+                        <span>Medium</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="priority" value="high" />
+                        <span>High</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="priority" value="urgent" />
+                        <span>Urgent</span>
+                    </label>
                 </div>
+            </div>
 
-                <div class="form-group">
-                    <label class="body-sm">Category</label>
-                    <select class="form-input" @bind="ticketCategory">
-                        <option value="">Select a category...</option>
-                        <option value="technical">Technical Support</option>
-                        <option value="billing">Billing Question</option>
-                        <option value="appointment">Appointment Issue</option>
-                        <option value="records">Medical Records</option>
-                        <option value="general">General Inquiry</option>
-                        <option value="feedback">Feedback</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label class="body-sm">Priority *</label>
-                    <div class="priority-options">
-                        <label class="radio-option">
-                            <input type="radio" name="priority" value="low" checked="@(ticketPriority == "low")" @onclick="@(() => SetPriority("low"))" />
-                            <span>Low</span>
-                        </label>
-                        <label class="radio-option">
-                            <input type="radio" name="priority" value="medium" checked="@(ticketPriority == "medium")" @onclick="@(() => SetPriority("medium"))" />
-                            <span>Medium</span>
-                        </label>
-                        <label class="radio-option">
-                            <input type="radio" name="priority" value="high" checked="@(ticketPriority == "high")" @onclick="@(() => SetPriority("high"))" />
-                            <span>High</span>
-                        </label>
-                        <label class="radio-option">
-                            <input type="radio" name="priority" value="urgent" checked="@(ticketPriority == "urgent")" @onclick="@(() => SetPriority("urgent"))" />
-                            <span>Urgent</span>
-                        </label>
-                    </div>
-                </div>
+            <div class="form-group">
+                <label class="body-sm">Description *</label>
+                <textarea class="form-input" 
+                          rows="6" 
+                          placeholder="Describe your issue or question in detail..."
+                          required></textarea>
+            </div>
 
-                <div class="form-group">
-                    <label class="body-sm">Description *</label>
-                    <textarea class="form-input" 
-                              rows="6" 
-                              @bind="ticketDescription" 
-                              placeholder="Describe your issue or question in detail..."
-                              required></textarea>
-                </div>
-
-                <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
-                    @if (isSubmitting)
-                    {
-                        <span class="spinner-sm"></span>
-                        <span>Creating Ticket...</span>
-                    }
-                    else
-                    {
-                        <i data-lucide="send"></i>
-                        <span>Create Ticket</span>
-                    }
-                </button>
-            </form>
-        }
+            <button type="submit" class="btn btn-primary">
+                <i data-lucide="send"></i>
+                <span>Create Ticket</span>
+            </button>
+        </form>
     </section>
 
     <!-- Support Resources -->

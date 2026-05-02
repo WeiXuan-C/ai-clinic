@@ -1,204 +1,65 @@
 @page "/patient/chat"
-@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @layout Components.Layout.SidebarLayout
-@inject NavigationManager Navigation
-@inject IJSRuntime JSRuntime
-@implements IDisposable
 
 <PageTitle>AI Clinic - Chat</PageTitle>
 
-@code {
-    public void Dispose()
-    {
-        // Cleanup if needed
-    }
-}
-
 <link rel="stylesheet" href="/css/stitch-design-system.css" />
 
-@if (!AuthController.IsAuthenticated())
-{
-    <div class="auth-checking">
-        <div class="spinner"></div>
-        <p>Checking authentication...</p>
-    </div>
-}
-else
-{
 <div class="chat-example-container">
     <div class="chat-header">
         <div class="header-info">
             <h2>AI Clinic Consultation</h2>
-            @if (currentConversation != null && currentConversation.AssignedDoctorId != null)
-            {
-                <span class="doctor-badge">
-                    <i data-lucide="user-check"></i>
-                    Doctor Assigned
-                </span>
-            }
-            else
-            {
-                <span class="ai-badge">
-                    <i data-lucide="bot"></i>
-                    AI Assistant
-                </span>
-            }
+            <span class="ai-badge">
+                <i data-lucide="bot"></i>
+                AI Assistant
+            </span>
         </div>
-        @if (currentConversation != null)
-        {
-            <div class="conversation-stats">
-                <span class="stat-item">
-                    <i data-lucide="message-circle"></i>
-                    @currentConversation.TotalMessages messages
-                </span>
-                <span class="stat-item">
-                    <i data-lucide="clock"></i>
-                    Started @currentConversation.StartedAt.ToString("MMM dd, HH:mm")
-                </span>
-            </div>
-        }
+        <div class="conversation-stats">
+            <span class="stat-item">
+                <i data-lucide="message-circle"></i>
+                5 messages
+            </span>
+            <span class="stat-item">
+                <i data-lucide="clock"></i>
+                Started Oct 15, 10:30
+            </span>
+        </div>
     </div>
 
-    <div class="messages-area" @ref="messagesContainer">
-        @if (isLoadingConversation)
-        {
-            <div class="loading">
-                <div class="spinner"></div>
-                <p>Loading conversation...</p>
-            </div>
-        }
-        else if (!string.IsNullOrEmpty(errorMessage))
-        {
-            <div class="error-state">
-                <i data-lucide="alert-circle"></i>
-                <p>@errorMessage</p>
-                <button class="btn btn-primary" @onclick="LoadConversation">
-                    <i data-lucide="refresh-cw"></i>
-                    Retry
-                </button>
-            </div>
-        }
-        else if (currentConversation == null)
-        {
-            <div class="empty-state">
-                <i data-lucide="message-square"></i>
-                <h3>Start a New Conversation</h3>
-                <p>Send a message to begin your consultation with our AI assistant</p>
-            </div>
-        }
-        else if (!messages.Any())
-        {
-            <div class="empty-state">
-                <i data-lucide="sparkles"></i>
-                <h3>Welcome to AI Clinic</h3>
-                <p>How can I help you today? Describe your symptoms or health concerns.</p>
-            </div>
-        }
-        else
-        {
-            @foreach (var message in messages)
-            {
-                <div class="message @GetMessageClass(message)">
-                    <div class="message-avatar">
-                        @if (message.SenderType == MessageSenderType.Patient)
-                        {
-                            <i data-lucide="user"></i>
-                        }
-                        else if (message.SenderType == MessageSenderType.Doctor)
-                        {
-                            <i data-lucide="stethoscope"></i>
-                        }
-                        else if (message.SenderType == MessageSenderType.AI)
-                        {
-                            <i data-lucide="bot"></i>
-                        }
-                        else
-                        {
-                            <i data-lucide="info"></i>
-                        }
-                    </div>
-                    <div class="message-bubble">
-                        <div class="message-header">
-                            <span class="message-sender">@GetSenderName(message)</span>
-                            <span class="message-time">@message.SentAt.ToString("HH:mm")</span>
-                        </div>
-                        <div class="message-content">
-                            @message.Content
-                        </div>
-                        @if (message.AiConfidenceScore != null)
-                        {
-                            <div class="ai-confidence">
-                                <i data-lucide="zap"></i>
-                                Confidence: @((message.AiConfidenceScore * 100).Value.ToString("F0"))%
-                            </div>
-                        }
-                    </div>
-                </div>
-            }
-            @if (isSendingMessage)
-            {
-                <div class="message typing-indicator">
-                    <div class="message-avatar">
-                        <i data-lucide="bot"></i>
-                    </div>
-                    <div class="message-bubble">
-                        <div class="typing-dots">
-                            <span></span>
-                            <span></span>
-                            <span></span>
-                        </div>
-                    </div>
-                </div>
-            }
-        }
+    <div class="messages-area">
+        <div class="empty-state">
+            <i data-lucide="sparkles"></i>
+            <h3>Welcome to AI Clinic</h3>
+            <p>How can I help you today? Describe your symptoms or health concerns.</p>
+        </div>
     </div>
 
     <div class="input-area">
         <textarea 
             class="message-input" 
             placeholder="Type your message... (Press Enter to send, Shift+Enter for new line)" 
-            @bind="messageInput"
-            @onkeydown="HandleKeyDown"
-            rows="1"
-            disabled="@isSendingMessage"></textarea>
+            rows="1"></textarea>
         
-        <button 
-            class="send-button" 
-            @onclick="SendMessage"
-            disabled="@(string.IsNullOrWhiteSpace(messageInput) || isSendingMessage)">
-            @if (isSendingMessage)
-            {
-                <div class="button-spinner"></div>
-            }
-            else
-            {
-                <i data-lucide="send"></i>
-            }
+        <button class="send-button">
+            <i data-lucide="send"></i>
         </button>
     </div>
 
     <div class="actions-area">
-        @if (currentConversation != null && currentConversation.AssignedDoctorId == null)
-        {
-            <button class="action-button" @onclick="RequestDoctor" disabled="@isRequestingDoctor">
-                <i data-lucide="user-plus"></i>
-                @(isRequestingDoctor ? "Requesting..." : "Request Human Doctor")
-            </button>
-        }
-        <button class="action-button secondary" @onclick="LoadConversation" disabled="@isLoadingConversation">
+        <button class="action-button">
+            <i data-lucide="user-plus"></i>
+            Request Human Doctor
+        </button>
+        <button class="action-button secondary">
             <i data-lucide="refresh-cw"></i>
             Refresh
         </button>
-        @if (currentConversation != null)
-        {
-            <button class="action-button secondary" @onclick="CreateNewConversation">
-                <i data-lucide="plus-circle"></i>
-                New Conversation
-            </button>
-        }
+        <button class="action-button secondary">
+            <i data-lucide="plus-circle"></i>
+            New Conversation
+        </button>
     </div>
 </div>
-}
 
 <style>
     .auth-checking {

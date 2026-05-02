@@ -1,5 +1,4 @@
 @page "/doctor/profile"
-@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @layout Components.Layout.DoctorSidebarLayout
 
 <PageTitle>Profile - AI Medical Clinic</PageTitle>
@@ -15,24 +14,10 @@
         </p>
     </div>
     <div class="header-right">
-        @if (isEditing)
-        {
-            <button type="button" class="btn btn-discard" @onclick="CancelEdit">
-                <i data-lucide="x"></i>
-                Discard
-            </button>
-            <button type="button" class="btn btn-save" @onclick="SaveChanges" disabled="@isSaving">
-                <i data-lucide="check"></i>
-                @(isSaving ? "Saving..." : "Save")
-            </button>
-        }
-        else
-        {
-            <button type="button" class="btn btn-primary" @onclick="EnableEdit">
-                <i data-lucide="edit-2"></i>
-                Edit Profile
-            </button>
-        }
+        <button type="button" class="btn btn-primary">
+            <i data-lucide="edit-2"></i>
+            Edit Profile
+        </button>
     </div>
 </header>
 
@@ -44,17 +29,11 @@
             <div class="avatar-large">
                 <i data-lucide="stethoscope"></i>
             </div>
-            @if (isEditing)
-            {
-                <button type="button" class="photo-upload-btn">
-                    <i data-lucide="camera"></i>
-                </button>
-            }
         </div>
         <div class="photo-info">
-            <h3 class="headline-sm">@fullName</h3>
-            <p class="body-md">@email</p>
-            <p class="body-sm">@specialty</p>
+            <h3 class="headline-sm">Dr. Michael Smith</h3>
+            <p class="body-md">dr.smith@aiclinic.com</p>
+            <p class="body-sm">Cardiology</p>
             <div class="rating-display">
                 <i data-lucide="star"></i>
                 <span>4.9 (247 reviews)</span>
@@ -70,25 +49,25 @@
         <div class="form-grid">
             <div class="form-group">
                 <label class="body-sm">Full Name</label>
-                <input type="text" class="form-input" @bind="fullName" disabled="@(!isEditing)" />
+                <input type="text" class="form-input" value="Dr. Michael Smith" disabled />
             </div>
             <div class="form-group">
                 <label class="body-sm">Medical License Number</label>
-                <input type="text" class="form-input" @bind="licenseNumber" disabled="@(!isEditing)" />
+                <input type="text" class="form-input" value="MD123456" disabled />
             </div>
             <div class="form-group">
                 <label class="body-sm">Email Address</label>
-                <input type="email" class="form-input" @bind="email" disabled />
+                <input type="email" class="form-input" value="dr.smith@aiclinic.com" disabled />
             </div>
             <div class="form-group">
                 <label class="body-sm">Phone Number</label>
-                <input type="tel" class="form-input" @bind="phoneNumber" disabled="@(!isEditing)" />
+                <input type="tel" class="form-input" value="555-0100" disabled />
             </div>
             <div class="form-group">
                 <label class="body-sm">Specialty</label>
-                <select class="form-input" @bind="specialty" disabled="@(!isEditing)">
+                <select class="form-input" disabled>
                     <option value="">Select Specialty</option>
-                    <option value="Cardiology">Cardiology</option>
+                    <option value="Cardiology" selected>Cardiology</option>
                     <option value="Dermatology">Dermatology</option>
                     <option value="Endocrinology">Endocrinology</option>
                     <option value="Family Medicine">Family Medicine</option>
@@ -100,12 +79,12 @@
             </div>
             <div class="form-group">
                 <label class="body-sm">Years of Experience</label>
-                <input type="number" class="form-input" @bind="yearsExperience" disabled="@(!isEditing)" />
+                <input type="number" class="form-input" value="15" disabled />
             </div>
             <div class="form-group full-width">
                 <label class="body-sm">Bio</label>
-                <textarea class="form-input" rows="4" @bind="bio" disabled="@(!isEditing)" 
-                          placeholder="Tell patients about yourself..."></textarea>
+                <textarea class="form-input" rows="4" disabled 
+                          placeholder="Tell patients about yourself...">Board-certified cardiologist with 15 years of experience in cardiovascular medicine.</textarea>
             </div>
         </div>
     </section>
@@ -118,19 +97,19 @@
         <div class="form-grid">
             <div class="form-group full-width">
                 <label class="body-sm">Medical School</label>
-                <input type="text" class="form-input" @bind="medicalSchool" disabled="@(!isEditing)" />
+                <input type="text" class="form-input" value="Harvard Medical School" disabled />
             </div>
             <div class="form-group">
                 <label class="body-sm">Graduation Year</label>
-                <input type="number" class="form-input" @bind="graduationYear" disabled="@(!isEditing)" />
+                <input type="number" class="form-input" value="2008" disabled />
             </div>
             <div class="form-group">
                 <label class="body-sm">Board Certification</label>
-                <input type="text" class="form-input" @bind="boardCertification" disabled="@(!isEditing)" />
+                <input type="text" class="form-input" value="American Board of Internal Medicine" disabled />
             </div>
             <div class="form-group full-width">
                 <label class="body-sm">Languages Spoken (comma-separated)</label>
-                <input type="text" class="form-input" @bind="languagesInput" disabled="@(!isEditing)" 
+                <input type="text" class="form-input" value="English, Spanish" disabled 
                        placeholder="e.g., English, Spanish, French" />
             </div>
         </div>
@@ -144,12 +123,12 @@
         <div class="form-grid">
             <div class="form-group">
                 <label class="body-sm">Consultation Fee</label>
-                <input type="number" class="form-input" @bind="consultationFee" disabled="@(!isEditing)" />
+                <input type="number" class="form-input" value="150" disabled />
             </div>
             <div class="form-group">
                 <label class="body-sm">Availability Status</label>
-                <select class="form-input" @bind="availabilityStatus" disabled="@(!isEditing)">
-                    <option value="Available">Available</option>
+                <select class="form-input" disabled>
+                    <option value="Available" selected>Available</option>
                     <option value="Busy">Busy</option>
                     <option value="Away">Away</option>
                     <option value="Offline">Offline</option>
@@ -157,7 +136,7 @@
             </div>
             <div class="form-group full-width">
                 <label class="body-sm">Office Address</label>
-                <textarea class="form-input" rows="2" @bind="officeAddress" disabled="@(!isEditing)"></textarea>
+                <textarea class="form-input" rows="2" disabled>123 Medical Plaza, Suite 400, Boston, MA 02115</textarea>
             </div>
         </div>
     </section>

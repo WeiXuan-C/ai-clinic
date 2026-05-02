@@ -1,7 +1,5 @@
 @page "/doctor/consultation"
-@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @layout Components.Layout.DoctorSidebarLayout
-@inject NavigationManager Navigation
 
 <PageTitle>Consultations - AI Medical Clinic</PageTitle>
 
@@ -12,21 +10,21 @@
     <div class="header-left">
         <h1>My Consultations</h1>
         <p class="body-md" style="margin: 0.5rem;">
-            <span class="status-indicator @GetStatusClass()">●</span>
-            @activeChatrooms active chatrooms
+            <span class="status-indicator status-available">●</span>
+            5 active chatrooms
         </p>
     </div>
     <div class="header-right">
         <div class="availability-selector">
             <label class="body-sm">Availability:</label>
-            <select class="availability-dropdown" @bind="currentAvailability" @bind:after="UpdateAvailability">
+            <select class="availability-dropdown">
                 <option value="available">🟢 Available</option>
                 <option value="busy">🟡 Busy</option>
                 <option value="away">🟠 Away</option>
                 <option value="offline">🔴 Offline</option>
             </select>
         </div>
-        <button class="btn btn-secondary" @onclick="RefreshChatrooms">
+        <button class="btn btn-secondary">
             <i data-lucide="refresh-cw"></i>
             Refresh
         </button>
@@ -35,17 +33,17 @@
 
 <!-- Filter Tabs -->
 <div class="filter-tabs">
-    <button class="tab-btn @(selectedFilter == "all" ? "active" : "")" @onclick='() => selectedFilter = "all"'>
-        All Chatrooms (@conversations.Count())
+    <button class="tab-btn active">
+        All Chatrooms (5)
     </button>
-    <button class="tab-btn @(selectedFilter == "active" ? "active" : "")" @onclick='() => selectedFilter = "active"'>
-        Active (@conversations.Count(c => c.Status == "active"))
+    <button class="tab-btn">
+        Active (3)
     </button>
-    <button class="tab-btn @(selectedFilter == "pending" ? "active" : "")" @onclick='() => selectedFilter = "pending"'>
-        Pending (@conversations.Count(c => c.ConsultationStatus == "pending"))
+    <button class="tab-btn">
+        Pending (2)
     </button>
-    <button class="tab-btn @(selectedFilter == "completed" ? "active" : "")" @onclick='() => selectedFilter = "completed"'>
-        Completed (@conversations.Count(c => c.Status == "closed"))
+    <button class="tab-btn">
+        Completed (0)
     </button>
 </div>
 
@@ -57,75 +55,69 @@
             <h2 class="headline-md">Chatrooms</h2>
             <div class="search-box">
                 <i data-lucide="search"></i>
-                <input type="text" placeholder="Search chatrooms..." @bind="searchQuery" @bind:event="oninput" />
+                <input type="text" placeholder="Search chatrooms..." />
             </div>
         </div>
         
-        @if (isLoading)
-        {
-            <div class="loading-state">
-                <i data-lucide="loader"></i>
-                <p>Loading chatrooms...</p>
+        <div class="chatrooms-list">
+            <div class="chatroom-item active">
+                <div class="chatroom-avatar">
+                    <span>SJ</span>
+                </div>
+                <div class="chatroom-info">
+                    <h4 class="headline-sm">Patient Consultation</h4>
+                    <p class="body-sm">
+                        Symptoms: Headache, Fever
+                    </p>
+                    <p class="body-sm">
+                        Messages: 12 
+                        <span class="ai-badge">
+                            <i data-lucide="bot"></i>
+                            5 AI
+                        </span>
+                    </p>
+                </div>
+                <div class="chatroom-meta">
+                    <span class="badge badge-active">ACTIVE</span>
+                    <span class="time-badge">5 min ago</span>
+                    <span class="specialization-tag">Cardiology</span>
+                </div>
+                <div class="chatroom-actions">
+                    <button class="btn-primary-sm">
+                        <i data-lucide="message-circle"></i>
+                        Enter Chat
+                    </button>
+                </div>
             </div>
-        }
-        else if (!FilteredConversations.Any())
-        {
-            <div class="empty-state">
-                <i data-lucide="message-circle"></i>
-                <h3>No chatrooms found</h3>
-                <p>You don't have any @(selectedFilter == "all" ? "" : selectedFilter) chatrooms yet.</p>
+            <div class="chatroom-item urgent">
+                <div class="chatroom-avatar">
+                    <span>MC</span>
+                </div>
+                <div class="chatroom-info">
+                    <h4 class="headline-sm">Urgent Consultation</h4>
+                    <p class="body-sm">
+                        Symptoms: Chest Pain
+                    </p>
+                    <p class="body-sm">
+                        Messages: 3 
+                        <span class="ai-badge">
+                            <i data-lucide="bot"></i>
+                            2 AI
+                        </span>
+                    </p>
+                </div>
+                <div class="chatroom-meta">
+                    <span class="badge badge-urgent">URGENT</span>
+                    <span class="time-badge">2 min ago</span>
+                </div>
+                <div class="chatroom-actions">
+                    <button class="btn-primary-sm">
+                        <i data-lucide="message-circle"></i>
+                        Enter Chat
+                    </button>
+                </div>
             </div>
-        }
-        else
-        {
-            <div class="chatrooms-list">
-                @foreach (var conversation in FilteredConversations)
-                {
-                    <div class="chatroom-item @GetChatroomClass(conversation)" @onclick="() => EnterChatroom(conversation.Id)">
-                        <div class="chatroom-avatar">
-                            <span>@GetPatientInitials(conversation)</span>
-                        </div>
-                        <div class="chatroom-info">
-                            <h4 class="headline-sm">@(conversation.Title ?? "Patient Consultation")</h4>
-                            <p class="body-sm">
-                                @if (conversation.InitialSymptoms != null && conversation.InitialSymptoms.Any())
-                                {
-                                    <text>Symptoms: @string.Join(", ", conversation.InitialSymptoms.Take(2))</text>
-                                }
-                                else
-                                {
-                                    <text>No symptoms recorded</text>
-                                }
-                            </p>
-                            <p class="body-sm">
-                                Messages: @conversation.TotalMessages 
-                                @if (conversation.AiMessagesCount > 0)
-                                {
-                                    <span class="ai-badge">
-                                        <i data-lucide="bot"></i>
-                                        @conversation.AiMessagesCount AI
-                                    </span>
-                                }
-                            </p>
-                        </div>
-                        <div class="chatroom-meta">
-                            <span class="badge @GetStatusBadgeClass(conversation)">@GetStatusText(conversation)</span>
-                            <span class="time-badge">@GetTimeAgo(conversation.LastMessageAt)</span>
-                            @if (conversation.RequiredSpecialization != null)
-                            {
-                                <span class="specialization-tag">@conversation.RequiredSpecialization</span>
-                            }
-                        </div>
-                        <div class="chatroom-actions">
-                            <button class="btn-primary-sm" @onclick:stopPropagation="true" @onclick="() => EnterChatroom(conversation.Id)">
-                                <i data-lucide="message-circle"></i>
-                                Enter Chat
-                            </button>
-                        </div>
-                    </div>
-                }
-            </div>
-        }
+        </div>
     </section>
 
     <!-- Quick Stats -->
@@ -138,41 +130,38 @@
                 <h4 class="headline-sm">Your Status</h4>
             </div>
             <div class="availability-display">
-                <span class="status-dot @GetStatusClass()"></span>
-                <span class="status-text">@GetAvailabilityText()</span>
+                <span class="status-dot status-available"></span>
+                <span class="status-text">Available</span>
             </div>
-            @if (!string.IsNullOrEmpty(statusMessage))
-            {
-                <p class="status-message">@statusMessage</p>
-            }
+            <p class="status-message">Ready to accept new consultations</p>
         </div>
 
         <div class="stats-list">
             <div class="stat-item">
                 <i data-lucide="message-circle" class="stat-icon"></i>
                 <div class="stat-info">
-                    <h4 class="headline-lg">@conversations.Count</h4>
+                    <h4 class="headline-lg">5</h4>
                     <p class="body-sm">Total Chatrooms</p>
                 </div>
             </div>
             <div class="stat-item">
                 <i data-lucide="activity" class="stat-icon active"></i>
                 <div class="stat-info">
-                    <h4 class="headline-lg">@conversations.Count(c => c.Status == "active")</h4>
+                    <h4 class="headline-lg">3</h4>
                     <p class="body-sm">Active</p>
                 </div>
             </div>
             <div class="stat-item">
                 <i data-lucide="clock" class="stat-icon"></i>
                 <div class="stat-info">
-                    <h4 class="headline-lg">@conversations.Count(c => c.ConsultationStatus == "pending")</h4>
+                    <h4 class="headline-lg">2</h4>
                     <p class="body-sm">Pending</p>
                 </div>
             </div>
             <div class="stat-item">
                 <i data-lucide="check-circle" class="stat-icon success"></i>
                 <div class="stat-info">
-                    <h4 class="headline-lg">@conversations.Count(c => c.Status == "closed")</h4>
+                    <h4 class="headline-lg">0</h4>
                     <p class="body-sm">Completed</p>
                 </div>
             </div>
@@ -184,11 +173,8 @@
                 <h4 class="headline-sm">AI Insights</h4>
             </div>
             <p class="body-sm">
-                @conversations.Count(c => c.AiMessagesCount > 0) chatrooms have AI pre-assessments.
-                @if (conversations.Any())
-                {
-                    <text>Average messages per chat: @((int)conversations.Average(c => c.TotalMessages))</text>
-                }
+                3 chatrooms have AI pre-assessments.
+                Average messages per chat: 8
             </p>
         </div>
     </section>

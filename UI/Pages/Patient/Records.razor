@@ -1,9 +1,5 @@
 @page "/patient/records"
-@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @layout Components.Layout.SidebarLayout
-@using Microsoft.AspNetCore.Components.Forms
-@inject IJSRuntime JSRuntime
-@inject NavigationManager Navigation
 
 <PageTitle>Medical Records - AI Medical Clinic</PageTitle>
 
@@ -19,11 +15,11 @@
         </p>
     </div>
     <div class="header-right">
-        <button class="btn btn-secondary" @onclick="ExportRecords" disabled="@(documents.Count == 0)">
+        <button class="btn btn-secondary">
             <i data-lucide="download"></i>
             Export Records
         </button>
-        <button class="btn btn-primary" @onclick="ShowUploadDialog">
+        <button class="btn btn-primary">
             <i data-lucide="upload"></i>
             Upload Document
         </button>
@@ -31,106 +27,27 @@
 </header>
 
 <!-- Upload Dialog -->
-@if (showUploadDialog)
-{
-    <div class="modal-overlay" @onclick="CloseUploadDialog">
-        <div class="modal-content" @onclick:stopPropagation>
-            <div class="modal-header">
-                <h3 class="headline-md">Upload Medical Document</h3>
-                <button class="icon-btn" @onclick="CloseUploadDialog">
-                    <i data-lucide="x"></i>
-                </button>
-            </div>
-            <div class="modal-body">
-                @if (!string.IsNullOrEmpty(uploadError))
-                {
-                    <div class="alert alert-error">
-                        <i data-lucide="alert-circle"></i>
-                        @uploadError
-                    </div>
-                }
-
-                @if (!string.IsNullOrEmpty(uploadSuccess))
-                {
-                    <div class="alert alert-success">
-                        <i data-lucide="check-circle"></i>
-                        @uploadSuccess
-                    </div>
-                }
-
-                <div class="form-group">
-                    <label class="body-sm">Document Type *</label>
-                    <select class="form-input" @bind="uploadDocumentType">
-                        <option value="">Select type...</option>
-                        <option value="lab_result">Lab Result</option>
-                        <option value="prescription">Prescription</option>
-                        <option value="visit_note">Visit Note</option>
-                        <option value="imaging">Imaging</option>
-                        <option value="immunization">Immunization</option>
-                        <option value="other">Other</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label class="body-sm">Description (optional)</label>
-                    <input type="text" 
-                           class="form-input" 
-                           @bind="uploadDescription" 
-                           placeholder="Brief description of the document" />
-                </div>
-
-                <div class="form-group">
-                    <label class="body-sm">File *</label>
-                    <InputFile OnChange="HandleFileSelected" class="file-input" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
-                    @if (selectedFile != null)
-                    {
-                        <div class="file-preview">
-                            <i data-lucide="file"></i>
-                            <span>@selectedFile.Name (@FormatFileSize(selectedFile.Size))</span>
-                        </div>
-                    }
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" @onclick="CloseUploadDialog" disabled="@isUploading">
-                    Cancel
-                </button>
-                <button class="btn btn-primary" @onclick="HandleUpload" disabled="@(isUploading || selectedFile == null || string.IsNullOrEmpty(uploadDocumentType))">
-                    @if (isUploading)
-                    {
-                        <span class="spinner-sm"></span>
-                        <span>Uploading...</span>
-                    }
-                    else
-                    {
-                        <i data-lucide="upload"></i>
-                        <span>Upload</span>
-                    }
-                </button>
-            </div>
-        </div>
-    </div>
-}
+<!-- Hidden by default -->
 
 <!-- Filter Tabs -->
 <div class="filter-tabs">
-    <button class="tab-btn @(selectedFilter == "all" ? "active" : "")" @onclick='() => selectedFilter = "all"'>
-        All Records (@documents.Count)
+    <button class="tab-btn active">
+        All Records (5)
     </button>
-    <button class="tab-btn @(selectedFilter == "lab_result" ? "active" : "")" @onclick='() => selectedFilter = "lab_result"'>
-        Lab Results (@documents.Count(d => d.FileType == "lab_result"))
+    <button class="tab-btn">
+        Lab Results (2)
     </button>
-    <button class="tab-btn @(selectedFilter == "prescription" ? "active" : "")" @onclick='() => selectedFilter = "prescription"'>
-        Prescriptions (@documents.Count(d => d.FileType == "prescription"))
+    <button class="tab-btn">
+        Prescriptions (1)
     </button>
-    <button class="tab-btn @(selectedFilter == "imaging" ? "active" : "")" @onclick='() => selectedFilter = "imaging"'>
-        Imaging (@documents.Count(d => d.FileType == "imaging"))
+    <button class="tab-btn">
+        Imaging (1)
     </button>
-    <button class="tab-btn @(selectedFilter == "visit_note" ? "active" : "")" @onclick='() => selectedFilter = "visit_note"'>
-        Visit Notes (@documents.Count(d => d.FileType == "visit_note"))
+    <button class="tab-btn">
+        Visit Notes (1)
     </button>
-    <button class="tab-btn @(selectedFilter == "immunization" ? "active" : "")" @onclick='() => selectedFilter = "immunization"'>
-        Immunizations (@documents.Count(d => d.FileType == "immunization"))
+    <button class="tab-btn">
+        Immunizations (0)
     </button>
 </div>
 
@@ -139,73 +56,61 @@
     <!-- Recent Records -->
     <section class="records-section">
         <div class="section-header">
-            <h2 class="headline-md">@(selectedFilter == "all" ? "All Records" : GetFilterLabel(selectedFilter))</h2>
+            <h2 class="headline-md">All Records</h2>
             <div class="search-box">
                 <i data-lucide="search"></i>
-                <input type="text" placeholder="Search records..." @bind="searchQuery" @bind:event="oninput" />
+                <input type="text" placeholder="Search records..." />
             </div>
         </div>
         
-        @if (isLoading)
-        {
-            <div class="loading-state">
-                <div class="spinner"></div>
-                <p>Loading records...</p>
+        <div class="records-list">
+            <div class="record-item">
+                <div class="record-icon lab">
+                    <i data-lucide="flask-conical"></i>
+                </div>
+                <div class="record-info">
+                    <h4 class="headline-sm">Blood Test Results</h4>
+                    <p class="body-sm">Lab Result • October 15, 2023</p>
+                    <p class="body-sm">Complete blood count analysis</p>
+                    <p class="body-sm text-muted">2.4 MB</p>
+                </div>
+                <div class="record-actions">
+                    <span class="badge badge-lab">LAB RESULT</span>
+                    <button class="icon-btn-sm" title="View">
+                        <i data-lucide="eye"></i>
+                    </button>
+                    <button class="icon-btn-sm" title="Download">
+                        <i data-lucide="download"></i>
+                    </button>
+                    <button class="icon-btn-sm" title="Delete">
+                        <i data-lucide="trash-2"></i>
+                    </button>
+                </div>
             </div>
-        }
-        else if (!string.IsNullOrEmpty(errorMessage))
-        {
-            <div class="alert alert-error">
-                <i data-lucide="alert-circle"></i>
-                @errorMessage
+            <div class="record-item">
+                <div class="record-icon prescription">
+                    <i data-lucide="pill"></i>
+                </div>
+                <div class="record-info">
+                    <h4 class="headline-sm">Prescription - Lisinopril</h4>
+                    <p class="body-sm">Prescription • October 12, 2023</p>
+                    <p class="body-sm">Blood pressure medication</p>
+                    <p class="body-sm text-muted">156 KB</p>
+                </div>
+                <div class="record-actions">
+                    <span class="badge badge-prescription">PRESCRIPTION</span>
+                    <button class="icon-btn-sm" title="View">
+                        <i data-lucide="eye"></i>
+                    </button>
+                    <button class="icon-btn-sm" title="Download">
+                        <i data-lucide="download"></i>
+                    </button>
+                    <button class="icon-btn-sm" title="Delete">
+                        <i data-lucide="trash-2"></i>
+                    </button>
+                </div>
             </div>
-        }
-        else if (!FilteredDocuments.Any())
-        {
-            <div class="empty-state">
-                <i data-lucide="inbox"></i>
-                <h3>No records found</h3>
-                <p>@(string.IsNullOrEmpty(searchQuery) ? "Upload your first medical document to get started" : "No records match your search")</p>
-                <button class="btn btn-primary" @onclick="ShowUploadDialog">
-                    <i data-lucide="upload"></i>
-                    Upload Document
-                </button>
-            </div>
-        }
-        else
-        {
-            <div class="records-list">
-                @foreach (var doc in FilteredDocuments)
-                {
-                    <div class="record-item">
-                        <div class="record-icon @GetDocumentTypeClass(doc.FileType)">
-                            <i data-lucide="@GetDocumentIcon(doc.FileType)"></i>
-                        </div>
-                        <div class="record-info">
-                            <h4 class="headline-sm">@doc.FileName</h4>
-                            <p class="body-sm">@GetDocumentTypeLabel(doc.FileType) • @doc.CreatedAt.ToString("MMMM dd, yyyy")</p>
-                            @if (!string.IsNullOrEmpty(doc.Description))
-                            {
-                                <p class="body-sm">@doc.Description</p>
-                            }
-                            <p class="body-sm text-muted">@FormatFileSize(doc.FileSizeBytes)</p>
-                        </div>
-                        <div class="record-actions">
-                            <span class="badge badge-@GetDocumentTypeClass(doc.FileType)">@GetDocumentTypeLabel(doc.FileType).ToUpper()</span>
-                            <button class="icon-btn-sm" @onclick="() => ViewDocument(doc)" title="View">
-                                <i data-lucide="eye"></i>
-                            </button>
-                            <button class="icon-btn-sm" @onclick="() => DownloadDocument(doc)" title="Download">
-                                <i data-lucide="download"></i>
-                            </button>
-                            <button class="icon-btn-sm" @onclick="() => DeleteDocument(doc)" title="Delete">
-                                <i data-lucide="trash-2"></i>
-                            </button>
-                        </div>
-                    </div>
-                }
-            </div>
-        }
+        </div>
     </section>
 
     <!-- Quick Stats -->
@@ -215,28 +120,28 @@
             <div class="stat-item">
                 <i data-lucide="file-text" class="stat-icon"></i>
                 <div class="stat-info">
-                    <h4 class="headline-lg">@documents.Count</h4>
+                    <h4 class="headline-lg">5</h4>
                     <p class="body-sm">Total Records</p>
                 </div>
             </div>
             <div class="stat-item">
                 <i data-lucide="flask-conical" class="stat-icon"></i>
                 <div class="stat-info">
-                    <h4 class="headline-lg">@documents.Count(d => d.FileType == "lab_result")</h4>
+                    <h4 class="headline-lg">2</h4>
                     <p class="body-sm">Lab Results</p>
                 </div>
             </div>
             <div class="stat-item">
                 <i data-lucide="pill" class="stat-icon"></i>
                 <div class="stat-info">
-                    <h4 class="headline-lg">@documents.Count(d => d.FileType == "prescription")</h4>
+                    <h4 class="headline-lg">1</h4>
                     <p class="body-sm">Prescriptions</p>
                 </div>
             </div>
             <div class="stat-item">
                 <i data-lucide="scan" class="stat-icon"></i>
                 <div class="stat-info">
-                    <h4 class="headline-lg">@documents.Count(d => d.FileType == "imaging")</h4>
+                    <h4 class="headline-lg">1</h4>
                     <p class="body-sm">Imaging Studies</p>
                 </div>
             </div>
@@ -249,20 +154,20 @@
             <h3 class="headline-md">Medical Timeline</h3>
         </div>
         <div class="timeline">
-            @foreach (var doc in documents.OrderByDescending(d => d.CreatedAt).Take(5))
-            {
-                <div class="timeline-item">
-                    <div class="timeline-dot"></div>
-                    <div class="timeline-content">
-                        <span class="timeline-date">@doc.CreatedAt.ToString("MMM dd, yyyy")</span>
-                        <p class="body-md">@doc.FileName</p>
-                    </div>
+            <div class="timeline-item">
+                <div class="timeline-dot"></div>
+                <div class="timeline-content">
+                    <span class="timeline-date">Oct 15, 2023</span>
+                    <p class="body-md">Blood Test Results</p>
                 </div>
-            }
-            @if (documents.Count == 0)
-            {
-                <p class="body-sm text-muted">No records yet</p>
-            }
+            </div>
+            <div class="timeline-item">
+                <div class="timeline-dot"></div>
+                <div class="timeline-content">
+                    <span class="timeline-date">Oct 12, 2023</span>
+                    <p class="body-md">Prescription - Lisinopril</p>
+                </div>
+            </div>
         </div>
     </section>
 </div>

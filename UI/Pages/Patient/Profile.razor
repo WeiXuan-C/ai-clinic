@@ -1,182 +1,135 @@
 @page "/patient/profile"
-@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @layout Components.Layout.SidebarLayout
-@inject NavigationManager Navigation
-@inject IJSRuntime JSRuntime
 
 <PageTitle>Profile - AI Medical Clinic</PageTitle>
 
 <link rel="stylesheet" href="/css/stitch-design-system.css" />
 
-@if (isLoading)
-{
-    <div class="loading-container">
-        <div class="spinner"></div>
-        <p>Loading profile...</p>
+<!-- Header -->
+<header class="content-header">
+    <div class="header-left">
+        <h1>My Profile</h1>
+        <p class="body-md" style="margin: 0.5rem;">
+            Manage your personal and medical information
+        </p>
     </div>
-}
-else if (errorMessage != null)
-{
-    <div class="error-container">
-        <p class="error-message">@errorMessage</p>
-        <button class="btn btn-primary" @onclick="LoadProfile">Retry</button>
+    <div class="header-right">
+        <button type="button" class="btn btn-primary">
+            <i data-lucide="edit-2"></i>
+            Edit Profile
+        </button>
     </div>
-}
-else
-{
-    <!-- Header -->
-    <header class="content-header">
-        <div class="header-left">
-            <h1>My Profile</h1>
-            <p class="body-md" style="margin: 0.5rem;">
-                Manage your personal and medical information
-            </p>
+</header>
+
+<!-- Content Grid -->
+<div class="content-grid">
+    <!-- Profile Photo Section -->
+    <section class="profile-photo-card">
+        <div class="photo-container">
+            <div class="avatar-large">
+                <i data-lucide="user"></i>
+            </div>
         </div>
-        <div class="header-right">
-            @if (isEditing)
-            {
-                <button type="button" class="btn btn-discard" @onclick="CancelEdit">
-                    <i data-lucide="x"></i>
-                    Discard
-                </button>
-                <button type="button" class="btn btn-save" @onclick="SaveChanges" disabled="@isSaving">
-                    <i data-lucide="check"></i>
-                    @(isSaving ? "Saving..." : "Save")
-                </button>
-            }
-            else
-            {
-                <button type="button" class="btn btn-primary" @onclick="EnableEdit">
-                    <i data-lucide="edit-2"></i>
-                    Edit Profile
-                </button>
-            }
+        <div class="photo-info">
+            <h3 class="headline-sm">Sarah Johnson</h3>
+            <p class="body-md">sarah.johnson@example.com</p>
+            <p class="body-sm">Member since January 2024</p>
         </div>
-    </header>
+    </section>
 
-    @if (successMessage != null)
-    {
-        <div class="success-message">
-            @successMessage
+    <!-- Personal Information -->
+    <section class="info-card">
+        <div class="section-header">
+            <h2 class="headline-md">Personal Information</h2>
         </div>
-    }
+        <div class="form-grid">
+            <div class="form-group">
+                <label class="body-sm">Full Name</label>
+                <input type="text" class="form-input" value="Sarah Johnson" disabled />
+            </div>
+            <div class="form-group">
+                <label class="body-sm">Date of Birth</label>
+                <input type="date" class="form-input" value="1990-05-15" disabled />
+            </div>
+            <div class="form-group">
+                <label class="body-sm">Email Address</label>
+                <input type="email" class="form-input" value="sarah.johnson@example.com" disabled />
+            </div>
+            <div class="form-group">
+                <label class="body-sm">Gender</label>
+                <select class="form-input" disabled>
+                    <option value="">Select Gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female" selected>Female</option>
+                    <option value="Other">Other</option>
+                    <option value="Prefer not to say">Prefer not to say</option>
+                </select>
+            </div>
+            <div class="form-group full-width">
+                <label class="body-sm">Address</label>
+                <textarea class="form-input" rows="2" disabled>123 Main Street, Apt 4B, New York, NY 10001</textarea>
+            </div>
+        </div>
+    </section>
 
-    <!-- Content Grid -->
-    <div class="content-grid">
-        <!-- Profile Photo Section -->
-        <section class="profile-photo-card">
-            <div class="photo-container">
-                <div class="avatar-large">
-                    <i data-lucide="user"></i>
-                </div>
-                @if (isEditing)
-                {
-                    <button type="button" class="photo-upload-btn">
-                        <i data-lucide="camera"></i>
-                    </button>
-                }
+    <!-- Medical Information -->
+    <section class="info-card">
+        <div class="section-header">
+            <h2 class="headline-md">Medical Information</h2>
+        </div>
+        <div class="form-grid">
+            <div class="form-group">
+                <label class="body-sm">Blood Type</label>
+                <select class="form-input" disabled>
+                    <option value="">Select Blood Type</option>
+                    <option value="O+">O+</option>
+                    <option value="O-">O-</option>
+                    <option value="A+" selected>A+</option>
+                    <option value="A-">A-</option>
+                    <option value="B+">B+</option>
+                    <option value="B-">B-</option>
+                    <option value="AB+">AB+</option>
+                    <option value="AB-">AB-</option>
+                </select>
             </div>
-            <div class="photo-info">
-                <h3 class="headline-sm">@(profile?.FullName ?? "No Name")</h3>
-                <p class="body-md">@AuthController.GetCurrentUser()?.Email</p>
-                <p class="body-sm">Member since @(profile?.CreatedAt.ToString("MMMM yyyy") ?? "N/A")</p>
+            <div class="form-group">
+                <!-- Placeholder for future fields -->
             </div>
-        </section>
+            <div class="form-group full-width">
+                <label class="body-sm">Allergies (comma-separated)</label>
+                <textarea class="form-input" rows="3" disabled 
+                          placeholder="e.g., Penicillin, Peanuts, Shellfish">Penicillin, Peanuts</textarea>
+            </div>
+            <div class="form-group full-width">
+                <label class="body-sm">Current Medications (comma-separated)</label>
+                <textarea class="form-input" rows="3" disabled
+                          placeholder="e.g., Lisinopril 10mg daily, Metformin 500mg">Lisinopril 10mg daily</textarea>
+            </div>
+            <div class="form-group full-width">
+                <label class="body-sm">Chronic Conditions (comma-separated)</label>
+                <textarea class="form-input" rows="3" disabled
+                          placeholder="e.g., Type 2 Diabetes, Hypertension">Hypertension</textarea>
+            </div>
+        </div>
+    </section>
 
-        <!-- Personal Information -->
-        <section class="info-card">
-            <div class="section-header">
-                <h2 class="headline-md">Personal Information</h2>
+    <!-- Emergency Contact -->
+    <section class="info-card">
+        <div class="section-header">
+            <h2 class="headline-md">Emergency Contact</h2>
+        </div>
+        <div class="form-grid">
+            <div class="form-group">
+                <label class="body-sm">Contact Name</label>
+                <input type="text" class="form-input" value="John Johnson" disabled />
             </div>
-            <div class="form-grid">
-                <div class="form-group">
-                    <label class="body-sm">Full Name</label>
-                    <input type="text" class="form-input" @bind="fullName" disabled="@(!isEditing)" />
-                </div>
-                <div class="form-group">
-                    <label class="body-sm">Date of Birth</label>
-                    <input type="date" class="form-input" @bind="dateOfBirth" disabled="@(!isEditing)" />
-                </div>
-                <div class="form-group">
-                    <label class="body-sm">Email Address</label>
-                    <input type="email" class="form-input" value="@AuthController.GetCurrentUser()?.Email" disabled />
-                </div>
-                <div class="form-group">
-                    <label class="body-sm">Gender</label>
-                    <select class="form-input" @bind="gender" disabled="@(!isEditing)">
-                        <option value="">Select Gender</option>
-                        <option value="Male">Male</option>
-                        <option value="Female">Female</option>
-                        <option value="Other">Other</option>
-                        <option value="Prefer not to say">Prefer not to say</option>
-                    </select>
-                </div>
-                <div class="form-group full-width">
-                    <label class="body-sm">Address</label>
-                    <textarea class="form-input" rows="2" @bind="address" disabled="@(!isEditing)"></textarea>
-                </div>
+            <div class="form-group">
+                <label class="body-sm">Phone Number</label>
+                <input type="tel" class="form-input" value="+1 (555) 123-4567" disabled />
             </div>
-        </section>
-
-        <!-- Medical Information -->
-        <section class="info-card">
-            <div class="section-header">
-                <h2 class="headline-md">Medical Information</h2>
-            </div>
-            <div class="form-grid">
-                <div class="form-group">
-                    <label class="body-sm">Blood Type</label>
-                    <select class="form-input" @bind="bloodType" disabled="@(!isEditing)">
-                        <option value="">Select Blood Type</option>
-                        <option value="O+">O+</option>
-                        <option value="O-">O-</option>
-                        <option value="A+">A+</option>
-                        <option value="A-">A-</option>
-                        <option value="B+">B+</option>
-                        <option value="B-">B-</option>
-                        <option value="AB+">AB+</option>
-                        <option value="AB-">AB-</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <!-- Placeholder for future fields -->
-                </div>
-                <div class="form-group full-width">
-                    <label class="body-sm">Allergies (comma-separated)</label>
-                    <textarea class="form-input" rows="3" @bind="allergiesInput" disabled="@(!isEditing)" 
-                              placeholder="e.g., Penicillin, Peanuts, Shellfish"></textarea>
-                </div>
-                <div class="form-group full-width">
-                    <label class="body-sm">Current Medications (comma-separated)</label>
-                    <textarea class="form-input" rows="3" @bind="currentMedicationsInput" disabled="@(!isEditing)"
-                              placeholder="e.g., Lisinopril 10mg daily, Metformin 500mg"></textarea>
-                </div>
-                <div class="form-group full-width">
-                    <label class="body-sm">Chronic Conditions (comma-separated)</label>
-                    <textarea class="form-input" rows="3" @bind="chronicConditionsInput" disabled="@(!isEditing)"
-                              placeholder="e.g., Type 2 Diabetes, Hypertension"></textarea>
-                </div>
-            </div>
-        </section>
-
-        <!-- Emergency Contact -->
-        <section class="info-card">
-            <div class="section-header">
-                <h2 class="headline-md">Emergency Contact</h2>
-            </div>
-            <div class="form-grid">
-                <div class="form-group">
-                    <label class="body-sm">Contact Name</label>
-                    <input type="text" class="form-input" @bind="emergencyContactName" disabled="@(!isEditing)" />
-                </div>
-                <div class="form-group">
-                    <label class="body-sm">Phone Number</label>
-                    <input type="tel" class="form-input" @bind="emergencyContactPhone" disabled="@(!isEditing)" />
-                </div>
-            </div>
-        </section>
-    </div>
-}
+        </div>
+    </section>
+</div>
 
 <style>
     .loading-container {
@@ -484,5 +437,3 @@ else
         }
     }
 </style>
-
-
