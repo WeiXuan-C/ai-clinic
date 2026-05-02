@@ -20,7 +20,7 @@ builder.Services.AddSignalR(options =>
 });
 
 // Add application services with dependency injection
-builder.Services.AddApplicationServices(builder.Configuration);
+// builder.Services.AddApplicationServices(builder.Configuration);
 
 var app = builder.Build();
 

@@ -163,53 +163,6 @@
     </section>
 </div>
 
-@code {
-    private bool isEditing = false;
-    private bool isSaving = false;
-
-    // Form fields
-    private string? fullName = "Dr. John Smith";
-    private string? email = "dr.smith@aiclinic.com";
-    private string? phoneNumber = "+1 (555) 123-4567";
-    private string? licenseNumber = "MD-123456";
-    private string? specialty = "Cardiology";
-    private int yearsExperience = 15;
-    private string? bio = "Board-certified cardiologist with over 15 years of experience in treating cardiovascular diseases.";
-    private string? medicalSchool = "Harvard Medical School";
-    private int graduationYear = 2008;
-    private string? boardCertification = "American Board of Internal Medicine - Cardiology";
-    private string? languagesInput = "English, Spanish";
-    private decimal consultationFee = 150;
-    private string? availabilityStatus = "Available";
-    private string? officeAddress = "123 Medical Center Dr, Suite 400\nNew York, NY 10001";
-
-    private void EnableEdit()
-    {
-        isEditing = true;
-    }
-
-    private void CancelEdit()
-    {
-        isEditing = false;
-        // Reset form fields to original values
-    }
-
-    private async Task SaveChanges()
-    {
-        isSaving = true;
-        try
-        {
-            // TODO: Implement save logic
-            await Task.Delay(1000); // Simulate API call
-            isEditing = false;
-        }
-        finally
-        {
-            isSaving = false;
-        }
-    }
-}
-
 <style>
     .content-header {
         display: flex;

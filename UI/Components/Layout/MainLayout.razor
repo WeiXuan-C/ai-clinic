@@ -49,40 +49,6 @@
     </footer>
 </div>
 
-@code {
-    private string currentUrl = "";
-    private bool isDarkMode = false;
-
-    protected override void OnInitialized()
-    {
-        currentUrl = NavigationManager.Uri;
-        NavigationManager.LocationChanged += OnLocationChanged;
-    }
-
-    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
-    {
-        currentUrl = e.Location;
-        StateHasChanged();
-    }
-
-    private bool IsActive(string path)
-    {
-        return currentUrl.Contains(path, StringComparison.OrdinalIgnoreCase);
-    }
-
-    private void ToggleTheme()
-    {
-        isDarkMode = !isDarkMode;
-        // TODO: Implement actual theme switching logic
-        StateHasChanged();
-    }
-
-    public void Dispose()
-    {
-        NavigationManager.LocationChanged -= OnLocationChanged;
-    }
-}
-
 <style>
     .page {
         min-height: 100vh;

@@ -1,10 +1,6 @@
 @page "/general/doctors"
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 @layout Components.Layout.MainLayout
-@using ai_clinic.UI.State
-@using ai_clinic.Interfaces
-@inject DoctorProfileState DoctorProfileState
-@inject DoctorRatingState DoctorRatingState
 @inject IJSRuntime JSRuntime
 @inject NavigationManager Navigation
 
@@ -237,30 +233,7 @@
 
         try
         {
-            var allDoctors = await DoctorProfileState.GetAllAsync();
-            doctors = allDoctors.Where(d => d.IsActive).ToList();
-
-            // Extract unique specialties
-            specialties = doctors
-                .Select(d => d.PrimarySpecialization)
-                .Distinct()
-                .OrderBy(s => s)
-                .ToList();
-
-            // Load ratings for each doctor
-            foreach (var doctor in doctors)
-            {
-                try
-                {
-                    var avgRating = await DoctorRatingState.GetAverageRatingAsync(doctor.Id);
-                    doctorRatings[doctor.Id] = avgRating;
-                }
-                catch
-                {
-                    // Use the stored average rating if fetching fails
-                    doctorRatings[doctor.Id] = (double)doctor.AverageRating;
-                }
-            }
+            // 
         }
         catch (Exception ex)
         {
@@ -277,11 +250,6 @@
     {
         showAvailableOnly = !showAvailableOnly;
         StateHasChanged();
-    }
-
-    private void BookAppointment(Guid doctorId)
-    {
-        Navigation.NavigateTo($"/patient/consultation?doctorId={doctorId}");
     }
 
     private void ViewProfile(Guid doctorId)
