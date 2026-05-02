@@ -94,6 +94,13 @@ public class AuthStateService
                 _isInitialized = true;
             }
         }
+        catch (InvalidOperationException ex)
+        {
+            // This is expected during prerendering when JavaScript interop is not available
+            Console.WriteLine($"[AuthStateService] Skipping initialization during prerender: {ex.Message}");
+            // Don't mark as initialized so it will retry after render
+            _isInitialized = false;
+        }
         catch (Exception ex)
         {
             Console.WriteLine($"[AuthStateService] Exception during initialization: {ex.Message}");
@@ -189,9 +196,9 @@ public class AuthStateService
         Console.WriteLine($"[AuthStateService] Setting cookie for userId: {user.Id}");
         await SetCookieAsync("userId", user.Id.ToString(), 30);
         
-        // Wait longer to ensure cookie is written and propagated
-        await Task.Delay(200);
-        Console.WriteLine("[AuthStateService] Cookie set, waiting 200ms");
+        // Brief wait to ensure cookie is written
+        await Task.Delay(50);
+        Console.WriteLine("[AuthStateService] Cookie set");
 
         NotifyAuthStateChanged();
         Console.WriteLine("[AuthStateService] Auth state changed notification sent");
@@ -292,34 +299,26 @@ public class AuthStateService
     {
         try
         {
-            // Retry mechanism for cookie reading
-            for (int i = 0; i < 3; i++)
+            // Single attempt with reasonable timeout
+            var timeoutTask = Task.Delay(1500);
+            var cookieTask = _jsRuntime.InvokeAsync<string?>("eval", $"document.cookie.split('; ').find(row => row.startsWith('{name}='))?.split('=')[1]").AsTask();
+            
+            var completedTask = await Task.WhenAny(cookieTask, timeoutTask);
+            
+            if (completedTask == cookieTask)
             {
-                // Add timeout to prevent hanging
-                var timeoutTask = Task.Delay(2000);
-                var cookieTask = _jsRuntime.InvokeAsync<string?>("eval", $"document.cookie.split('; ').find(row => row.startsWith('{name}='))?.split('=')[1]").AsTask();
-                
-                var completedTask = await Task.WhenAny(cookieTask, timeoutTask);
-                
-                if (completedTask == cookieTask)
+                var result = await cookieTask;
+                if (!string.IsNullOrEmpty(result))
                 {
-                    var result = await cookieTask;
-                    if (!string.IsNullOrEmpty(result))
-                    {
-                        Console.WriteLine($"[AuthStateService] Cookie '{name}' read successfully: {result}");
-                        return result;
-                    }
-                }
-                
-                // If failed, wait a bit and retry
-                if (i < 2)
-                {
-                    Console.WriteLine($"[AuthStateService] Cookie '{name}' read attempt {i + 1} failed, retrying...");
-                    await Task.Delay(100);
+                    Console.WriteLine($"[AuthStateService] Cookie '{name}' read successfully: {result}");
+                    return result;
                 }
             }
+            else
+            {
+                Console.WriteLine($"[AuthStateService] Cookie '{name}' read timed out");
+            }
             
-            Console.WriteLine($"[AuthStateService] Cookie '{name}' not found after 3 attempts");
             return null;
         }
         catch (Exception ex)

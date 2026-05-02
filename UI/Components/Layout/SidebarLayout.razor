@@ -12,13 +12,27 @@
 @inject DoctorProfileService DoctorProfileService
 
 @code {
-    private string? userName;
-    private string? userEmail;
-    private string? userInitials;
+    private string? userName = null;
+    private string? userEmail = null;
+    private string? userInitials = null;
 
     protected override void OnInitialized()
     {
-        // Initialize user data
+        // Subscribe to auth state changes
+        AuthState.OnAuthStateChanged += UpdateUserInfo;
+        
+        // Initialize user data from AuthState
+        UpdateUserInfo();
+    }
+
+    private void UpdateUserInfo()
+    {
+        userName = AuthState.GetDisplayName();
+        userEmail = AuthState.CurrentUser?.Email;
+        userInitials = AuthState.GetUserInitials();
+        
+        // Trigger re-render
+        InvokeAsync(StateHasChanged);
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -38,7 +52,8 @@
 
     public void Dispose()
     {
-        // Cleanup if needed
+        // Unsubscribe from auth state changes
+        AuthState.OnAuthStateChanged -= UpdateUserInfo;
     }
 }
 

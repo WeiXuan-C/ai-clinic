@@ -6,16 +6,16 @@
 @inject NavigationManager Navigation
 @implements IDisposable
 
-@if (isLoading)
+@if (!isLoading && isAuthenticated)
+{
+    @ChildContent
+}
+else if (isLoading)
 {
     <div class="auth-guard-loading">
         <div class="spinner"></div>
         <p>Loading...</p>
     </div>
-}
-else if (isAuthenticated)
-{
-    @ChildContent
 }
 
 <style>
@@ -61,15 +61,15 @@ else if (isAuthenticated)
 
     private bool isLoading = true;
     private bool isAuthenticated = false;
+    private bool hasChecked = false;
     private System.Threading.Timer? periodicTimer;
 
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
+        Console.WriteLine("[AuthGuard] OnInitialized called");
+        
         // Subscribe to auth state changes
         AuthState.OnAuthStateChanged += HandleAuthStateChanged;
-
-        // Don't check auth here - wait for OnAfterRenderAsync
-        // This avoids JavaScript interop issues during prerendering
 
         // Start periodic check if enabled
         if (EnablePeriodicCheck)
@@ -81,89 +81,99 @@ else if (isAuthenticated)
                 TimeSpan.FromSeconds(CheckIntervalSeconds)
             );
         }
-
-        await base.OnInitializedAsync();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
+        if (firstRender && !hasChecked)
         {
-            // Give more time to ensure JavaScript interop is ready and cookies are available
-            await Task.Delay(150);
+            hasChecked = true;
+            Console.WriteLine("[AuthGuard] OnAfterRenderAsync - first render, checking auth");
             
-            // Initialize authentication after first render
-            // This ensures JavaScript interop is available for cookie reading
+            // Small delay to ensure JS interop is ready
+            await Task.Delay(50);
+            
+            // Check authentication
             await CheckAuthenticationAsync();
         }
-
-        await base.OnAfterRenderAsync(firstRender);
     }
 
     private async Task CheckAuthenticationAsync()
     {
-        isLoading = true;
-        StateHasChanged();
-
+        Console.WriteLine("[AuthGuard] CheckAuthenticationAsync started");
+        
         try
         {
             // Initialize auth state if not already initialized
             if (!AuthState.IsInitialized)
             {
+                Console.WriteLine("[AuthGuard] Initializing AuthState");
                 await AuthState.InitializeAsync(UserService, PatientProfileService, DoctorProfileService);
             }
 
             // Check authentication
             isAuthenticated = AuthState.IsAuthenticated;
-
-            // Debug logging
             Console.WriteLine($"[AuthGuard] IsAuthenticated: {isAuthenticated}");
             Console.WriteLine($"[AuthGuard] CurrentUser: {AuthState.CurrentUser?.Email ?? "null"}");
-            Console.WriteLine($"[AuthGuard] RequiredRole: {RequiredRole}");
 
             // Check role if required
             if (isAuthenticated && !string.IsNullOrEmpty(RequiredRole))
             {
                 var currentRole = AuthState.CurrentUser?.Role.ToString();
-                Console.WriteLine($"[AuthGuard] CurrentRole: {currentRole}");
+                Console.WriteLine($"[AuthGuard] RequiredRole: {RequiredRole}, CurrentRole: {currentRole}");
                 
                 if (currentRole != RequiredRole)
                 {
-                    Console.WriteLine($"[AuthGuard] Role mismatch! Required: {RequiredRole}, Current: {currentRole}");
+                    Console.WriteLine($"[AuthGuard] Role mismatch!");
                     isAuthenticated = false;
                 }
             }
 
+            // Update loading state BEFORE any navigation
             isLoading = false;
+            Console.WriteLine("[AuthGuard] Setting isLoading = false");
 
-            // Redirect if not authenticated
+            // Force UI update
+            await InvokeAsync(StateHasChanged);
+            Console.WriteLine("[AuthGuard] StateHasChanged called");
+
+            // Redirect if not authenticated (after UI update)
             if (!isAuthenticated)
             {
-                Console.WriteLine($"[AuthGuard] Redirecting to {RedirectTo}");
+                Console.WriteLine($"[AuthGuard] Not authenticated, redirecting to {RedirectTo}");
+                await Task.Delay(100); // Give UI time to update
                 Navigation.NavigateTo(RedirectTo, forceLoad: true);
             }
             else
             {
-                Console.WriteLine("[AuthGuard] Authentication successful, showing content");
-                StateHasChanged();
+                Console.WriteLine("[AuthGuard] Authentication successful");
             }
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[AuthGuard] Exception: {ex.Message}");
+            Console.WriteLine($"[AuthGuard] Stack trace: {ex.StackTrace}");
+            
             isAuthenticated = false;
             isLoading = false;
+            
+            await InvokeAsync(StateHasChanged);
+            
+            // Delay before redirect to ensure UI updates
+            await Task.Delay(100);
             Navigation.NavigateTo(RedirectTo, forceLoad: true);
         }
     }
 
     private async void HandleAuthStateChanged()
     {
+        Console.WriteLine("[AuthGuard] HandleAuthStateChanged triggered");
         await CheckAuthenticationAsync();
     }
 
     public void Dispose()
     {
+        Console.WriteLine("[AuthGuard] Disposing");
         AuthState.OnAuthStateChanged -= HandleAuthStateChanged;
         periodicTimer?.Dispose();
     }

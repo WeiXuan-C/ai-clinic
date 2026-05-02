@@ -1,77 +1,159 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="/" />
-    <link rel="stylesheet" href="css/stitch-design-system.css" />
-    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" rel="stylesheet" />
-    <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <script>
-        // Global Lucide initialization - only once
-        (function() {
-            if (window.lucideInitialized) return;
-            window.lucideInitialized = true;
+    <link rel="stylesheet" href="/css/stitch-design-system.css" />
+    <link rel="stylesheet" href="/app.css" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <HeadOutlet @rendermode="InteractiveServer" />
+    
+    <style>
+        /* Loading indicator styles */
+        #blazor-loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
 
-            let initTimeout;
-            let isInitializing = false;
+        #blazor-loading.loaded {
+            opacity: 0;
+            pointer-events: none;
+        }
 
-            window.initializeLucide = function() {
-                if (isInitializing) return;
-                
-                // Clear any pending initialization
-                clearTimeout(initTimeout);
-                
-                // Debounce: wait 150ms before initializing
-                initTimeout = setTimeout(function() {
-                    if (typeof lucide !== 'undefined') {
-                        isInitializing = true;
-                        try {
-                            lucide.createIcons();
-                        } finally {
-                            isInitializing = false;
-                        }
-                    }
-                }, 150);
-            };
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #0052cc;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
 
-            // Initial load
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', window.initializeLucide);
-            } else {
-                window.initializeLucide();
-            }
+        @@keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
 
-            // Listen to Blazor's enhanced navigation events instead of MutationObserver
-            if (window.Blazor) {
-                Blazor.addEventListener('enhancedload', window.initializeLucide);
-            }
-        })();
-    </script>
-    <HeadOutlet />
+        /* Page transition loading bar */
+        .page-loading-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #0052cc, #4DD4D4);
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.3s ease;
+            z-index: 10000;
+            opacity: 0;
+        }
+
+        .page-loading-bar.active {
+            opacity: 1;
+            animation: loading-progress 2s ease-in-out;
+        }
+
+        @@keyframes loading-progress {
+            0% { transform: scaleX(0); }
+            50% { transform: scaleX(0.7); }
+            100% { transform: scaleX(1); }
+        }
+    </style>
 </head>
 
 <body>
-    <MudThemeProvider />
-    <MudDialogProvider />
-    <MudSnackbarProvider />
-    
-    <Routes />
-    
-    <!-- Blazor Error UI -->
-    <div id="blazor-error-ui" style="display: none; position: fixed; bottom: 0; left: 0; right: 0; background: #dc3545; color: white; padding: 1rem; text-align: center; z-index: 9999;">
-        An unhandled error has occurred.
-        <a href="" style="color: white; text-decoration: underline; margin-left: 1rem;">Reload</a>
-        <a style="color: white; text-decoration: underline; margin-left: 1rem; cursor: pointer;" onclick="document.getElementById('blazor-error-ui').style.display='none'">Close</a>
+    <!-- Initial loading indicator -->
+    <div id="blazor-loading">
+        <div class="loading-spinner"></div>
     </div>
+
+    <!-- Page transition loading bar -->
+    <div id="page-loading-bar" class="page-loading-bar"></div>
+
+    <Routes @rendermode="InteractiveServer" />
+
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
     
-    <script src="_framework/blazor.web.js"></script>
-    <script src="_content/MudBlazor/MudBlazor.min.js"></script>
+    <script src="_framework/blazor.web.js" autostart="false"></script>
+    
+    <script>
+        // Initialize Lucide icons globally
+        window.initializeLucide = function() {
+            if (window.lucide && window.lucide.createIcons) {
+                try {
+                    window.lucide.createIcons();
+                } catch (e) {
+                    console.warn('Lucide icons initialization failed:', e);
+                }
+            }
+        };
+
+        // Start Blazor manually to avoid double-start
+        Blazor.start().then(() => {
+            console.log('Blazor started successfully');
+            
+            // Hide initial loading indicator
+            const loadingElement = document.getElementById('blazor-loading');
+            if (loadingElement) {
+                loadingElement.classList.add('loaded');
+                setTimeout(() => {
+                    loadingElement.style.display = 'none';
+                }, 300);
+            }
+
+            // Initialize Lucide icons after Blazor loads
+            setTimeout(() => {
+                window.initializeLucide();
+            }, 100);
+        }).catch(err => {
+            console.error('Blazor failed to start:', err);
+            // Hide loading indicator even on error
+            const loadingElement = document.getElementById('blazor-loading');
+            if (loadingElement) {
+                loadingElement.innerHTML = '<div style="color: red; text-align: center;"><h2>Failed to load application</h2><p>Please refresh the page</p></div>';
+            }
+        });
+
+        // Show loading bar during navigation
+        let loadingBar = null;
+        let loadingTimeout = null;
+
+        // Fallback: Monitor for navigation changes
+        let lastUrl = location.href;
+        new MutationObserver(() => {
+            const url = location.href;
+            if (url !== lastUrl) {
+                lastUrl = url;
+                
+                // Show loading bar
+                const bar = document.getElementById('page-loading-bar');
+                if (bar) {
+                    bar.classList.add('active');
+                    
+                    // Hide after a short delay and re-initialize icons
+                    clearTimeout(loadingTimeout);
+                    loadingTimeout = setTimeout(() => {
+                        bar.classList.remove('active');
+                        window.initializeLucide();
+                    }, 500);
+                }
+            }
+        }).observe(document, { subtree: true, childList: true });
+    </script>
 </body>
 
 </html>

@@ -14,13 +14,14 @@ builder.Services.AddMudServices();
 // 🔒 Singleton Pattern: DbClient 通过静态 Instance 属性访问
 // 不需要在 DI 容器中注册，因为它自己管理生命周期
 
-// Configure SignalR for Blazor Server
+// Configure SignalR for Blazor Server with better error handling
 builder.Services.AddSignalR(options =>
 {
     options.MaximumReceiveMessageSize = 102400000; // 100 MB
     options.ClientTimeoutInterval = TimeSpan.FromSeconds(60);
     options.HandshakeTimeout = TimeSpan.FromSeconds(30);
     options.KeepAliveInterval = TimeSpan.FromSeconds(15);
+    options.EnableDetailedErrors = builder.Environment.IsDevelopment();
 });
 
 // Add application services with dependency injection

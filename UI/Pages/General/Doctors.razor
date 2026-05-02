@@ -1,5 +1,4 @@
 @page "/general/doctors"
-@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @layout Components.Layout.MainLayout
 @inject IJSRuntime JSRuntime
 @inject NavigationManager Navigation
@@ -21,7 +20,7 @@
     {
         if (firstRender)
         {
-            await JSRuntime.InvokeVoidAsync("lucide.createIcons");
+            await JSRuntime.InvokeVoidAsync("initializeLucide");
         }
     }
 }

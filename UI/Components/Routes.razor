@@ -1,6 +1,18 @@
-﻿<Router AppAssembly="typeof(Program).Assembly">
+﻿@using Microsoft.AspNetCore.Components.Routing
+
+<Router AppAssembly="typeof(Program).Assembly">
     <Found Context="routeData">
         <RouteView RouteData="routeData" DefaultLayout="typeof(Components.Layout.MainLayout)" />
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
     </Found>
+    <NotFound>
+        <PageTitle>Not Found</PageTitle>
+        <LayoutView Layout="typeof(Components.Layout.MainLayout)">
+            <div style="text-align: center; padding: 4rem 2rem;">
+                <h1 style="font-size: 3rem; color: #0052cc; margin-bottom: 1rem;">404</h1>
+                <p style="font-size: 1.25rem; color: #666; margin-bottom: 2rem;">Page not found</p>
+                <a href="/" style="padding: 0.75rem 2rem; background: #0052cc; color: white; text-decoration: none; border-radius: 8px;">Go Home</a>
+            </div>
+        </LayoutView>
+    </NotFound>
 </Router>
