@@ -15,6 +15,7 @@
     private string? userName = null;
     private string? userEmail = null;
     private string? userInitials = null;
+    private string? userPhotoUrl = null;
 
     protected override void OnInitialized()
     {
@@ -25,14 +26,38 @@
         UpdateUserInfo();
     }
 
-    private void UpdateUserInfo()
+    private async void UpdateUserInfo()
     {
         userName = AuthState.GetDisplayName();
         userEmail = AuthState.CurrentUser?.Email;
         userInitials = AuthState.GetUserInitials();
         
+        // Load profile photo if user is a patient
+        if (AuthState.IsPatient && AuthState.CurrentUser != null)
+        {
+            try
+            {
+                var photoData = await PatientProfileService.GetProfilePhotoAsync(AuthState.CurrentUser.Id);
+                if (photoData != null && photoData.Length > 0)
+                {
+                    userPhotoUrl = $"data:image/jpeg;base64,{Convert.ToBase64String(photoData)}";
+                    Console.WriteLine($"[Sidebar] Loaded profile photo, size: {photoData.Length} bytes");
+                }
+                else
+                {
+                    userPhotoUrl = null;
+                    Console.WriteLine("[Sidebar] No profile photo found");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Sidebar] Error loading profile photo: {ex.Message}");
+                userPhotoUrl = null;
+            }
+        }
+        
         // Trigger re-render
-        InvokeAsync(StateHasChanged);
+        await InvokeAsync(StateHasChanged);
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -69,7 +94,11 @@
             <a href="/patient/profile" class="profile-section-link">
                 <div class="profile-section">
                     <div class="avatar">
-                        @if (!string.IsNullOrEmpty(userInitials))
+                        @if (!string.IsNullOrEmpty(userPhotoUrl))
+                        {
+                            <img src="@userPhotoUrl" alt="Profile" class="avatar-img" />
+                        }
+                        else if (!string.IsNullOrEmpty(userInitials))
                         {
                             <span class="avatar-text">@userInitials</span>
                         }
@@ -210,6 +239,14 @@
         justify-content: center;
         font-size: 24px;
         color: white;
+        overflow: hidden;
+    }
+
+    .avatar-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 50%;
     }
 
     .avatar-text {

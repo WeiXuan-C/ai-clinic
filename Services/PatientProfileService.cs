@@ -37,9 +37,42 @@ public class PatientProfileService
     public async Task<PatientProfile> UpdateAsync(PatientProfile profile)
     {
         using var db = DbClient.Instance.GetDb();
+        profile.UpdatedAt = DateTime.UtcNow;
         db.PatientProfiles.Update(profile);
         await db.SaveChangesAsync();
         return profile;
+    }
+
+    /// <summary>
+    /// Update profile photo
+    /// </summary>
+    public async Task<bool> UpdateProfilePhotoAsync(Guid userId, byte[] photoData)
+    {
+        using var db = DbClient.Instance.GetDb();
+        var profile = await db.PatientProfiles
+            .FirstOrDefaultAsync(p => p.UserId == userId);
+
+        if (profile == null)
+        {
+            return false;
+        }
+
+        profile.ProfilePhoto = photoData;
+        profile.UpdatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+        return true;
+    }
+
+    /// <summary>
+    /// Get profile photo
+    /// </summary>
+    public async Task<byte[]?> GetProfilePhotoAsync(Guid userId)
+    {
+        using var db = DbClient.Instance.GetDb();
+        var profile = await db.PatientProfiles
+            .FirstOrDefaultAsync(p => p.UserId == userId);
+
+        return profile?.ProfilePhoto;
     }
 
     /// <summary>

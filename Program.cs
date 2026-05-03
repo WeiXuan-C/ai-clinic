@@ -34,6 +34,10 @@ try
 {
     using var db = DbClient.Instance.GetDb();
     await db.Database.EnsureCreatedAsync();
+    
+    // Run manual migrations for existing databases
+    await DatabaseMigrationHelper.AddProfilePhotoColumnAsync("Data Source=ai-clinic.db");
+    
     var logger = app.Services.GetRequiredService<ILogger<Program>>();
     logger.LogInformation("数据库已准备就绪");
 }

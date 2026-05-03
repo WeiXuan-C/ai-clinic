@@ -49,6 +49,9 @@ public class PatientProfile
     [Column("current_medications")]
     public string? CurrentMedications { get; set; } // Stored as JSON array string
 
+    [Column("profile_photo")]
+    public byte[]? ProfilePhoto { get; set; } // Stored as BLOB in SQLite
+
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

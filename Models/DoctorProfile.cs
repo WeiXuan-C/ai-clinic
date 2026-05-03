@@ -78,6 +78,9 @@ public class DoctorProfile
     [Column("profile_photo_url")]
     public string? ProfilePhotoUrl { get; set; }
 
+    [Column("profile_photo")]
+    public byte[]? ProfilePhoto { get; set; } // Stored as BLOB in SQLite
+
     [Column("is_verified")]
     public bool IsVerified { get; set; } = false;
 

@@ -289,6 +289,15 @@ public class AuthStateService
         return _currentUser.Email;
     }
 
+    /// <summary>
+    /// Notify subscribers that auth state has changed
+    /// Call this after updating profile information
+    /// </summary>
+    public void NotifyStateChanged()
+    {
+        NotifyAuthStateChanged();
+    }
+
     private void NotifyAuthStateChanged()
     {
         OnAuthStateChanged?.Invoke();

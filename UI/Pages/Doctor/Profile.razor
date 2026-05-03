@@ -1,148 +1,310 @@
 @page "/doctor/profile"
 @layout Components.Layout.DoctorSidebarLayout
+@using ai_clinic.Services
+@using ai_clinic.Models
+@inject AuthStateService AuthState
+@inject DoctorProfileService DoctorProfileService
+@inject NavigationManager Navigation
 
 <PageTitle>Profile - AI Medical Clinic</PageTitle>
 
 <link rel="stylesheet" href="/css/stitch-design-system.css" />
 
-<!-- Header -->
-<header class="content-header">
-    <div class="header-left">
-        <h1>My Profile</h1>
-        <p class="body-md" style="margin: 0.5rem;">
-            Manage your professional information and credentials
-        </p>
+@if (isLoading)
+{
+    <div class="loading-container">
+        <div class="spinner"></div>
+        <p class="body-md">Loading profile...</p>
     </div>
-    <div class="header-right">
-        <button type="button" class="btn btn-primary">
-            <i data-lucide="edit-2"></i>
-            Edit Profile
+}
+else if (errorMessage != null && profileData == null)
+{
+    <div class="error-container">
+        <div class="error-message">
+            <i data-lucide="alert-circle"></i>
+            @errorMessage
+        </div>
+        <button type="button" class="btn btn-primary" @onclick="LoadProfileAsync">
+            Retry
         </button>
     </div>
-</header>
+}
+else
+{
+    @if (successMessage != null)
+    {
+        <div class="success-message">
+            <i data-lucide="check-circle"></i>
+            @successMessage
+        </div>
+    }
 
-<!-- Content Grid -->
-<div class="content-grid">
-    <!-- Profile Photo Section -->
-    <section class="profile-photo-card">
-        <div class="photo-container">
-            <div class="avatar-large">
-                <i data-lucide="stethoscope"></i>
-            </div>
+    @if (errorMessage != null)
+    {
+        <div class="error-message" style="margin-bottom: 1.5rem;">
+            <i data-lucide="alert-circle"></i>
+            @errorMessage
         </div>
-        <div class="photo-info">
-            <h3 class="headline-sm">Dr. Michael Smith</h3>
-            <p class="body-md">dr.smith@aiclinic.com</p>
-            <p class="body-sm">Cardiology</p>
-            <div class="rating-display">
-                <i data-lucide="star"></i>
-                <span>4.9 (247 reviews)</span>
-            </div>
-        </div>
-    </section>
+    }
 
-    <!-- Professional Information -->
-    <section class="info-card">
-        <div class="section-header">
-            <h2 class="headline-md">Professional Information</h2>
+    <!-- Header -->
+    <header class="content-header">
+        <div class="header-left">
+            <h1>My Profile</h1>
+            <p class="body-md" style="margin: 0.5rem;">
+                Manage your professional information and credentials
+            </p>
         </div>
-        <div class="form-grid">
-            <div class="form-group">
-                <label class="body-sm">Full Name</label>
-                <input type="text" class="form-input" value="Dr. Michael Smith" disabled />
-            </div>
-            <div class="form-group">
-                <label class="body-sm">Medical License Number</label>
-                <input type="text" class="form-input" value="MD123456" disabled />
-            </div>
-            <div class="form-group">
-                <label class="body-sm">Email Address</label>
-                <input type="email" class="form-input" value="dr.smith@aiclinic.com" disabled />
-            </div>
-            <div class="form-group">
-                <label class="body-sm">Phone Number</label>
-                <input type="tel" class="form-input" value="555-0100" disabled />
-            </div>
-            <div class="form-group">
-                <label class="body-sm">Specialty</label>
-                <select class="form-input" disabled>
-                    <option value="">Select Specialty</option>
-                    <option value="Cardiology" selected>Cardiology</option>
-                    <option value="Dermatology">Dermatology</option>
-                    <option value="Endocrinology">Endocrinology</option>
-                    <option value="Family Medicine">Family Medicine</option>
-                    <option value="Internal Medicine">Internal Medicine</option>
-                    <option value="Neurology">Neurology</option>
-                    <option value="Pediatrics">Pediatrics</option>
-                    <option value="Psychiatry">Psychiatry</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label class="body-sm">Years of Experience</label>
-                <input type="number" class="form-input" value="15" disabled />
-            </div>
-            <div class="form-group full-width">
-                <label class="body-sm">Bio</label>
-                <textarea class="form-input" rows="4" disabled 
-                          placeholder="Tell patients about yourself...">Board-certified cardiologist with 15 years of experience in cardiovascular medicine.</textarea>
-            </div>
+        <div class="header-right">
+            @if (!isEditing)
+            {
+                <button type="button" class="btn btn-primary" @onclick="ToggleEdit">
+                    <i data-lucide="edit-2"></i>
+                    Edit Profile
+                </button>
+            }
+            else
+            {
+                <button type="button" class="btn btn-discard" @onclick="DiscardChanges" disabled="@isSaving">
+                    <i data-lucide="x"></i>
+                    Discard
+                </button>
+                <button type="button" class="btn btn-save" @onclick="SaveProfileAsync" disabled="@isSaving">
+                    <i data-lucide="save"></i>
+                    @(isSaving ? "Saving..." : "Save Changes")
+                </button>
+            }
         </div>
-    </section>
+    </header>
 
-    <!-- Credentials & Certifications -->
-    <section class="info-card">
-        <div class="section-header">
-            <h2 class="headline-md">Credentials & Certifications</h2>
-        </div>
-        <div class="form-grid">
-            <div class="form-group full-width">
-                <label class="body-sm">Medical School</label>
-                <input type="text" class="form-input" value="Harvard Medical School" disabled />
+    <!-- Content Grid -->
+    <div class="content-grid">
+        <!-- Profile Photo Section -->
+        <section class="profile-photo-card">
+            <div class="photo-container">
+                @if (!string.IsNullOrEmpty(photoDataUrl))
+                {
+                    <img src="@photoDataUrl" alt="Profile Photo" class="avatar-large-img" />
+                }
+                else
+                {
+                    <div class="avatar-large">
+                        <i data-lucide="stethoscope"></i>
+                    </div>
+                }
+                @if (isEditing)
+                {
+                    <label class="photo-upload-btn" title="Upload Photo">
+                        <i data-lucide="camera"></i>
+                        <InputFile OnChange="HandlePhotoUpload" accept="image/*" style="display: none;" />
+                    </label>
+                }
             </div>
-            <div class="form-group">
-                <label class="body-sm">Graduation Year</label>
-                <input type="number" class="form-input" value="2008" disabled />
+            <div class="photo-info">
+                <h3 class="headline-sm">@(profileData?.FullName ?? "No Name")</h3>
+                <p class="body-md">@(profileData?.User?.Email ?? "No Email")</p>
+                <p class="body-sm">@(profileData?.PrimarySpecialization ?? "No Specialty")</p>
+                <div class="rating-display">
+                    <i data-lucide="star"></i>
+                    <span>@profileData?.AverageRating.ToString("F1") (@profileData?.TotalRatings reviews)</span>
+                </div>
             </div>
-            <div class="form-group">
-                <label class="body-sm">Board Certification</label>
-                <input type="text" class="form-input" value="American Board of Internal Medicine" disabled />
-            </div>
-            <div class="form-group full-width">
-                <label class="body-sm">Languages Spoken (comma-separated)</label>
-                <input type="text" class="form-input" value="English, Spanish" disabled 
-                       placeholder="e.g., English, Spanish, French" />
-            </div>
-        </div>
-    </section>
+            @if (isEditing && !string.IsNullOrEmpty(photoDataUrl))
+            {
+                <button type="button" class="btn btn-discard" style="margin-top: 1rem; width: 100%;" @onclick="DeletePhotoAsync">
+                    <i data-lucide="trash-2"></i>
+                    Remove Photo
+                </button>
+            }
+        </section>
 
-    <!-- Practice Settings -->
-    <section class="info-card">
-        <div class="section-header">
-            <h2 class="headline-md">Practice Settings</h2>
-        </div>
-        <div class="form-grid">
-            <div class="form-group">
-                <label class="body-sm">Consultation Fee</label>
-                <input type="number" class="form-input" value="150" disabled />
+        <!-- Professional Information -->
+        <section class="info-card">
+            <div class="section-header">
+                <h2 class="headline-md">Professional Information</h2>
             </div>
-            <div class="form-group">
-                <label class="body-sm">Availability Status</label>
-                <select class="form-input" disabled>
-                    <option value="Available" selected>Available</option>
-                    <option value="Busy">Busy</option>
-                    <option value="Away">Away</option>
-                    <option value="Offline">Offline</option>
-                </select>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="body-sm">Full Name</label>
+                    <input type="text" class="form-input" @bind="profileData!.FullName" disabled="@(!isEditing)" />
+                </div>
+                <div class="form-group">
+                    <label class="body-sm">Title (Dr., Prof., etc.)</label>
+                    <input type="text" class="form-input" @bind="profileData!.Title" disabled="@(!isEditing)" />
+                </div>
+                <div class="form-group">
+                    <label class="body-sm">Medical License Number</label>
+                    <input type="text" class="form-input" @bind="profileData!.LicenseNumber" disabled="@(!isEditing)" />
+                </div>
+                <div class="form-group">
+                    <label class="body-sm">Email Address</label>
+                    <input type="email" class="form-input" value="@(profileData?.User?.Email ?? "")" disabled />
+                </div>
+                <div class="form-group">
+                    <label class="body-sm">Primary Specialization</label>
+                    <select class="form-input" @bind="profileData!.PrimarySpecialization" disabled="@(!isEditing)">
+                        <option value="">Select Specialty</option>
+                        <option value="Cardiology">Cardiology</option>
+                        <option value="Dermatology">Dermatology</option>
+                        <option value="Endocrinology">Endocrinology</option>
+                        <option value="Family Medicine">Family Medicine</option>
+                        <option value="Internal Medicine">Internal Medicine</option>
+                        <option value="Neurology">Neurology</option>
+                        <option value="Pediatrics">Pediatrics</option>
+                        <option value="Psychiatry">Psychiatry</option>
+                        <option value="Orthopedics">Orthopedics</option>
+                        <option value="Oncology">Oncology</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="body-sm">Years of Experience</label>
+                    <input type="number" class="form-input" @bind="profileData!.YearsOfExperience" disabled="@(!isEditing)" />
+                </div>
+                <div class="form-group full-width">
+                    <label class="body-sm">Languages Spoken (comma-separated)</label>
+                    <input type="text" class="form-input" @bind="profileData!.LanguagesSpoken" disabled="@(!isEditing)" 
+                           placeholder="e.g., English, Spanish, French" />
+                </div>
             </div>
-            <div class="form-group full-width">
-                <label class="body-sm">Office Address</label>
-                <textarea class="form-input" rows="2" disabled>123 Medical Plaza, Suite 400, Boston, MA 02115</textarea>
+        </section>
+
+        <!-- Expertise & Specializations -->
+        <section class="info-card">
+            <div class="section-header">
+                <h2 class="headline-md">Expertise & Specializations</h2>
             </div>
-        </div>
-    </section>
-</div>
+            <div class="form-grid">
+                <div class="form-group full-width">
+                    <label class="body-sm">Sub-Specializations (comma-separated)</label>
+                    <textarea class="form-input" rows="2" @bind="profileData!.SubSpecializations" disabled="@(!isEditing)"
+                              placeholder="e.g., Interventional Cardiology, Heart Failure"></textarea>
+                </div>
+                <div class="form-group full-width">
+                    <label class="body-sm">Medical Expertise Tags (comma-separated)</label>
+                    <textarea class="form-input" rows="2" @bind="profileData!.MedicalExpertiseTags" disabled="@(!isEditing)"
+                              placeholder="e.g., ECG, Echocardiography, Cardiac Catheterization"></textarea>
+                </div>
+                <div class="form-group full-width">
+                    <label class="body-sm">Conditions Treated (comma-separated)</label>
+                    <textarea class="form-input" rows="2" @bind="profileData!.ConditionsTreated" disabled="@(!isEditing)"
+                              placeholder="e.g., Hypertension, Coronary Artery Disease, Arrhythmia"></textarea>
+                </div>
+                <div class="form-group full-width">
+                    <label class="body-sm">Age Groups Treated (comma-separated)</label>
+                    <input type="text" class="form-input" @bind="profileData!.AgeGroupsTreated" disabled="@(!isEditing)"
+                           placeholder="e.g., Adults, Geriatric" />
+                </div>
+            </div>
+        </section>
+
+        <!-- Practice Settings -->
+        <section class="info-card">
+            <div class="section-header">
+                <h2 class="headline-md">Practice Settings</h2>
+            </div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="body-sm">Availability Status</label>
+                    <select class="form-input" @bind="profileData!.AvailabilityStatus" disabled="@(!isEditing)">
+                        <option value="@DoctorAvailabilityStatus.Available">Available</option>
+                        <option value="@DoctorAvailabilityStatus.Busy">Busy</option>
+                        <option value="@DoctorAvailabilityStatus.Offline">Offline</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="body-sm">Accepting New Patients</label>
+                    <select class="form-input" @bind="profileData!.IsAcceptingPatients" disabled="@(!isEditing)">
+                        <option value="true">Yes</option>
+                        <option value="false">No</option>
+                    </select>
+                </div>
+                <div class="form-group full-width">
+                    <label class="body-sm">Statistics</label>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-label">Total Consultations</span>
+                            <span class="stat-value">@profileData?.TotalConsultations</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Active Conversations</span>
+                            <span class="stat-value">@profileData?.CurrentActiveConversations</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Average Rating</span>
+                            <span class="stat-value">@profileData?.AverageRating.ToString("F2")</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Total Reviews</span>
+                            <span class="stat-value">@profileData?.TotalRatings</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+}
 
 <style>
+    .loading-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 400px;
+        gap: 1rem;
+    }
+
+    .spinner {
+        width: 48px;
+        height: 48px;
+        border: 4px solid #e6e8ea;
+        border-top-color: #1e40af;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @@keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .error-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 400px;
+        gap: 1rem;
+    }
+
+    .error-message {
+        color: #d32f2f;
+        background: #ffebee;
+        padding: 1rem 1.5rem;
+        border-radius: 8px;
+        border-left: 4px solid #d32f2f;
+    }
+
+    .success-message {
+        color: #2e7d32;
+        background: #e8f5e9;
+        padding: 1rem 1.5rem;
+        border-radius: 8px;
+        border-left: 4px solid #2e7d32;
+        margin-bottom: 1.5rem;
+        animation: slideDown 0.3s ease-out;
+    }
+
+    @@keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
     .content-header {
         display: flex;
         justify-content: space-between;
@@ -202,6 +364,15 @@
         color: white;
     }
 
+    .avatar-large-img {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 3px solid white;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
     .photo-upload-btn {
         position: absolute;
         bottom: 0;
@@ -216,6 +387,12 @@
         display: flex;
         align-items: center;
         justify-content: center;
+        transition: all 0.2s;
+    }
+
+    .photo-upload-btn:hover {
+        background: #1e3a8a;
+        transform: scale(1.05);
     }
 
     .photo-info h3 {
@@ -315,6 +492,34 @@
         cursor: pointer;
     }
 
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1rem;
+        padding: 1rem;
+        background: #f7f9fb;
+        border-radius: 8px;
+    }
+
+    .stat-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    .stat-label {
+        font-size: 0.75rem;
+        color: #434654;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #191c1e;
+    }
+
     .btn {
         padding: 0.75rem 1.5rem;
         border-radius: 8px;
@@ -337,6 +542,11 @@
         background: #1e3a8a;
         transform: translateY(-1px);
         box-shadow: 0 4px 12px rgba(30, 64, 175, 0.3);
+    }
+
+    .btn-primary:disabled {
+        background: #ccc;
+        cursor: not-allowed;
     }
 
     .btn-save {
@@ -377,6 +587,10 @@
             grid-column: span 1;
             grid-row: auto;
         }
+
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
     }
 
     @@media (max-width: 768px) {
@@ -390,6 +604,10 @@
 
         .header-right {
             flex-direction: column;
+        }
+
+        .stats-grid {
+            grid-template-columns: 1fr;
         }
     }
 </style>
