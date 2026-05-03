@@ -1,5 +1,6 @@
 @page "/patient/consultation"
 @layout Components.Layout.SidebarLayout
+@using ai_clinic.Models
 
 <style>
     .consultation-container {
@@ -66,6 +67,10 @@
         cursor: pointer;
     }
 
+    .new-consultation-btn:hover {
+        background: #0284c7;
+    }
+
     .history-item {
         padding: 12px;
         border-radius: 8px;
@@ -110,10 +115,10 @@
         border-radius: 10px;
     }
 
-    .urgent-tag {
+    .ai-tag {
         display: inline-block;
         font-size: 11px;
-        color: #dc2626;
+        color: #10b981;
         margin-top: 4px;
     }
 
@@ -165,64 +170,6 @@
         background: #0ea5e9;
         border-color: #0ea5e9;
         color: white;
-    }
-
-    .active-doctor-info {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 12px 16px;
-        background: #f9fafb;
-        border-top: 1px solid #e5e7eb;
-    }
-
-    .mini-avatar {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        object-fit: cover;
-    }
-
-    .doctor-details-mini {
-        flex: 1;
-    }
-
-    .doctor-name-mini {
-        font-size: 14px;
-        font-weight: 600;
-        color: #111827;
-    }
-
-    .doctor-status {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 12px;
-        color: #6b7280;
-    }
-
-    .status-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-    }
-
-    .status-dot.online {
-        background: #10b981;
-    }
-
-    .video-call-btn {
-        padding: 8px 16px;
-        background: #0ea5e9;
-        color: white;
-        border: none;
-        border-radius: 8px;
-        font-size: 13px;
-        font-weight: 500;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: 6px;
     }
 
     /* Messages */
@@ -283,6 +230,10 @@
         background: #10b981;
     }
 
+    .doctor-message .message-avatar {
+        background: #8b5cf6;
+    }
+
     .message-content {
         flex: 1;
     }
@@ -292,6 +243,7 @@
         border-radius: 12px;
         font-size: 14px;
         line-height: 1.5;
+        white-space: pre-wrap;
     }
 
     .user-message .message-text {
@@ -304,6 +256,11 @@
         color: #065f46;
     }
 
+    .doctor-message .message-text {
+        background: #ede9fe;
+        color: #5b21b6;
+    }
+
     .message-time {
         font-size: 11px;
         color: #9ca3af;
@@ -311,31 +268,38 @@
         text-align: right;
     }
 
-    .ai-insight-card {
-        background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%);
-        padding: 16px;
+    .typing-indicator {
+        display: flex;
+        gap: 6px;
+        padding: 12px 16px;
+        background: #d1fae5;
         border-radius: 12px;
-        border-left: 4px solid #0ea5e9;
-        margin: 16px 0;
+        width: fit-content;
     }
 
-    .insight-icon {
-        font-size: 24px;
-        margin-bottom: 8px;
+    .typing-indicator span {
+        width: 8px;
+        height: 8px;
+        background: #10b981;
+        border-radius: 50%;
+        animation: typing 1.4s infinite;
     }
 
-    .insight-content strong {
-        font-size: 12px;
-        font-weight: 600;
-        color: #0369a1;
-        display: block;
-        margin-bottom: 6px;
+    .typing-indicator span:nth-child(2) {
+        animation-delay: 0.2s;
     }
 
-    .insight-content p {
-        font-size: 14px;
-        color: #075985;
-        margin: 0;
+    .typing-indicator span:nth-child(3) {
+        animation-delay: 0.4s;
+    }
+
+    @@keyframes typing {
+        0%, 60%, 100% {
+            transform: translateY(0);
+        }
+        30% {
+            transform: translateY(-10px);
+        }
     }
 
     /* Input Area */
@@ -434,13 +398,6 @@
         background: #a8a8a8;
     }
 
-    .context-sidebar-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 16px;
-    }
-
     .context-sidebar h3 {
         font-size: 16px;
         font-weight: 600;
@@ -455,89 +412,190 @@
         line-height: 1.5;
     }
 
-    .document-list {
+    /* Modal */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+
+    .modal-content {
+        background: white;
+        border-radius: 16px;
+        padding: 32px;
+        max-width: 600px;
+        width: 90%;
+        max-height: 80vh;
+        overflow-y: auto;
+    }
+
+    .modal-header {
+        font-size: 24px;
+        font-weight: 700;
+        color: #111827;
+        margin-bottom: 24px;
+    }
+
+    .modal-options {
+        display: flex;
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .option-card {
+        flex: 1;
+        padding: 24px;
+        border: 2px solid #e5e7eb;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-align: center;
+    }
+
+    .option-card:hover {
+        border-color: #0ea5e9;
+        background: #f0f9ff;
+    }
+
+    .option-card.selected {
+        border-color: #0ea5e9;
+        background: #e0f2fe;
+    }
+
+    .option-icon {
+        font-size: 48px;
+        margin-bottom: 12px;
+    }
+
+    .option-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #111827;
+        margin-bottom: 8px;
+    }
+
+    .option-description {
+        font-size: 14px;
+        color: #6b7280;
+    }
+
+    .doctor-list {
         display: flex;
         flex-direction: column;
         gap: 12px;
-        margin-bottom: 20px;
+        margin-bottom: 24px;
+        max-height: 300px;
+        overflow-y: auto;
     }
 
-    .document-item {
+    .doctor-card {
+        padding: 16px;
+        border: 2px solid #e5e7eb;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
         display: flex;
         gap: 12px;
-        padding: 12px;
-        border-radius: 8px;
     }
 
-    .document-item.analyzed {
-        background: #dbeafe;
+    .doctor-card:hover {
+        border-color: #0ea5e9;
     }
 
-    .document-item.verified {
-        background: #fce7f3;
+    .doctor-card.selected {
+        border-color: #0ea5e9;
+        background: #e0f2fe;
     }
 
-    .doc-icon {
+    .doctor-avatar {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: #e5e7eb;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         font-size: 24px;
     }
 
-    .doc-info {
+    .doctor-info {
         flex: 1;
     }
 
-    .doc-name {
-        font-size: 13px;
-        font-weight: 500;
+    .doctor-name {
+        font-size: 16px;
+        font-weight: 600;
         color: #111827;
-        margin-bottom: 2px;
     }
 
-    .doc-meta {
-        font-size: 11px;
+    .doctor-specialty {
+        font-size: 14px;
         color: #6b7280;
         margin-bottom: 4px;
     }
 
-    .doc-status {
-        font-size: 10px;
-        font-weight: 600;
-        letter-spacing: 0.5px;
-    }
-
-    .analyzed .doc-status {
-        color: #1e40af;
-    }
-
-    .verified .doc-status {
-        color: #be185d;
-    }
-
-    .insight-header {
+    .doctor-rating {
         font-size: 12px;
-        font-weight: 600;
-        color: #0369a1;
-        margin-bottom: 8px;
-        letter-spacing: 0.5px;
+        color: #f59e0b;
     }
 
-    .export-btn {
-        width: 100%;
-        padding: 12px;
-        background: #f3f4f6;
-        color: #374151;
+    .modal-actions {
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+    }
+
+    .btn-cancel {
+        padding: 12px 24px;
+        background: transparent;
+        color: #6b7280;
         border: 1px solid #e5e7eb;
         border-radius: 8px;
         font-size: 14px;
         font-weight: 500;
         cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
     }
 
-    .export-btn:hover {
-        background: #e5e7eb;
+    .btn-create {
+        padding: 12px 24px;
+        background: #0ea5e9;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+    }
+
+    .btn-create:disabled {
+        background: #d1d5db;
+        cursor: not-allowed;
+    }
+
+    .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: #6b7280;
+    }
+
+    .empty-state-icon {
+        font-size: 64px;
+        margin-bottom: 16px;
+    }
+
+    .empty-state-text {
+        font-size: 18px;
+        font-weight: 500;
     }
 </style>
 
@@ -545,149 +603,228 @@
     <!-- Left Sidebar: History -->
     <div class="history-sidebar">
         <div class="history-sidebar-header">
-            <h3>HISTORY</h3>
-            <button class="new-consultation-btn">+ New</button>
+            <h3>CONVERSATIONS</h3>
+            <button class="new-consultation-btn" @onclick="ShowNewConversationDialog">+ New</button>
         </div>
         <div class="history-list">
-            <div class="history-item active">
-                <div class="history-header">
-                    <div class="history-title">Chest Pain Follow-up</div>
-                    <span class="unread-badge">2</span>
+            @if (conversationList.Any())
+            {
+                @foreach (var conv in conversationList)
+                {
+                    <div class="history-item @(currentConversation?.Id == conv.Id ? "active" : "")" 
+                         @onclick="@(() => LoadConversation(conv.Id))">
+                        <div class="history-header">
+                            <div class="history-title">@conv.Title</div>
+                            @if (conv.UnreadCount > 0)
+                            {
+                                <span class="unread-badge">@conv.UnreadCount</span>
+                            }
+                        </div>
+                        <div class="history-meta">@FormatTime(conv.LastMessageAt) • @conv.Status</div>
+                        @if (conv.IsAiConversation)
+                        {
+                            <span class="ai-tag">🤖 AI Assistant</span>
+                        }
+                        else
+                        {
+                            <span class="ai-tag">👨‍⚕️ @conv.DoctorName</span>
+                        }
+                    </div>
+                }
+            }
+            else
+            {
+                <div style="text-align: center; padding: 24px; color: #6b7280;">
+                    <p>No conversations yet</p>
+                    <p style="font-size: 12px; margin-top: 8px;">Click "+ New" to start</p>
                 </div>
-                <div class="history-meta">Oct 23, 2024 • Active</div>
-                <span class="urgent-tag">🔴 Urgent</span>
-            </div>
-            <div class="history-item">
-                <div class="history-header">
-                    <div class="history-title">Annual Checkup</div>
-                </div>
-                <div class="history-meta">Sep 15, 2024 • Completed</div>
-            </div>
-            <div class="history-item">
-                <div class="history-header">
-                    <div class="history-title">Prescription Refill</div>
-                </div>
-                <div class="history-meta">Aug 30, 2024 • Completed</div>
-            </div>
+            }
         </div>
     </div>
 
     <!-- Main Chat Area -->
     <div class="chat-area">
-        <!-- Header with Mode Toggle -->
-        <div class="chat-header">
-            <div class="mode-toggle">
-                <button class="toggle-btn active">
-                    <span class="icon">🤖</span> AI Assistant
-                </button>
-                <button class="toggle-btn">
-                    <span class="icon">👨‍⚕️</span> Human Doctor
-                </button>
-            </div>
-        </div>
-
-        <!-- Chat Messages -->
-        <div class="messages-container">
-            <div class="message user-message">
-                <div class="message-avatar">
-                    <span class="avatar-icon">👤</span>
+        @if (currentConversation != null)
+        {
+            <!-- Header with Mode Toggle -->
+            <div class="chat-header">
+                <div class="mode-toggle">
+                    <button class="toggle-btn @(isAiMode ? "active" : "")" disabled>
+                        <span class="icon">🤖</span> AI Assistant
+                    </button>
+                    <button class="toggle-btn @(!isAiMode ? "active" : "")" disabled>
+                        <span class="icon">👨‍⚕️</span> Human Doctor
+                    </button>
                 </div>
-                <div class="message-content">
-                    <div class="message-text">
-                        I've been experiencing chest pain for the past few days. Should I be concerned?
-                        <div class="message-time">10:30</div>
+            </div>
+
+            <!-- Chat Messages -->
+            <div class="messages-container" id="messages-container">
+                @foreach (var message in messages)
+                {
+                    <div class="message @(message.SenderType == MessageSenderType.Patient ? "user-message" : 
+                                         message.SenderType == MessageSenderType.AI ? "ai-message" : "doctor-message")">
+                        <div class="message-avatar">
+                            <span class="avatar-icon">
+                                @if (message.SenderType == MessageSenderType.Patient)
+                                {
+                                    @:👤
+                                }
+                                else if (message.SenderType == MessageSenderType.AI)
+                                {
+                                    @:🤖
+                                }
+                                else
+                                {
+                                    @:👨‍⚕️
+                                }
+                            </span>
+                        </div>
+                        <div class="message-content">
+                            <div class="message-text">
+                                @message.Content
+                                <div class="message-time">@message.CreatedAt.ToString("HH:mm")</div>
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </div>
+                }
 
-            <div class="message ai-message">
-                <div class="message-avatar">
-                    <span class="avatar-icon">🤖</span>
-                </div>
-                <div class="message-content">
-                    <div class="message-text">
-                        I understand your concern about chest pain. Can you describe the pain in more detail? For example:
-                        - Is it sharp or dull?
-                        - Does it come and go, or is it constant?
-                        - Does it worsen with physical activity?
-                        - Are you experiencing any other symptoms like shortness of breath or dizziness?
-                        <div class="message-time">10:31</div>
+                @if (isTyping)
+                {
+                    <div class="message ai-message">
+                        <div class="message-avatar">
+                            <span class="avatar-icon">🤖</span>
+                        </div>
+                        <div class="typing-indicator">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                        </div>
                     </div>
-                </div>
+                }
             </div>
 
-            <div class="message user-message">
-                <div class="message-avatar">
-                    <span class="avatar-icon">👤</span>
+            <!-- Input Area -->
+            <div class="input-area">
+                <div class="input-features">
+                    <span class="feature-badge">🔒 End-to-end encrypted medical sanctuary</span>
                 </div>
-                <div class="message-content">
-                    <div class="message-text">
-                        It's a dull pain that comes and goes. It gets worse when I exercise. No other symptoms.
-                        <div class="message-time">10:33</div>
-                    </div>
+                
+                <div class="input-box">
+                    <button class="icon-btn">😊</button>
+                    <input type="text" 
+                           placeholder="Describe your symptoms or ask a question..." 
+                           @bind="newMessage"
+                           @bind:event="oninput"
+                           @onkeydown="HandleKeyPress" />
+                    <button class="icon-btn">🎤</button>
+                    <button class="send-btn @(string.IsNullOrWhiteSpace(newMessage) ? "disabled" : "")" 
+                            @onclick="SendMessage"
+                            disabled="@string.IsNullOrWhiteSpace(newMessage)">
+                        ➤
+                    </button>
                 </div>
             </div>
-
-            <div class="ai-insight-card">
-                <div class="insight-icon">💡</div>
-                <div class="insight-content">
-                    <strong>AI INSIGHT CARD</strong>
-                    <p>Based on your symptoms and medical history, this could be related to your hypertension. I recommend scheduling an in-person consultation with a cardiologist.</p>
-                </div>
+        }
+        else
+        {
+            <div class="empty-state">
+                <div class="empty-state-icon">💬</div>
+                <div class="empty-state-text">Select a conversation or create a new one</div>
             </div>
-        </div>
-
-        <!-- Input Area -->
-        <div class="input-area">
-            <div class="input-features">
-                <span class="feature-badge">🔒 End-to-end encrypted medical sanctuary</span>
-            </div>
-            
-            <div class="input-box">
-                <button class="icon-btn">😊</button>
-                <input type="text" 
-                       placeholder="Describe your symptoms or ask a question..." 
-                       value="" />
-                <button class="icon-btn">🎤</button>
-                <button class="send-btn disabled">
-                    ➤
-                </button>
-            </div>
-        </div>
+        }
     </div>
 
     <!-- Right Sidebar: Document Context -->
     <div class="context-sidebar">
-        <div class="context-sidebar-header">
-            <h3>Document Context</h3>
-        </div>
-        <p class="context-description">The following documents are being used by the AI to provide context for this conversation.</p>
-        
-        <div class="document-list">
-            <div class="document-item analyzed">
-                <div class="doc-icon">📄</div>
-                <div class="doc-info">
-                    <div class="doc-name">Blood_Panel_Oct23.pdf</div>
-                    <div class="doc-meta">Uploaded 2h ago</div>
-                    <div class="doc-status">AI ANALYZED</div>
-                </div>
+        <h3>Conversation Info</h3>
+        @if (currentConversation != null)
+        {
+            <p class="context-description">
+                @if (currentConversation.AssignedDoctorId == null)
+                {
+                    <text>AI-powered consultation with intelligent health insights.</text>
+                }
+                else
+                {
+                    <text>Consultation with @currentConversation.AssignedDoctor?.DoctorProfile?.FullName</text>
+                }
+            </p>
+            
+            <div style="margin-top: 20px;">
+                <p style="font-size: 13px; color: #6b7280; margin-bottom: 8px;">
+                    <strong>Started:</strong> @currentConversation.StartedAt.ToString("MMM dd, yyyy HH:mm")
+                </p>
+                <p style="font-size: 13px; color: #6b7280; margin-bottom: 8px;">
+                    <strong>Messages:</strong> @currentConversation.TotalMessages
+                </p>
+                <p style="font-size: 13px; color: #6b7280; margin-bottom: 8px;">
+                    <strong>Status:</strong> @currentConversation.Status
+                </p>
             </div>
-
-            <div class="document-item verified">
-                <div class="doc-icon">🖼️</div>
-                <div class="doc-info">
-                    <div class="doc-name">ECG_Scan_Final.jpg</div>
-                    <div class="doc-meta">Uploaded Sep 30</div>
-                    <div class="doc-status">HUMAN VERIFIED</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="ai-insight-card">
-            <div class="insight-header">💡 AI INSIGHT CARD</div>
-            <p>The AI detected a correlation between your high stress logs and recent glucose spikes.</p>
-        </div>
-
-        <button class="export-btn">⬇️ Export Conversation</button>
+        }
+        else
+        {
+            <p class="context-description">No conversation selected</p>
+        }
     </div>
 </div>
+
+<!-- New Conversation Modal -->
+@if (showNewConversationModal)
+{
+    <div class="modal-overlay" @onclick="CloseModal">
+        <div class="modal-content" @onclick:stopPropagation="true">
+            <div class="modal-header">Start New Consultation</div>
+            
+            <div class="modal-options">
+                <div class="option-card @(selectedDoctorId == null && isAiMode ? "selected" : "")" 
+                     @onclick="@(() => { isAiMode = true; selectedDoctorId = null; })">
+                    <div class="option-icon">🤖</div>
+                    <div class="option-title">AI Assistant</div>
+                    <div class="option-description">Instant responses, 24/7 availability</div>
+                </div>
+                
+                <div class="option-card @(!isAiMode ? "selected" : "")" 
+                     @onclick="@(() => isAiMode = false)">
+                    <div class="option-icon">👨‍⚕️</div>
+                    <div class="option-title">Human Doctor</div>
+                    <div class="option-description">Professional medical consultation</div>
+                </div>
+            </div>
+
+            @if (!isAiMode)
+            {
+                <div class="doctor-list">
+                    @foreach (var doctor in availableDoctors)
+                    {
+                        <div class="doctor-card @(selectedDoctorId == doctor.UserId ? "selected" : "")"
+                             @onclick="@(() => selectedDoctorId = doctor.UserId)">
+                            <div class="doctor-avatar">👨‍⚕️</div>
+                            <div class="doctor-info">
+                                <div class="doctor-name">Dr. @doctor.FullName</div>
+                                <div class="doctor-specialty">@doctor.PrimarySpecialization</div>
+                                <div class="doctor-rating">
+                                    ⭐ @doctor.AverageRating.ToString("F1") (@doctor.TotalRatings reviews)
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+
+            <div class="modal-actions">
+                <button class="btn-cancel" @onclick="CloseModal">Cancel</button>
+                <button class="btn-create" 
+                        @onclick="@(() => CreateNewConversation(isAiMode))"
+                        disabled="@(!isAiMode && selectedDoctorId == null)">
+                    Create Conversation
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    // Code-behind is in Consultation.razor.cs
+}

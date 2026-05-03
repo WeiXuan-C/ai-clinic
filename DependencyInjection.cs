@@ -1,5 +1,6 @@
 using ai_clinic.Services;
 using ai_clinic.Services.Facades;
+using ai_clinic.Services.AI;
 
 namespace ai_clinic;
 
@@ -42,6 +43,22 @@ public static class DependencyInjectionExtensions
         services.AddScoped<PatientFacade>();
         services.AddScoped<DoctorFacade>();
         services.AddScoped<AdminFacade>();
+        services.AddScoped<ConsultationFacade>(); // 咨询外观 - 协调对话、消息、医生等子系统
+
+        // 🤖 AI Services - Strategy & Adapter Patterns
+        // Adaptee: OpenRouter API client (the external API we're adapting)
+        services.AddHttpClient<OpenRouterApiClient>();
+        services.AddScoped<OpenRouterApiClient>();
+        
+        // Context: Manages strategy selection and execution
+        services.AddScoped<AiModelContext>();
+        
+        // High-level service: Provides domain-specific AI functionality
+        services.AddScoped<AiAssistantService>();
+        
+        // 🎭 AI Facade: Unified interface for AI model switching and generation
+        // Coordinates: AiModelContext + AiAssistantService + ActivityLogService
+        services.AddScoped<AiFacade>(); // AI外观 - 协调模型切换、响应生成、日志记录等子系统
 
         return services;
     }
