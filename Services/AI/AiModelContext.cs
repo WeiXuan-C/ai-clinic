@@ -29,9 +29,10 @@ namespace ai_clinic.Services.AI
             _availableStrategies = new Dictionary<string, IAiModelStrategy>
             {
                 ["owl-alpha"] = new OwlAlphaStrategy(_apiClient),
+                ["gemma-4"] = new Gemma4Strategy(_apiClient),
+                ["minimax"] = new MiniMaxStrategy(_apiClient),
                 ["nemotron"] = new NemotronStrategy(_apiClient),
-                ["qianfan-ocr"] = new QianfanOcrStrategy(_apiClient),
-                ["gemma-4"] = new Gemma4Strategy(_apiClient)
+                ["qianfan-ocr"] = new QianfanOcrStrategy(_apiClient)
             };
 
             // Set default strategy
@@ -98,11 +99,25 @@ namespace ai_clinic.Services.AI
             double temperature = 0.7,
             int maxTokens = 1000)
         {
-            return await _currentStrategy.GenerateResponseAsync(
+            Console.WriteLine("=== [AI MODEL CONTEXT DEBUG] GenerateResponseAsync Started ===");
+            Console.WriteLine($"[AI CONTEXT] Current Strategy: {_currentStrategy.ModelName}");
+            Console.WriteLine($"[AI CONTEXT] Model ID: {_currentStrategy.ModelId}");
+            Console.WriteLine($"[AI CONTEXT] Prompt Length: {prompt.Length} chars");
+            Console.WriteLine($"[AI CONTEXT] Temperature: {temperature}");
+            Console.WriteLine($"[AI CONTEXT] Max Tokens: {maxTokens}");
+            Console.WriteLine($"[AI CONTEXT] System Instructions: {systemInstructions?.Substring(0, Math.Min(100, systemInstructions?.Length ?? 0)) ?? "null"}...");
+
+            Console.WriteLine("[AI CONTEXT] Delegating to strategy...");
+            var response = await _currentStrategy.GenerateResponseAsync(
                 prompt, 
                 systemInstructions, 
                 temperature, 
                 maxTokens);
+
+            Console.WriteLine($"[AI CONTEXT] Strategy returned response - Length: {response.Length} chars");
+            Console.WriteLine("=== [AI MODEL CONTEXT DEBUG] GenerateResponseAsync Completed ===\n");
+
+            return response;
         }
 
         /// <summary>

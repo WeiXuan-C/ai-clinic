@@ -24,8 +24,13 @@ namespace ai_clinic.Services.AI
             _apiKey = configuration["OpenRouter:ApiKey"] 
                 ?? throw new InvalidOperationException("OpenRouter API key not configured");
             
-            _httpClient.BaseAddress = new Uri(BaseUrl);
+            // 不设置 BaseAddress，使用完整 URL
+            _httpClient.DefaultRequestHeaders.Clear();
             _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_apiKey}");
+            _httpClient.DefaultRequestHeaders.Add("HTTP-Referer", "https://ai-clinic.app");
+            _httpClient.DefaultRequestHeaders.Add("X-Title", "AI Clinic");
+            
+            Console.WriteLine($"[API CLIENT] Initialized with API Key: {_apiKey.Substring(0, 10)}...");
         }
 
         /// <summary>
@@ -34,11 +39,81 @@ namespace ai_clinic.Services.AI
         /// </summary>
         public async Task<OpenRouterResponse> CallApiAsync(OpenRouterRequest request)
         {
-            var response = await _httpClient.PostAsJsonAsync("/chat/completions", request);
-            response.EnsureSuccessStatusCode();
+            const string endpoint = "https://openrouter.ai/api/v1/chat/completions";
             
-            var result = await response.Content.ReadFromJsonAsync<OpenRouterResponse>();
-            return result ?? throw new InvalidOperationException("Failed to deserialize OpenRouter response");
+            Console.WriteLine("=== [OPENROUTER API DEBUG] CallApiAsync Started ===");
+            Console.WriteLine($"[API] Endpoint: {endpoint}");
+            Console.WriteLine($"[API] Model: {request.Model}");
+            Console.WriteLine($"[API] Messages Count: {request.Messages.Length}");
+            Console.WriteLine($"[API] Temperature: {request.Temperature}");
+            Console.WriteLine($"[API] Max Tokens: {request.MaxTokens}");
+            
+            try
+            {
+                var response = await _httpClient.PostAsJsonAsync(endpoint, request);
+                
+                Console.WriteLine($"[API] Response Status: {response.StatusCode}");
+                
+                // Read response content for debugging
+                var responseContent = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"[API] Response Content Length: {responseContent.Length} chars");
+                Console.WriteLine($"[API] Response Preview: {responseContent.Substring(0, Math.Min(200, responseContent.Length))}...");
+                
+                if (!response.IsSuccessStatusCode)
+                {
+                    Console.WriteLine($"[API ERROR] Status Code: {response.StatusCode}");
+                    Console.WriteLine($"[API ERROR] Full Response: {responseContent}");
+                    
+                    // Try to parse error response
+                    try
+                    {
+                        var errorResponse = JsonSerializer.Deserialize<OpenRouterErrorResponse>(responseContent);
+                        if (errorResponse?.Error != null)
+                        {
+                            throw new HttpRequestException(
+                                $"OpenRouter API Error {errorResponse.Error.Code}: {errorResponse.Error.Message}");
+                        }
+                    }
+                    catch (JsonException)
+                    {
+                        // If error response is not JSON, throw with raw content
+                    }
+                    
+                    throw new HttpRequestException($"OpenRouter API returned {response.StatusCode}: {responseContent}");
+                }
+                
+                // Deserialize the response
+                var result = JsonSerializer.Deserialize<OpenRouterResponse>(responseContent);
+                
+                if (result == null)
+                {
+                    Console.WriteLine("[API ERROR] Failed to deserialize response");
+                    throw new InvalidOperationException("Failed to deserialize OpenRouter response");
+                }
+                
+                Console.WriteLine($"[API] Response ID: {result.Id}");
+                Console.WriteLine($"[API] Choices Count: {result.Choices?.Length ?? 0}");
+                if (result.Choices != null && result.Choices.Length > 0)
+                {
+                    var firstChoice = result.Choices[0];
+                    Console.WriteLine($"[API] First Choice Content Length: {firstChoice.Message?.Content?.Length ?? 0} chars");
+                }
+                Console.WriteLine("=== [OPENROUTER API DEBUG] CallApiAsync Completed ===\n");
+                
+                return result;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("=== [OPENROUTER API ERROR] ===");
+                Console.WriteLine($"[API ERROR] Exception Type: {ex.GetType().Name}");
+                Console.WriteLine($"[API ERROR] Message: {ex.Message}");
+                if (ex.InnerException != null)
+                {
+                    Console.WriteLine($"[API ERROR] Inner Exception: {ex.InnerException.Message}");
+                }
+                Console.WriteLine($"[API ERROR] Stack Trace: {ex.StackTrace}");
+                throw;
+            }
         }
 
         /// <summary>
@@ -47,7 +122,8 @@ namespace ai_clinic.Services.AI
         /// </summary>
         public async Task<ModelInfo> GetModelInfoAsync(string modelId)
         {
-            var response = await _httpClient.GetAsync($"/models/{modelId}");
+            var endpoint = $"https://openrouter.ai/api/v1/models/{modelId}";
+            var response = await _httpClient.GetAsync(endpoint);
             response.EnsureSuccessStatusCode();
             
             var result = await response.Content.ReadFromJsonAsync<ModelInfo>();
@@ -135,5 +211,24 @@ namespace ai_clinic.Services.AI
 
         [JsonPropertyName("context_length")]
         public int ContextLength { get; set; }
+    }
+
+    // OpenRouter Error Response
+    public class OpenRouterErrorResponse
+    {
+        [JsonPropertyName("error")]
+        public ErrorDetail? Error { get; set; }
+    }
+
+    public class ErrorDetail
+    {
+        [JsonPropertyName("code")]
+        public int Code { get; set; }
+
+        [JsonPropertyName("message")]
+        public string Message { get; set; } = string.Empty;
+
+        [JsonPropertyName("metadata")]
+        public object? Metadata { get; set; }
     }
 }
