@@ -1,0 +1,195 @@
+@page "/admin/dashboard"
+@using ai_clinic.Models
+@using ai_clinic.Services
+@using ai_clinic.Services.Facades
+@layout Components.Layout.AdminSidebarLayout
+@inject AuthStateService AuthState
+@inject AdminService AdminService
+@inject NavigationManager Navigation
+
+<PageTitle>Admin Dashboard - AI Clinic</PageTitle>
+    <div class="admin-dashboard">
+        <div class="dashboard-header">
+            <h1>Admin Dashboard</h1>
+            <p class="text-muted">System Overview and Management</p>
+        </div>
+
+        @if (_isLoading)
+        {
+            <div class="loading-container">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p>Loading dashboard data...</p>
+            </div>
+        }
+        else if (_stats != null)
+        {
+            <!-- Statistics Cards -->
+            <div class="stats-grid">
+                <div class="stat-card stat-primary">
+                    <div class="stat-icon">
+                        <i class="bi bi-people-fill"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>@_stats.TotalUsers</h3>
+                        <p>Total Users</p>
+                        <small class="text-success">+@_stats.RecentRegistrations in last 7 days</small>
+                    </div>
+                </div>
+
+                <div class="stat-card stat-success">
+                    <div class="stat-icon">
+                        <i class="bi bi-person-badge-fill"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>@_stats.TotalDoctors</h3>
+                        <p>Total Doctors</p>
+                        <small>@_stats.VerifiedDoctors verified</small>
+                    </div>
+                </div>
+
+                <div class="stat-card stat-warning">
+                    <div class="stat-icon">
+                        <i class="bi bi-clock-history"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>@_stats.PendingVerifications</h3>
+                        <p>Pending Verifications</p>
+                        <button class="btn btn-sm btn-warning mt-2" @onclick="NavigateToVerifications">
+                            Review Now
+                        </button>
+                    </div>
+                </div>
+
+                <div class="stat-card stat-info">
+                    <div class="stat-icon">
+                        <i class="bi bi-chat-dots-fill"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>@_stats.ActiveConversations</h3>
+                        <p>Active Consultations</p>
+                        <small>@_stats.TotalConversations total</small>
+                    </div>
+                </div>
+
+                <div class="stat-card stat-danger">
+                    <div class="stat-icon">
+                        <i class="bi bi-ticket-detailed-fill"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>@_stats.OpenSupportTickets</h3>
+                        <p>Open Support Tickets</p>
+                        <button class="btn btn-sm btn-danger mt-2" @onclick="NavigateToTickets">
+                            View Tickets
+                        </button>
+                    </div>
+                </div>
+
+                <div class="stat-card stat-secondary">
+                    <div class="stat-icon">
+                        <i class="bi bi-person-hearts"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>@_stats.TotalPatients</h3>
+                        <p>Total Patients</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="quick-actions">
+                <h2>Quick Actions</h2>
+                <div class="action-buttons">
+                    <button class="btn btn-primary" @onclick="NavigateToUsers">
+                        <i class="bi bi-people"></i> Manage Users
+                    </button>
+                    <button class="btn btn-success" @onclick="NavigateToVerifications">
+                        <i class="bi bi-patch-check"></i> Verify Doctors
+                    </button>
+                    <button class="btn btn-warning" @onclick="NavigateToTickets">
+                        <i class="bi bi-ticket"></i> Support Tickets
+                    </button>
+                    <button class="btn btn-info" @onclick="NavigateToActivityLogs">
+                        <i class="bi bi-activity"></i> Activity Logs
+                    </button>
+                </div>
+            </div>
+
+            <!-- System Health -->
+            <div class="system-health">
+                <h2>System Health</h2>
+                <div class="health-indicators">
+                    <div class="health-item">
+                        <span class="health-label">Database Status:</span>
+                        <span class="badge bg-success">Operational</span>
+                    </div>
+                    <div class="health-item">
+                        <span class="health-label">API Status:</span>
+                        <span class="badge bg-success">Healthy</span>
+                    </div>
+                    <div class="health-item">
+                        <span class="health-label">Doctor Verification Rate:</span>
+                        <span class="badge bg-info">
+                            @((_stats.TotalDoctors > 0 ? (_stats.VerifiedDoctors * 100.0 / _stats.TotalDoctors).ToString("F1") : "0"))%
+                        </span>
+                    </div>
+                </div>
+            </div>
+        }
+        else if (_errorMessage != null)
+        {
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle-fill"></i> @_errorMessage
+            </div>
+        }
+    </div>
+
+@code {
+    private AdminDashboardStats? _stats;
+    private bool _isLoading = true;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDashboardData();
+    }
+
+    private async Task LoadDashboardData()
+    {
+        try
+        {
+            _isLoading = true;
+            _errorMessage = null;
+            _stats = await AdminService.GetDashboardStatsAsync();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to load dashboard data: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void NavigateToUsers()
+    {
+        Navigation.NavigateTo("/admin/users");
+    }
+
+    private void NavigateToVerifications()
+    {
+        Navigation.NavigateTo("/admin/verify-doctors");
+    }
+
+    private void NavigateToTickets()
+    {
+        Navigation.NavigateTo("/admin/support-tickets");
+    }
+
+    private void NavigateToActivityLogs()
+    {
+        Navigation.NavigateTo("/admin/activity-logs");
+    }
+}

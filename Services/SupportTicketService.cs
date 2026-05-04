@@ -76,4 +76,16 @@ public class SupportTicketService
             .OrderByDescending(st => st.CreatedAt)
             .ToListAsync();
     }
+
+    public async Task<List<SupportTicket>> GetAllTicketsAsync()
+    {
+        using var db = DbClient.Instance.GetDb();
+        return await db.SupportTickets
+            .Include(st => st.User)
+            .Include(st => st.Attachments)
+            .Include(st => st.Responses)
+                .ThenInclude(r => r.Responder)
+            .OrderByDescending(st => st.CreatedAt)
+            .ToListAsync();
+    }
 }

@@ -23,7 +23,19 @@ public partial class Consultation : ComponentBase
     private bool isTyping = false;
     private bool isAiMode = true;
     private bool showNewConversationModal = false;
+    private bool isLoadingDoctors = false;
     private List<DoctorListItem> availableDoctors = new();
+    private List<DoctorListItem> filteredDoctors = new();
+    private string _doctorSearchQuery = "";
+    private string doctorSearchQuery
+    {
+        get => _doctorSearchQuery;
+        set
+        {
+            _doctorSearchQuery = value;
+            FilterDoctors();
+        }
+    }
     private Guid? selectedDoctorId = null;
 
     protected override async Task OnInitializedAsync()
@@ -84,9 +96,27 @@ public partial class Consultation : ComponentBase
     /// </summary>
     private async Task ShowNewConversationDialog()
     {
-        availableDoctors = await ConsultationFacade.GetAvailableDoctorsAsync();
+        isLoadingDoctors = true;
         showNewConversationModal = true;
+        doctorSearchQuery = "";
         StateHasChanged();
+        
+        try
+        {
+            availableDoctors = await ConsultationFacade.GetAvailableDoctorsAsync();
+            filteredDoctors = availableDoctors;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading doctors: {ex.Message}");
+            availableDoctors = new List<DoctorListItem>();
+            filteredDoctors = new List<DoctorListItem>();
+        }
+        finally
+        {
+            isLoadingDoctors = false;
+            StateHasChanged();
+        }
     }
 
     /// <summary>
@@ -132,6 +162,28 @@ public partial class Consultation : ComponentBase
     {
         showNewConversationModal = false;
         selectedDoctorId = null;
+        doctorSearchQuery = "";
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Filter doctors based on search query
+    /// </summary>
+    private void FilterDoctors()
+    {
+        if (string.IsNullOrWhiteSpace(doctorSearchQuery))
+        {
+            filteredDoctors = availableDoctors;
+        }
+        else
+        {
+            var query = doctorSearchQuery.ToLower();
+            filteredDoctors = availableDoctors
+                .Where(d => 
+                    d.FullName.ToLower().Contains(query) ||
+                    d.PrimarySpecialization.ToLower().Contains(query))
+                .ToList();
+        }
         StateHasChanged();
     }
 
@@ -236,6 +288,28 @@ public partial class Consultation : ComponentBase
             ConversationStatus.Closed => "status-closed",
             ConversationStatus.Archived => "status-archived",
             _ => ""
+        };
+    }
+
+    private string GetAvailabilityStatusText(DoctorAvailabilityStatus status)
+    {
+        return status switch
+        {
+            DoctorAvailabilityStatus.Available => "🟢 Available",
+            DoctorAvailabilityStatus.Busy => "🟡 Busy",
+            DoctorAvailabilityStatus.Offline => "🔴 Offline",
+            _ => "Unknown"
+        };
+    }
+
+    private string GetAvailabilityStatusStyle(DoctorAvailabilityStatus status)
+    {
+        return status switch
+        {
+            DoctorAvailabilityStatus.Available => "color: #10b981; font-weight: 500;",
+            DoctorAvailabilityStatus.Busy => "color: #f59e0b; font-weight: 500;",
+            DoctorAvailabilityStatus.Offline => "color: #ef4444; font-weight: 500;",
+            _ => "color: #6b7280;"
         };
     }
 }

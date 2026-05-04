@@ -36,6 +36,7 @@ public static class DependencyInjectionExtensions
         services.AddScoped<ActivityLogService>();
         services.AddScoped<StatisticsService>();
         services.AddScoped<AuthStateService>(); // Authentication state management
+        services.AddScoped<AdminService>(); // Admin operations service
 
         // 🎭 Facade Pattern: High-level business operation coordinators
         // These facades manage multiple subsystems and provide simplified interfaces
@@ -49,6 +50,8 @@ public static class DependencyInjectionExtensions
         // Adaptee: OpenRouter API client (the external API we're adapting)
         services.AddHttpClient<OpenRouterApiClient>();
         services.AddScoped<OpenRouterApiClient>();
+
+        services.AddScoped<Services.DoctorRecommendation.DoctorRecommendationService>();       
         
         // Context: Manages strategy selection and execution
         services.AddScoped<AiModelContext>();

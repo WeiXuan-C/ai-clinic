@@ -1,0 +1,340 @@
+@page "/admin/verify-doctors"
+@using ai_clinic.Models
+@using ai_clinic.Services
+@layout Components.Layout.AdminSidebarLayout
+@inject AuthStateService AuthState
+@inject AdminService AdminService
+@inject NavigationManager Navigation
+
+<PageTitle>Verify Doctors - Admin Panel</PageTitle>
+
+<div class="verify-doctors-page">
+        <div class="page-header">
+            <div>
+                <h1>Doctor Verification</h1>
+                <p class="text-muted">Review and verify doctor credentials</p>
+            </div>
+            <button class="btn btn-outline-secondary" @onclick="NavigateBack">
+                <i class="bi bi-arrow-left"></i> Back to Dashboard
+            </button>
+        </div>
+
+        <!-- Filter Tabs -->
+        <div class="filter-tabs">
+            <button class="tab-btn @(_currentFilter == "pending" ? "active" : "")" 
+                    @onclick="@(() => SetFilter("pending"))">
+                Pending (@_pendingCount)
+            </button>
+            <button class="tab-btn @(_currentFilter == "verified" ? "active" : "")" 
+                    @onclick="@(() => SetFilter("verified"))">
+                Verified (@_verifiedCount)
+            </button>
+            <button class="tab-btn @(_currentFilter == "all" ? "active" : "")" 
+                    @onclick="@(() => SetFilter("all"))">
+                All Doctors (@_allCount)
+            </button>
+        </div>
+
+        @if (_isLoading)
+        {
+            <div class="loading-container">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p>Loading doctors...</p>
+            </div>
+        }
+        else if (_doctors.Count == 0)
+        {
+            <div class="empty-state">
+                <i class="bi bi-inbox"></i>
+                <h3>No doctors found</h3>
+                <p>There are no doctors matching the current filter.</p>
+            </div>
+        }
+        else
+        {
+            <div class="doctors-grid">
+                @foreach (var doctor in _doctors)
+                {
+                    <div class="doctor-card @(doctor.IsVerified ? "verified" : "pending")">
+                        <div class="doctor-header">
+                            <div class="doctor-avatar">
+                                @if (doctor.ProfilePhoto != null)
+                                {
+                                    <img src="data:image/jpeg;base64,@Convert.ToBase64String(doctor.ProfilePhoto)" 
+                                         alt="@doctor.FullName" />
+                                }
+                                else
+                                {
+                                    <i class="bi bi-person-circle"></i>
+                                }
+                            </div>
+                            <div class="doctor-info">
+                                <h3>@doctor.FullName</h3>
+                                <p class="specialization">@doctor.PrimarySpecialization</p>
+                                <span class="badge @(doctor.IsVerified ? "bg-success" : "bg-warning")">
+                                    @(doctor.IsVerified ? "Verified" : "Pending Verification")
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="doctor-details">
+                            <div class="detail-row">
+                                <span class="label">License Number:</span>
+                                <span class="value">@doctor.LicenseNumber</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="label">Email:</span>
+                                <span class="value">@doctor.User.Email</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="label">Experience:</span>
+                                <span class="value">@(doctor.YearsOfExperience ?? 0) years</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="label">Registered:</span>
+                                <span class="value">@doctor.CreatedAt.ToString("MMM dd, yyyy")</span>
+                            </div>
+                            @if (doctor.SubSpecializations != null)
+                            {
+                                <div class="detail-row">
+                                    <span class="label">Sub-specializations:</span>
+                                    <span class="value">@doctor.SubSpecializations</span>
+                                </div>
+                            }
+                        </div>
+
+                        <div class="doctor-actions">
+                            @if (!doctor.IsVerified)
+                            {
+                                <button class="btn btn-success" 
+                                        @onclick="() => VerifyDoctor(doctor.UserId, true)"
+                                        disabled="@_isProcessing">
+                                    <i class="bi bi-check-circle"></i> Verify
+                                </button>
+                                <button class="btn btn-danger" 
+                                        @onclick="() => RejectDoctor(doctor.UserId)"
+                                        disabled="@_isProcessing">
+                                    <i class="bi bi-x-circle"></i> Reject
+                                </button>
+                            }
+                            else
+                            {
+                                <button class="btn btn-warning" 
+                                        @onclick="() => RevokeVerification(doctor.UserId)"
+                                        disabled="@_isProcessing">
+                                    <i class="bi bi-shield-x"></i> Revoke Verification
+                                </button>
+                            }
+                            <button class="btn btn-outline-primary" 
+                                    @onclick="() => ViewDoctorDetails(doctor.UserId)">
+                                <i class="bi bi-eye"></i> View Details
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+
+        @if (_successMessage != null)
+        {
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="bi bi-check-circle-fill"></i> @_successMessage
+                <button type="button" class="btn-close" @onclick="() => _successMessage = null"></button>
+            </div>
+        }
+
+        @if (_errorMessage != null)
+        {
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-triangle-fill"></i> @_errorMessage
+                <button type="button" class="btn-close" @onclick="() => _errorMessage = null"></button>
+            </div>
+        }
+    </div>
+
+@code {
+    private List<DoctorProfile> _doctors = new();
+    private string _currentFilter = "pending";
+    private bool _isLoading = true;
+    private bool _isProcessing = false;
+    private string? _successMessage;
+    private string? _errorMessage;
+    private int _pendingCount = 0;
+    private int _verifiedCount = 0;
+    private int _allCount = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDoctors();
+    }
+
+    private async Task LoadDoctors()
+    {
+        try
+        {
+            _isLoading = true;
+            _errorMessage = null;
+
+            // Load counts
+            var allDoctors = await AdminService.GetAllDoctorsAsync();
+            _allCount = allDoctors.Count;
+            _verifiedCount = allDoctors.Count(d => d.IsVerified);
+            _pendingCount = allDoctors.Count(d => !d.IsVerified);
+
+            // Load filtered doctors
+            _doctors = _currentFilter switch
+            {
+                "pending" => await AdminService.GetPendingVerificationsAsync(),
+                "verified" => await AdminService.GetAllDoctorsAsync(isVerified: true),
+                "all" => allDoctors,
+                _ => allDoctors
+            };
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to load doctors: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task SetFilter(string filter)
+    {
+        _currentFilter = filter;
+        await LoadDoctors();
+    }
+
+    private async Task VerifyDoctor(Guid doctorUserId, bool isVerified)
+    {
+        try
+        {
+            _isProcessing = true;
+            _errorMessage = null;
+
+            var currentUser = AuthState.CurrentUser;
+            if (currentUser == null)
+            {
+                _errorMessage = "You must be logged in to perform this action.";
+                return;
+            }
+
+            var success = await AdminService.VerifyDoctorAsync(
+                doctorUserId, 
+                currentUser.Id, 
+                isVerified, 
+                "Verified by admin");
+
+            if (success)
+            {
+                _successMessage = "Doctor verified successfully!";
+                await LoadDoctors();
+            }
+            else
+            {
+                _errorMessage = "Failed to verify doctor.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+
+    private async Task RejectDoctor(Guid doctorUserId)
+    {
+        try
+        {
+            _isProcessing = true;
+            _errorMessage = null;
+
+            var currentUser = AuthState.CurrentUser;
+            if (currentUser == null)
+            {
+                _errorMessage = "You must be logged in to perform this action.";
+                return;
+            }
+
+            var success = await AdminService.VerifyDoctorAsync(
+                doctorUserId, 
+                currentUser.Id, 
+                false, 
+                "Rejected by admin");
+
+            if (success)
+            {
+                _successMessage = "Doctor verification rejected.";
+                await LoadDoctors();
+            }
+            else
+            {
+                _errorMessage = "Failed to reject doctor.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+
+    private async Task RevokeVerification(Guid doctorUserId)
+    {
+        try
+        {
+            _isProcessing = true;
+            _errorMessage = null;
+
+            var currentUser = AuthState.CurrentUser;
+            if (currentUser == null)
+            {
+                _errorMessage = "You must be logged in to perform this action.";
+                return;
+            }
+
+            var success = await AdminService.VerifyDoctorAsync(
+                doctorUserId, 
+                currentUser.Id, 
+                false, 
+                "Verification revoked by admin");
+
+            if (success)
+            {
+                _successMessage = "Doctor verification revoked.";
+                await LoadDoctors();
+            }
+            else
+            {
+                _errorMessage = "Failed to revoke verification.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+
+    private void ViewDoctorDetails(Guid doctorUserId)
+    {
+        Navigation.NavigateTo($"/admin/doctor-details/{doctorUserId}");
+    }
+
+    private void NavigateBack()
+    {
+        Navigation.NavigateTo("/admin/dashboard");
+    }
+}

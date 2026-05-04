@@ -1,0 +1,379 @@
+@page "/admin/support-tickets"
+@using ai_clinic.Models
+@using ai_clinic.Services
+@using ai_clinic.Services.Facades
+@layout Components.Layout.AdminSidebarLayout
+@inject AuthStateService AuthState
+@inject SupportTicketService TicketService
+@inject AdminFacade AdminFacade
+@inject NavigationManager Navigation
+
+<PageTitle>Support Tickets - Admin Panel</PageTitle>
+
+<div class="support-tickets-page">
+        <div class="page-header">
+            <div>
+                <h1>Support Tickets</h1>
+                <p class="text-muted">Manage user support requests</p>
+            </div>
+            <button class="btn btn-outline-secondary" @onclick="NavigateBack">
+                <i class="bi bi-arrow-left"></i> Back to Dashboard
+            </button>
+        </div>
+
+        <!-- Filter Tabs -->
+        <div class="filter-tabs">
+            <button class="tab-btn @(_currentFilter == "open" ? "active" : "")" 
+                    @onclick="@(() => SetFilter("open"))">
+                Open (@_openCount)
+            </button>
+            <button class="tab-btn @(_currentFilter == "in-progress" ? "active" : "")" 
+                    @onclick="@(() => SetFilter("in-progress"))">
+                In Progress (@_inProgressCount)
+            </button>
+            <button class="tab-btn @(_currentFilter == "resolved" ? "active" : "")" 
+                    @onclick="@(() => SetFilter("resolved"))">
+                Resolved (@_resolvedCount)
+            </button>
+            <button class="tab-btn @(_currentFilter == "all" ? "active" : "")" 
+                    @onclick="@(() => SetFilter("all"))">
+                All Tickets (@_allCount)
+            </button>
+        </div>
+
+        @if (_isLoading)
+        {
+            <div class="loading-container">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p>Loading support tickets...</p>
+            </div>
+        }
+        else if (_tickets.Count == 0)
+        {
+            <div class="empty-state">
+                <i class="bi bi-ticket-detailed"></i>
+                <h3>No tickets found</h3>
+                <p>There are no support tickets matching the current filter.</p>
+            </div>
+        }
+        else
+        {
+            <div class="tickets-grid">
+                @foreach (var ticket in _tickets)
+                {
+                    <div class="ticket-card @GetStatusClass(ticket.Status)">
+                        <div class="ticket-header">
+                            <div class="ticket-info">
+                                <h3>@ticket.Subject</h3>
+                                <span class="ticket-id">#@ticket.Id.ToString().Substring(0, 8)</span>
+                            </div>
+                            <span class="badge @GetStatusBadgeClass(ticket.Status)">
+                                @ticket.Status
+                            </span>
+                        </div>
+
+                        <div class="ticket-body">
+                            <p class="ticket-message">@ticket.Description</p>
+                            
+                            <div class="ticket-meta">
+                                <div class="meta-item">
+                                    <i class="bi bi-person"></i>
+                                    <span>User ID: @ticket.UserId.ToString().Substring(0, 8)</span>
+                                </div>
+                                <div class="meta-item">
+                                    <i class="bi bi-calendar"></i>
+                                    <span>@ticket.CreatedAt.ToString("MMM dd, yyyy")</span>
+                                </div>
+                                <div class="meta-item">
+                                    <i class="bi bi-clock"></i>
+                                    <span>@ticket.CreatedAt.ToString("HH:mm")</span>
+                                </div>
+                            </div>
+
+                            @if (ticket.Attachments != null && ticket.Attachments.Any())
+                            {
+                                <div class="ticket-attachments">
+                                    <i class="bi bi-paperclip"></i>
+                                    <span>@ticket.Attachments.Count attachment(s)</span>
+                                </div>
+                            }
+
+                            @if (ticket.Responses != null && ticket.Responses.Any())
+                            {
+                                <div class="ticket-responses">
+                                    <h4>Responses (@ticket.Responses.Count)</h4>
+                                    @foreach (var response in ticket.Responses.OrderBy(r => r.CreatedAt))
+                                    {
+                                        <div class="response-item">
+                                            <div class="response-header">
+                                                <strong>Admin Response</strong>
+                                                <span class="response-time">@response.CreatedAt.ToString("MMM dd, HH:mm")</span>
+                                            </div>
+                                            <p>@response.Message</p>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+
+                        <div class="ticket-actions">
+                            @if (ticket.Status != "Resolved" && ticket.Status != "Closed")
+                            {
+                                <button class="btn btn-primary btn-sm" 
+                                        @onclick="@(() => ShowResponseModal(ticket))">
+                                    <i class="bi bi-reply"></i> Respond
+                                </button>
+                                <button class="btn btn-success btn-sm" 
+                                        @onclick='@(() => UpdateTicketStatus(ticket.Id, "Resolved"))'>
+                                    <i class="bi bi-check-circle"></i> Resolve
+                                </button>
+                            }
+                            @if (ticket.Status == "Open")
+                            {
+                                <button class="btn btn-warning btn-sm" 
+                                        @onclick='@(() => UpdateTicketStatus(ticket.Id, "In Progress"))'>
+                                    <i class="bi bi-hourglass-split"></i> In Progress
+                                </button>
+                            }
+                            <button class="btn btn-outline-info btn-sm" 
+                                    @onclick="@(() => ViewTicketDetails(ticket.Id))">
+                                <i class="bi bi-eye"></i> Details
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+
+        <!-- Response Modal -->
+        @if (_showResponseModal && _selectedTicket != null)
+        {
+            <div class="modal-overlay" @onclick="CloseResponseModal">
+                <div class="modal-content" @onclick:stopPropagation="true">
+                    <div class="modal-header">
+                        <h3>Respond to Ticket</h3>
+                        <button class="btn-close" @onclick="CloseResponseModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="ticket-summary">
+                            <strong>Subject:</strong> @_selectedTicket.Subject
+                        </div>
+                        <div class="ticket-summary">
+                            <strong>Original Message:</strong>
+                            <p>@_selectedTicket.Description</p>
+                        </div>
+                        <div class="form-group">
+                            <label>Your Response:</label>
+                            <textarea class="form-control" 
+                                      rows="5" 
+                                      @bind="_responseMessage"
+                                      placeholder="Enter your response..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Update Status:</label>
+                            <select class="form-select" @bind="_newStatus">
+                                <option value="In Progress">In Progress</option>
+                                <option value="Resolved">Resolved</option>
+                                <option value="Closed">Closed</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" @onclick="CloseResponseModal">Cancel</button>
+                        <button class="btn btn-primary" 
+                                @onclick="SubmitResponse"
+                                disabled="@(string.IsNullOrWhiteSpace(_responseMessage) || _isProcessing)">
+                            @if (_isProcessing)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                            }
+                            Send Response
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (_successMessage != null)
+        {
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="bi bi-check-circle-fill"></i> @_successMessage
+                <button type="button" class="btn-close" @onclick="() => _successMessage = null"></button>
+            </div>
+        }
+
+        @if (_errorMessage != null)
+        {
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-triangle-fill"></i> @_errorMessage
+                <button type="button" class="btn-close" @onclick="() => _errorMessage = null"></button>
+            </div>
+        }
+    </div>
+
+@code {
+    private List<SupportTicket> _tickets = new();
+    private string _currentFilter = "open";
+    private bool _isLoading = true;
+    private bool _isProcessing = false;
+    private string? _successMessage;
+    private string? _errorMessage;
+    private int _openCount = 0;
+    private int _inProgressCount = 0;
+    private int _resolvedCount = 0;
+    private int _allCount = 0;
+
+    private bool _showResponseModal = false;
+    private SupportTicket? _selectedTicket;
+    private string _responseMessage = "";
+    private string _newStatus = "In Progress";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTickets();
+    }
+
+    private async Task LoadTickets()
+    {
+        try
+        {
+            _isLoading = true;
+            _errorMessage = null;
+
+            // Load all tickets for counts
+            var allTickets = await TicketService.GetAllTicketsAsync();
+            _allCount = allTickets.Count;
+            _openCount = allTickets.Count(t => t.Status == "Open");
+            _inProgressCount = allTickets.Count(t => t.Status == "In Progress");
+            _resolvedCount = allTickets.Count(t => t.Status == "Resolved" || t.Status == "Closed");
+
+            // Load filtered tickets
+            _tickets = _currentFilter switch
+            {
+                "open" => allTickets.Where(t => t.Status == "Open").ToList(),
+                "in-progress" => allTickets.Where(t => t.Status == "In Progress").ToList(),
+                "resolved" => allTickets.Where(t => t.Status == "Resolved" || t.Status == "Closed").ToList(),
+                "all" => allTickets,
+                _ => allTickets
+            };
+
+            // Sort by created date (newest first)
+            _tickets = _tickets.OrderByDescending(t => t.CreatedAt).ToList();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to load tickets: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task SetFilter(string filter)
+    {
+        _currentFilter = filter;
+        await LoadTickets();
+    }
+
+    private void ShowResponseModal(SupportTicket ticket)
+    {
+        _selectedTicket = ticket;
+        _responseMessage = "";
+        _newStatus = "In Progress";
+        _showResponseModal = true;
+    }
+
+    private void CloseResponseModal()
+    {
+        _showResponseModal = false;
+        _selectedTicket = null;
+        _responseMessage = "";
+    }
+
+    private async Task SubmitResponse()
+    {
+        if (_selectedTicket == null || string.IsNullOrWhiteSpace(_responseMessage))
+            return;
+
+        try
+        {
+            _isProcessing = true;
+            _errorMessage = null;
+
+            var currentUser = AuthState.CurrentUser;
+            if (currentUser == null)
+            {
+                _errorMessage = "You must be logged in to perform this action.";
+                return;
+            }
+
+            await AdminFacade.RespondToTicketAsync(
+                _selectedTicket.Id,
+                currentUser.Id,
+                _responseMessage,
+                _newStatus);
+
+            _successMessage = "Response sent successfully!";
+            CloseResponseModal();
+            await LoadTickets();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+
+    private async Task UpdateTicketStatus(Guid ticketId, string newStatus)
+    {
+        try
+        {
+            _errorMessage = null;
+            await TicketService.UpdateStatusAsync(ticketId, newStatus);
+            _successMessage = $"Ticket status updated to {newStatus}";
+            await LoadTickets();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error: {ex.Message}";
+        }
+    }
+
+    private void ViewTicketDetails(Guid ticketId)
+    {
+        Navigation.NavigateTo($"/admin/ticket-details/{ticketId}");
+    }
+
+    private void NavigateBack()
+    {
+        Navigation.NavigateTo("/admin/dashboard");
+    }
+
+    private string GetStatusClass(string status)
+    {
+        return status switch
+        {
+            "Open" => "status-open",
+            "In Progress" => "status-in-progress",
+            "Resolved" or "Closed" => "status-resolved",
+            _ => ""
+        };
+    }
+
+    private string GetStatusBadgeClass(string status)
+    {
+        return status switch
+        {
+            "Open" => "bg-danger",
+            "In Progress" => "bg-warning",
+            "Resolved" or "Closed" => "bg-success",
+            _ => "bg-secondary"
+        };
+    }
+}

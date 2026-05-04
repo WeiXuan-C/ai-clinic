@@ -1,0 +1,263 @@
+@page "/admin/activity-logs"
+@using ai_clinic.Models
+@using ai_clinic.Services
+@layout Components.Layout.AdminSidebarLayout
+@inject AuthStateService AuthState
+@inject ActivityLogService ActivityLogService
+@inject NavigationManager Navigation
+
+<PageTitle>Activity Logs - Admin Panel</PageTitle>
+
+<div class="activity-logs-page">
+        <div class="page-header">
+            <div>
+                <h1>Activity Logs</h1>
+                <p class="text-muted">Monitor system activities and admin actions</p>
+            </div>
+            <button class="btn btn-outline-secondary" @onclick="NavigateBack">
+                <i class="bi bi-arrow-left"></i> Back to Dashboard
+            </button>
+        </div>
+
+        <!-- Filters -->
+        <div class="filters-section">
+            <div class="filter-controls">
+                <select class="form-select" @bind="_actionFilter" @bind:after="ApplyFilters">
+                    <option value="">All Actions</option>
+                    <option value="Login">Login</option>
+                    <option value="Logout">Logout</option>
+                    <option value="VerifyDoctor">Verify Doctor</option>
+                    <option value="SuspendUser">Suspend User</option>
+                    <option value="UnsuspendUser">Unsuspend User</option>
+                    <option value="DeleteUser">Delete User</option>
+                    <option value="UpdateAdminPermissions">Update Permissions</option>
+                    <option value="ViewAdminDashboard">View Dashboard</option>
+                </select>
+
+                <select class="form-select" @bind="_limitFilter" @bind:after="ApplyFilters">
+                    <option value="50">Last 50 logs</option>
+                    <option value="100">Last 100 logs</option>
+                    <option value="200">Last 200 logs</option>
+                    <option value="500">Last 500 logs</option>
+                </select>
+
+                <button class="btn btn-outline-primary" @onclick="RefreshLogs">
+                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                </button>
+
+                <button class="btn btn-outline-success" @onclick="ExportLogs">
+                    <i class="bi bi-download"></i> Export
+                </button>
+            </div>
+        </div>
+
+        @if (_isLoading)
+        {
+            <div class="loading-container">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p>Loading activity logs...</p>
+            </div>
+        }
+        else if (_logs.Count > 0)
+        {
+            <!-- Logs Timeline -->
+            <div class="logs-container">
+                <div class="timeline">
+                    @foreach (var log in _logs)
+                    {
+                        <div class="timeline-item @GetActionClass(log.Action)">
+                            <div class="timeline-marker">
+                                <i class="bi @GetActionIcon(log.Action)"></i>
+                            </div>
+                            <div class="timeline-content">
+                                <div class="log-header">
+                                    <div class="log-info">
+                                        <h4>@log.Action</h4>
+                                        <span class="log-time">
+                                            <i class="bi bi-clock"></i>
+                                            @log.CreatedAt.ToString("MMM dd, yyyy HH:mm:ss")
+                                        </span>
+                                    </div>
+                                    <span class="badge @GetActionBadgeClass(log.Action)">
+                                        @GetActionCategory(log.Action)
+                                    </span>
+                                </div>
+                                @if (!string.IsNullOrEmpty(log.Details))
+                                {
+                                    <div class="log-details">
+                                        <p>@log.Details</p>
+                                    </div>
+                                }
+                                <div class="log-meta">
+                                    <span class="log-id">
+                                        <i class="bi bi-hash"></i> @log.Id.ToString().Substring(0, 8)
+                                    </span>
+                                    <span class="log-user">
+                                        <i class="bi bi-person"></i> User ID: @log.UserId.ToString().Substring(0, 8)
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Summary Stats -->
+            <div class="summary-section">
+                <h3>Summary</h3>
+                <div class="summary-grid">
+                    <div class="summary-card">
+                        <i class="bi bi-list-check"></i>
+                        <div>
+                            <strong>@_logs.Count</strong>
+                            <span>Total Logs</span>
+                        </div>
+                    </div>
+                    <div class="summary-card">
+                        <i class="bi bi-people"></i>
+                        <div>
+                            <strong>@_logs.Select(l => l.UserId).Distinct().Count()</strong>
+                            <span>Unique Users</span>
+                        </div>
+                    </div>
+                    <div class="summary-card">
+                        <i class="bi bi-activity"></i>
+                        <div>
+                            <strong>@_logs.Select(l => l.Action).Distinct().Count()</strong>
+                            <span>Action Types</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="empty-state">
+                <i class="bi bi-journal-x"></i>
+                <h3>No activity logs found</h3>
+                <p>There are no logs matching the current filter.</p>
+            </div>
+        }
+
+        @if (_errorMessage != null)
+        {
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-triangle-fill"></i> @_errorMessage
+                <button type="button" class="btn-close" @onclick="() => _errorMessage = null"></button>
+            </div>
+        }
+    </div>
+
+@code {
+    private List<ActivityLog> _logs = new();
+    private string _actionFilter = "";
+    private int _limitFilter = 50;
+    private bool _isLoading = true;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadLogs();
+    }
+
+    private async Task LoadLogs()
+    {
+        try
+        {
+            _isLoading = true;
+            _errorMessage = null;
+
+            _logs = await ActivityLogService.GetRecentLogsAsync(_limitFilter);
+
+            // Apply action filter if set
+            if (!string.IsNullOrEmpty(_actionFilter))
+            {
+                _logs = _logs.Where(l => l.Action == _actionFilter).ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to load activity logs: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task ApplyFilters()
+    {
+        await LoadLogs();
+    }
+
+    private async Task RefreshLogs()
+    {
+        await LoadLogs();
+    }
+
+    private void ExportLogs()
+    {
+        // TODO: Implement CSV export functionality
+        _errorMessage = "Export functionality coming soon!";
+    }
+
+    private void NavigateBack()
+    {
+        Navigation.NavigateTo("/admin/dashboard");
+    }
+
+    private string GetActionClass(string action)
+    {
+        return action switch
+        {
+            "VerifyDoctor" => "action-success",
+            "SuspendUser" or "DeleteUser" => "action-danger",
+            "Login" or "Logout" => "action-info",
+            "UpdateAdminPermissions" => "action-warning",
+            _ => "action-default"
+        };
+    }
+
+    private string GetActionIcon(string action)
+    {
+        return action switch
+        {
+            "Login" => "bi-box-arrow-in-right",
+            "Logout" => "bi-box-arrow-right",
+            "VerifyDoctor" => "bi-patch-check-fill",
+            "SuspendUser" => "bi-pause-circle-fill",
+            "UnsuspendUser" => "bi-play-circle-fill",
+            "DeleteUser" => "bi-trash-fill",
+            "UpdateAdminPermissions" => "bi-shield-fill-check",
+            "ViewAdminDashboard" => "bi-speedometer2",
+            _ => "bi-circle-fill"
+        };
+    }
+
+    private string GetActionBadgeClass(string action)
+    {
+        return action switch
+        {
+            "VerifyDoctor" => "bg-success",
+            "SuspendUser" or "DeleteUser" => "bg-danger",
+            "Login" or "Logout" => "bg-info",
+            "UpdateAdminPermissions" => "bg-warning",
+            _ => "bg-secondary"
+        };
+    }
+
+    private string GetActionCategory(string action)
+    {
+        return action switch
+        {
+            "Login" or "Logout" => "Authentication",
+            "VerifyDoctor" => "Verification",
+            "SuspendUser" or "UnsuspendUser" or "DeleteUser" => "User Management",
+            "UpdateAdminPermissions" => "Permissions",
+            "ViewAdminDashboard" => "Navigation",
+            _ => "System"
+        };
+    }
+}

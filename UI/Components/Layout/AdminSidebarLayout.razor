@@ -1,0 +1,372 @@
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Components.Routing
+@using ai_clinic.Services
+@using ai_clinic.UI.Components
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
+@inject AuthStateService AuthState
+@inject UserService UserService
+
+@code {
+    private string? userName = null;
+    private string? userEmail = null;
+    private string? userInitials = null;
+
+    protected override void OnInitialized()
+    {
+        // Subscribe to auth state changes
+        AuthState.OnAuthStateChanged += UpdateUserInfo;
+        
+        // Initialize user data from AuthState
+        UpdateUserInfo();
+    }
+
+    private async void UpdateUserInfo()
+    {
+        userName = AuthState.GetDisplayName();
+        userEmail = AuthState.CurrentUser?.Email;
+        userInitials = AuthState.GetUserInitials();
+        
+        // Trigger re-render
+        await InvokeAsync(StateHasChanged);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Wait a bit for DOM to be fully ready
+            await Task.Delay(50);
+            // Initialize Lucide icons for all pages using this layout
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("initializeLucide");
+                Console.WriteLine("[AdminSidebar] Lucide icons initialized");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AdminSidebar] Failed to initialize Lucide: {ex.Message}");
+            }
+        }
+        await base.OnAfterRenderAsync(firstRender);
+    }
+
+    private async Task HandleLogout()
+    {
+        // Clear authentication state and session
+        await AuthState.ClearCurrentUserAsync();
+        
+        // Navigate to sign-in page
+        Navigation.NavigateTo("/auth/signin", forceLoad: true);
+    }
+
+    public void Dispose()
+    {
+        // Unsubscribe from auth state changes
+        AuthState.OnAuthStateChanged -= UpdateUserInfo;
+    }
+}
+
+<link rel="stylesheet" href="/css/stitch-design-system.css" />
+
+<AuthGuard RequiredRole="Admin">
+
+<div class="dashboard-layout">
+    <!-- Left Sidebar -->
+    <aside class="sidebar admin-sidebar">
+        <div class="sidebar-header">
+            <a href="/admin/dashboard" class="profile-section-link">
+                <div class="profile-section">
+                    <div class="avatar admin-avatar">
+                        @if (!string.IsNullOrEmpty(userInitials))
+                        {
+                            <span class="avatar-text">@userInitials</span>
+                        }
+                        else
+                        {
+                            <i data-lucide="shield-check"></i>
+                        }
+                    </div>
+                    <div class="profile-info">
+                        <h3 class="headline-sm">@(userName ?? "Administrator")</h3>
+                        <p class="body-sm">@(userEmail ?? "System Admin")</p>
+                        <span class="status-badge admin-badge">Admin</span>
+                    </div>
+                </div>
+            </a>
+            <a href="/admin/users" class="btn btn-primary btn-block">
+                <i data-lucide="users-cog"></i>
+                Manage Users
+            </a>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="/admin/dashboard" class="nav-item">
+                <i data-lucide="layout-dashboard" class="nav-icon"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="/admin/users" class="nav-item">
+                <i data-lucide="users" class="nav-icon"></i>
+                <span>All Users</span>
+            </a>
+            <a href="/admin/verify-doctors" class="nav-item">
+                <i data-lucide="user-check" class="nav-icon"></i>
+                <span>Verify Doctors</span>
+            </a>
+            <a href="/admin/support-tickets" class="nav-item">
+                <i data-lucide="ticket" class="nav-icon"></i>
+                <span>Support Tickets</span>
+            </a>
+            <a href="/admin/activity-logs" class="nav-item">
+                <i data-lucide="activity" class="nav-icon"></i>
+                <span>Activity Logs</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <a href="/admin/settings" class="nav-item">
+                <i data-lucide="settings" class="nav-icon"></i>
+                <span>Settings</span>
+            </a>
+            <a @onclick="HandleLogout" class="nav-item" style="cursor: pointer;">
+                <i data-lucide="log-out" class="nav-icon"></i>
+                <span>Logout</span>
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        @Body
+    </main>
+</div>
+
+</AuthGuard>
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    .dashboard-layout {
+        display: flex;
+        background: #f7f9fb;
+        font-family: 'Inter', sans-serif;
+    }
+
+    /* Admin Sidebar - Orange/Red theme */
+    .sidebar.admin-sidebar {
+        width: 280px;
+        min-height: 100vh;
+        max-height: 100vh;
+        background: linear-gradient(180deg, #dc2626 0%, #b91c1c 100%);
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        position: fixed;
+        left: 0;
+        top: 0;
+    }
+
+    .sidebar-header {
+        padding: 32px 24px 24px;
+        margin-bottom: 0;
+    }
+
+    .profile-section-link {
+        text-decoration: none;
+        color: inherit;
+        display: block;
+        margin-bottom: 24px;
+    }
+
+    .profile-section {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        position: relative;
+        cursor: pointer;
+        padding: 8px;
+        border-radius: 12px;
+        transition: background 0.2s;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+
+    .profile-section:hover {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    .profile-section:active {
+        transform: scale(0.98);
+    }
+
+    .profile-section * {
+        pointer-events: none;
+    }
+
+    svg {
+        pointer-events: none;
+    }
+
+    .avatar.admin-avatar {
+        width: 48px;
+        height: 48px;
+        min-width: 48px;
+        min-height: 48px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #f97316, #ea580c);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        color: white;
+        border: 3px solid rgba(255, 255, 255, 0.2);
+        overflow: hidden;
+    }
+
+    .avatar-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 50%;
+    }
+
+    .avatar-text {
+        font-size: 18px;
+        font-weight: 600;
+        color: white;
+        user-select: none;
+    }
+
+    .profile-info h3 {
+        font-size: 14px;
+        font-weight: 600;
+        color: white;
+        margin-bottom: 4px;
+        line-height: 1.2;
+    }
+
+    .profile-info p {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.8);
+        margin-bottom: 8px;
+        line-height: 1.2;
+    }
+
+    .status-badge.admin-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        background: #f97316;
+        color: white;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 500;
+        line-height: 1.2;
+    }
+
+    .btn-block {
+        width: 100%;
+        padding: 14px 24px;
+        background: #f97316;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        line-height: 1.2;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-family: 'Inter', sans-serif;
+        text-align: center;
+        white-space: nowrap;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .btn-block:hover {
+        background: #ea580c;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+    }
+
+    .sidebar-nav {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        padding: 0.5rem 0;
+    }
+
+    .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.875rem 1.5rem;
+        color: rgba(255, 255, 255, 0.8);
+        text-decoration: none;
+        border-radius: 0;
+        transition: all 0.2s;
+        font-size: 0.875rem;
+    }
+
+    .nav-item:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+    }
+
+    .nav-item.active {
+        background: rgba(249, 115, 22, 0.3);
+        color: white;
+        font-weight: 600;
+        border-left: 4px solid #f97316;
+        padding-left: calc(1.5rem - 4px);
+    }
+
+    .nav-icon {
+        font-size: 1.25rem;
+        width: 1.25rem;
+        height: 1.25rem;
+        display: inline-block;
+        flex-shrink: 0;
+    }
+
+    .sidebar-footer {
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 1rem 0 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    /* Main Content */
+    .main-content {
+        flex: 1;
+        margin-left: 280px;
+        padding: 2.5rem 3rem;
+        overflow-y: auto;
+    }
+
+    /* Responsive */
+    @@media (max-width: 768px) {
+        .dashboard-layout {
+            flex-direction: column;
+        }
+
+        .sidebar.admin-sidebar {
+            width: 100%;
+            position: relative;
+        }
+
+        .main-content {
+            margin-left: 0;
+            padding: 1.5rem;
+        }
+    }
+</style>

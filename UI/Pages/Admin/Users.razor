@@ -1,0 +1,532 @@
+@page "/admin/users"
+@using ai_clinic.Models
+@using ai_clinic.Services
+@inject AuthStateService AuthState
+@inject AdminService AdminService
+@inject NavigationManager Navigation
+@layout Components.Layout.AdminSidebarLayout
+
+<PageTitle>User Management - Admin Panel</PageTitle>
+
+<div class="users-page">
+        <div class="page-header">
+            <div>
+                <h1>User Management</h1>
+                <p class="text-muted">Manage all system users</p>
+            </div>
+            <button class="btn btn-outline-secondary" @onclick="NavigateBack">
+                <i class="bi bi-arrow-left"></i> Back to Dashboard
+            </button>
+        </div>
+
+        <!-- Filters and Search -->
+        <div class="filters-section">
+            <div class="search-box">
+                <i class="bi bi-search"></i>
+                <input type="text" 
+                       class="form-control" 
+                       placeholder="Search by email or name..." 
+                       @bind="_searchTerm"
+                       @bind:event="oninput"
+                       @onkeyup="HandleSearch" />
+            </div>
+
+            <div class="filter-controls">
+                <select class="form-select" @bind="_roleFilter" @bind:after="ApplyFilters">
+                    <option value="">All Roles</option>
+                    <option value="@UserRole.Patient">Patients</option>
+                    <option value="@UserRole.Doctor">Doctors</option>
+                    <option value="@UserRole.Admin">Admins</option>
+                </select>
+
+                <select class="form-select" @bind="_statusFilter" @bind:after="ApplyFilters">
+                    <option value="">All Status</option>
+                    <option value="true">Active</option>
+                    <option value="false">Inactive</option>
+                </select>
+
+                <button class="btn btn-outline-primary" @onclick="ResetFilters">
+                    <i class="bi bi-arrow-clockwise"></i> Reset
+                </button>
+            </div>
+        </div>
+
+        @if (_isLoading)
+        {
+            <div class="loading-container">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p>Loading users...</p>
+            </div>
+        }
+        else if (_paginatedUsers != null && _paginatedUsers.Items.Count > 0)
+        {
+            <!-- Users Table -->
+            <div class="table-container">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Status</th>
+                            <th>Registered</th>
+                            <th>Last Login</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var user in _paginatedUsers.Items)
+                        {
+                            <tr class="@(!user.IsActive ? "inactive-row" : "")">
+                                <td>
+                                    <div class="user-cell">
+                                        <div class="user-avatar">
+                                            @GetUserInitials(user)
+                                        </div>
+                                        <div>
+                                            <strong>@GetUserFullName(user)</strong>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>@user.Email</td>
+                                <td>
+                                    <span class="badge @GetRoleBadgeClass(user.Role)">
+                                        @user.Role
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge @(user.IsActive ? "bg-success" : "bg-danger")">
+                                        @(user.IsActive ? "Active" : "Inactive")
+                                    </span>
+                                    @if (user.IsDeactivated)
+                                    {
+                                        <span class="badge bg-warning ms-1">Suspended</span>
+                                    }
+                                </td>
+                                <td>@user.CreatedAt.ToString("MMM dd, yyyy")</td>
+                                <td>
+                                    @if (user.LastLoginAt.HasValue)
+                                    {
+                                        @user.LastLoginAt.Value.ToString("MMM dd, yyyy")
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Never</span>
+                                    }
+                                </td>
+                                <td>
+                                    <div class="action-buttons">
+                                        @if (user.IsActive && !user.IsDeactivated)
+                                        {
+                                            <button class="btn btn-sm btn-warning" 
+                                                    @onclick="() => ShowSuspendModal(user)"
+                                                    title="Suspend User">
+                                                <i class="bi bi-pause-circle"></i>
+                                            </button>
+                                        }
+                                        else if (user.IsDeactivated)
+                                        {
+                                            <button class="btn btn-sm btn-success" 
+                                                    @onclick="() => UnsuspendUser(user.Id)"
+                                                    title="Unsuspend User">
+                                                <i class="bi bi-play-circle"></i>
+                                            </button>
+                                        }
+                                        <button class="btn btn-sm btn-danger" 
+                                                @onclick="() => ShowDeleteModal(user)"
+                                                title="Delete User">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-info" 
+                                                @onclick="() => ViewUserDetails(user.Id)"
+                                                title="View Details">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            <div class="pagination-container">
+                <div class="pagination-info">
+                    Showing @((_paginatedUsers.Page - 1) * _paginatedUsers.PageSize + 1) 
+                    to @Math.Min(_paginatedUsers.Page * _paginatedUsers.PageSize, _paginatedUsers.TotalCount) 
+                    of @_paginatedUsers.TotalCount users
+                </div>
+                <nav>
+                    <ul class="pagination">
+                        <li class="page-item @(_paginatedUsers.Page == 1 ? "disabled" : "")">
+                            <button class="page-link" @onclick="() => ChangePage(_paginatedUsers.Page - 1)">
+                                Previous
+                            </button>
+                        </li>
+                        @for (int i = 1; i <= _paginatedUsers.TotalPages; i++)
+                        {
+                            var pageNum = i;
+                            <li class="page-item @(_paginatedUsers.Page == pageNum ? "active" : "")">
+                                <button class="page-link" @onclick="() => ChangePage(pageNum)">
+                                    @pageNum
+                                </button>
+                            </li>
+                        }
+                        <li class="page-item @(_paginatedUsers.Page == _paginatedUsers.TotalPages ? "disabled" : "")">
+                            <button class="page-link" @onclick="() => ChangePage(_paginatedUsers.Page + 1)">
+                                Next
+                            </button>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        }
+        else
+        {
+            <div class="empty-state">
+                <i class="bi bi-people"></i>
+                <h3>No users found</h3>
+                <p>Try adjusting your search or filter criteria.</p>
+            </div>
+        }
+
+        <!-- Suspend Modal -->
+        @if (_showSuspendModal && _selectedUser != null)
+        {
+            <div class="modal-overlay" @onclick="CloseSuspendModal">
+                <div class="modal-content" @onclick:stopPropagation="true">
+                    <div class="modal-header">
+                        <h3>Suspend User</h3>
+                        <button class="btn-close" @onclick="CloseSuspendModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Are you sure you want to suspend <strong>@GetUserFullName(_selectedUser)</strong>?</p>
+                        <div class="form-group">
+                            <label>Reason for suspension:</label>
+                            <textarea class="form-control" 
+                                      rows="3" 
+                                      @bind="_suspendReason"
+                                      placeholder="Enter reason..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" @onclick="CloseSuspendModal">Cancel</button>
+                        <button class="btn btn-warning" 
+                                @onclick="ConfirmSuspend"
+                                disabled="@(string.IsNullOrWhiteSpace(_suspendReason))">
+                            Suspend User
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Delete Modal -->
+        @if (_showDeleteModal && _selectedUser != null)
+        {
+            <div class="modal-overlay" @onclick="CloseDeleteModal">
+                <div class="modal-content" @onclick:stopPropagation="true">
+                    <div class="modal-header">
+                        <h3>Delete User</h3>
+                        <button class="btn-close" @onclick="CloseDeleteModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-triangle-fill"></i>
+                            <strong>Warning:</strong> This action cannot be undone!
+                        </div>
+                        <p>Are you sure you want to permanently delete <strong>@GetUserFullName(_selectedUser)</strong>?</p>
+                        <div class="form-group">
+                            <label>Reason for deletion:</label>
+                            <textarea class="form-control" 
+                                      rows="3" 
+                                      @bind="_deleteReason"
+                                      placeholder="Enter reason..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" @onclick="CloseDeleteModal">Cancel</button>
+                        <button class="btn btn-danger" 
+                                @onclick="ConfirmDelete"
+                                disabled="@(string.IsNullOrWhiteSpace(_deleteReason))">
+                            Delete User
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (_successMessage != null)
+        {
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="bi bi-check-circle-fill"></i> @_successMessage
+                <button type="button" class="btn-close" @onclick="() => _successMessage = null"></button>
+            </div>
+        }
+
+        @if (_errorMessage != null)
+        {
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-triangle-fill"></i> @_errorMessage
+                <button type="button" class="btn-close" @onclick="() => _errorMessage = null"></button>
+            </div>
+        }
+    </div>
+
+@code {
+    private PaginatedResult<User>? _paginatedUsers;
+    private string _searchTerm = "";
+    private string _roleFilter = "";
+    private string _statusFilter = "";
+    private int _currentPage = 1;
+    private int _pageSize = 20;
+    private bool _isLoading = true;
+    private string? _successMessage;
+    private string? _errorMessage;
+
+    private bool _showSuspendModal = false;
+    private bool _showDeleteModal = false;
+    private User? _selectedUser;
+    private string _suspendReason = "";
+    private string _deleteReason = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUsers();
+    }
+
+    private async Task LoadUsers()
+    {
+        try
+        {
+            _isLoading = true;
+            _errorMessage = null;
+
+            UserRole? roleFilter = string.IsNullOrEmpty(_roleFilter) ? null : Enum.Parse<UserRole>(_roleFilter);
+            bool? statusFilter = string.IsNullOrEmpty(_statusFilter) ? null : bool.Parse(_statusFilter);
+
+            _paginatedUsers = await AdminService.GetAllUsersAsync(
+                _currentPage,
+                _pageSize,
+                roleFilter,
+                string.IsNullOrWhiteSpace(_searchTerm) ? null : _searchTerm,
+                statusFilter);
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to load users: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task HandleSearch()
+    {
+        _currentPage = 1;
+        await LoadUsers();
+    }
+
+    private async Task ApplyFilters()
+    {
+        _currentPage = 1;
+        await LoadUsers();
+    }
+
+    private async Task ResetFilters()
+    {
+        _searchTerm = "";
+        _roleFilter = "";
+        _statusFilter = "";
+        _currentPage = 1;
+        await LoadUsers();
+    }
+
+    private async Task ChangePage(int page)
+    {
+        if (page < 1 || _paginatedUsers == null || page > _paginatedUsers.TotalPages)
+            return;
+
+        _currentPage = page;
+        await LoadUsers();
+    }
+
+    private void ShowSuspendModal(User user)
+    {
+        _selectedUser = user;
+        _suspendReason = "";
+        _showSuspendModal = true;
+    }
+
+    private void CloseSuspendModal()
+    {
+        _showSuspendModal = false;
+        _selectedUser = null;
+        _suspendReason = "";
+    }
+
+    private async Task ConfirmSuspend()
+    {
+        if (_selectedUser == null || string.IsNullOrWhiteSpace(_suspendReason))
+            return;
+
+        try
+        {
+            var currentUser = AuthState.CurrentUser;
+            if (currentUser == null)
+            {
+                _errorMessage = "You must be logged in to perform this action.";
+                return;
+            }
+
+            var success = await AdminService.SuspendUserAsync(
+                _selectedUser.Id,
+                currentUser.Id,
+                true,
+                _suspendReason);
+
+            if (success)
+            {
+                _successMessage = $"User {GetUserFullName(_selectedUser)} has been suspended.";
+                CloseSuspendModal();
+                await LoadUsers();
+            }
+            else
+            {
+                _errorMessage = "Failed to suspend user.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error: {ex.Message}";
+        }
+    }
+
+    private async Task UnsuspendUser(Guid userId)
+    {
+        try
+        {
+            var currentUser = AuthState.CurrentUser;
+            if (currentUser == null)
+            {
+                _errorMessage = "You must be logged in to perform this action.";
+                return;
+            }
+
+            var success = await AdminService.SuspendUserAsync(
+                userId,
+                currentUser.Id,
+                false,
+                "Unsuspended by admin");
+
+            if (success)
+            {
+                _successMessage = "User has been unsuspended.";
+                await LoadUsers();
+            }
+            else
+            {
+                _errorMessage = "Failed to unsuspend user.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error: {ex.Message}";
+        }
+    }
+
+    private void ShowDeleteModal(User user)
+    {
+        _selectedUser = user;
+        _deleteReason = "";
+        _showDeleteModal = true;
+    }
+
+    private void CloseDeleteModal()
+    {
+        _showDeleteModal = false;
+        _selectedUser = null;
+        _deleteReason = "";
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (_selectedUser == null || string.IsNullOrWhiteSpace(_deleteReason))
+            return;
+
+        try
+        {
+            var currentUser = AuthState.CurrentUser;
+            if (currentUser == null)
+            {
+                _errorMessage = "You must be logged in to perform this action.";
+                return;
+            }
+
+            var success = await AdminService.DeleteUserAsync(
+                _selectedUser.Id,
+                currentUser.Id,
+                _deleteReason);
+
+            if (success)
+            {
+                _successMessage = $"User {GetUserFullName(_selectedUser)} has been deleted.";
+                CloseDeleteModal();
+                await LoadUsers();
+            }
+            else
+            {
+                _errorMessage = "Failed to delete user.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error: {ex.Message}";
+        }
+    }
+
+    private void ViewUserDetails(Guid userId)
+    {
+        Navigation.NavigateTo($"/admin/user-details/{userId}");
+    }
+
+    private void NavigateBack()
+    {
+        Navigation.NavigateTo("/admin/dashboard");
+    }
+
+    private string GetUserFullName(User user)
+    {
+        if (user.PatientProfile != null)
+            return user.PatientProfile.FullName;
+        if (user.DoctorProfile != null)
+            return user.DoctorProfile.FullName;
+        if (user.AdminProfile != null)
+            return user.AdminProfile.FullName;
+        return user.Email;
+    }
+
+    private string GetUserInitials(User user)
+    {
+        var name = GetUserFullName(user);
+        var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 2)
+            return $"{parts[0][0]}{parts[1][0]}".ToUpper();
+        return name.Length > 0 ? name[0].ToString().ToUpper() : "?";
+    }
+
+    private string GetRoleBadgeClass(UserRole role)
+    {
+        return role switch
+        {
+            UserRole.Admin => "bg-danger",
+            UserRole.Doctor => "bg-success",
+            UserRole.Patient => "bg-primary",
+            _ => "bg-secondary"
+        };
+    }
+}
