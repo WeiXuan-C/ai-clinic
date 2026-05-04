@@ -7,7 +7,6 @@ namespace ai_clinic.Services
 {
     /// <summary>
     /// High-level AI Assistant Service
-    /// 高级AI助手服务
     /// 
     /// This service provides a clean interface for the application to use AI features
     /// without needing to know about the Strategy/Adapter pattern implementation
@@ -23,13 +22,11 @@ namespace ai_clinic.Services
 
         /// <summary>
         /// Gets the current model name
-        /// 获取当前模型名称
         /// </summary>
         public string CurrentModelName => _modelContext.CurrentStrategy.ModelName;
 
         /// <summary>
         /// Gets all available models
-        /// 获取所有可用模型
         /// </summary>
         public List<AiModelContext.ModelInfo> GetAvailableModels()
         {
@@ -38,7 +35,6 @@ namespace ai_clinic.Services
 
         /// <summary>
         /// Switches to a different AI model
-        /// 切换到不同的AI模型
         /// </summary>
         /// <param name="modelKey">Model key (e.g., "owl-alpha", "gemma-4")</param>
         public void SwitchModel(string modelKey)
@@ -48,13 +44,18 @@ namespace ai_clinic.Services
 
         /// <summary>
         /// Generates a medical consultation response
-        /// 生成医疗咨询响应
         /// </summary>
         public async Task<string> GenerateMedicalResponseAsync(
             string patientQuery,
             string? medicalContext = null,
             double temperature = 0.7)
         {
+            Console.WriteLine("=== [AI ASSISTANT SERVICE DEBUG] GenerateMedicalResponseAsync Started ===");
+            Console.WriteLine($"[AI ASSISTANT] Current Model: {CurrentModelName}");
+            Console.WriteLine($"[AI ASSISTANT] Patient Query: {patientQuery}");
+            Console.WriteLine($"[AI ASSISTANT] Medical Context: {medicalContext ?? "null"}");
+            Console.WriteLine($"[AI ASSISTANT] Temperature: {temperature}");
+
             var systemInstructions = @"You are a helpful medical AI assistant. 
 Provide informative and empathetic responses to patient queries. 
 Always remind users to consult with healthcare professionals for serious concerns.
@@ -64,16 +65,22 @@ Do not provide definitive diagnoses.";
                 ? patientQuery
                 : $"Medical Context: {medicalContext}\n\nPatient Query: {patientQuery}";
 
-            return await _modelContext.GenerateResponseAsync(
+            Console.WriteLine("[AI ASSISTANT] Calling AiModelContext.GenerateResponseAsync...");
+            var response = await _modelContext.GenerateResponseAsync(
                 prompt,
                 systemInstructions,
                 temperature,
                 maxTokens: 1500);
+
+            Console.WriteLine($"[AI ASSISTANT] Response received - Length: {response.Length} chars");
+            Console.WriteLine($"[AI ASSISTANT] Response preview: {response.Substring(0, Math.Min(100, response.Length))}...");
+            Console.WriteLine("=== [AI ASSISTANT SERVICE DEBUG] GenerateMedicalResponseAsync Completed ===\n");
+
+            return response;
         }
 
         /// <summary>
         /// Generates a doctor's consultation note
-        /// 生成医生的咨询笔记
         /// </summary>
         public async Task<string> GenerateConsultationNoteAsync(
             string conversationSummary,
@@ -101,7 +108,6 @@ Format the note professionally with sections for Chief Complaint, History, Asses
 
         /// <summary>
         /// Analyzes medical document text (useful with OCR models)
-        /// 分析医疗文档文本(对OCR模型有用)
         /// </summary>
         public async Task<string> AnalyzeMedicalDocumentAsync(string documentText)
         {
@@ -118,7 +124,6 @@ Identify important dates, medications, diagnoses, and test results.";
 
         /// <summary>
         /// Generates a general AI response
-        /// 生成通用AI响应
         /// </summary>
         public async Task<string> GenerateResponseAsync(
             string prompt,

@@ -4,32 +4,32 @@ using ai_clinic.Models;
 namespace ai_clinic.Data;
 
 /// <summary>
-/// 🔒 SINGLETON PATTERN - 数据库单例
-/// 全局唯一的数据库访问入口
+/// SINGLETON PATTERN - Database Singleton
+/// Global unique database access entry point
 /// </summary>
 public sealed class DbClient
 {
-    // 私有静态实例 - 只会创建一次
+    // Private static instance - only created once
     private static readonly Lazy<DbClient> _instance = new Lazy<DbClient>(() => new DbClient());
     
-    // 数据库连接字符串
+    // Database connection string
     private readonly string _connectionString;
 
-    // 私有构造函数 - 防止外部 new DbClient()
+    // Private constructor - prevents external new DbClient()
     private DbClient()
     {
         _connectionString = "Data Source=ai-clinic.db";
     }
 
     /// <summary>
-    /// 获取单例实例 - 全局唯一入口
-    /// 用法: using var db = DbClient.Instance.GetDb();
+    /// Gets singleton instance - global unique entry point
+    /// Usage: using var db = DbClient.Instance.GetDb();
     /// </summary>
     public static DbClient Instance => _instance.Value;
 
     /// <summary>
-    /// 获取数据库上下文
-    /// 用法: using var db = DbContext.Instance.GetDb();
+    /// Gets database context
+    /// Usage: using var db = DbContext.Instance.GetDb();
     /// </summary>
     public AiClinicDbContext GetDb()
     {

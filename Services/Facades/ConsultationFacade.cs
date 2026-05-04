@@ -1,54 +1,59 @@
-using ai_clinic.Models;
+﻿using ai_clinic.Models;
+using ai_clinic.Data;
 
 namespace ai_clinic.Services.Facades;
 
 /// <summary>
-/// 🎭 FACADE PATTERN - 咨询外观类
-/// 为复杂的咨询系统提供统一的高层接口
+/// FACADE PATTERN - Consultation Facade
+/// Provides a unified high-level interface for the complex consultation system
 /// 
-/// 子系统包括:
-/// - ConversationService: 管理对话
-/// - MessageService: 管理消息
-/// - DoctorProfileService: 管理医生信息
-/// - ActivityLogService: 记录活动日志
+/// Subsystems include:
+/// - ConversationService: Manages conversations
+/// - MessageService: Manages messages
+/// - DoctorProfileService: Manages doctor information
+/// - ActivityLogService: Records activity logs
+/// - AiAssistantService: AI assistant service
 /// 
-/// 使用场景:
-/// - 简化客户端代码，隐藏子系统复杂性
-/// - 提供一站式的咨询功能接口
-/// - 协调多个服务之间的交互
+/// Use cases:
+/// - Simplifies client code, hides subsystem complexity
+/// - Provides one-stop consultation functionality interface
+/// - Coordinates interactions between multiple services
 /// </summary>
 public class ConsultationFacade
 {
-    // 子系统服务
+    // Subsystem services
     private readonly ConversationService _conversationService;
     private readonly MessageService _messageService;
     private readonly DoctorProfileService _doctorProfileService;
     private readonly ActivityLogService _activityLogService;
+    private readonly AiAssistantService _aiAssistantService;
 
     public ConsultationFacade(
         ConversationService conversationService,
         MessageService messageService,
         DoctorProfileService doctorProfileService,
-        ActivityLogService activityLogService)
+        ActivityLogService activityLogService,
+        AiAssistantService aiAssistantService)
     {
         _conversationService = conversationService;
         _messageService = messageService;
         _doctorProfileService = doctorProfileService;
         _activityLogService = activityLogService;
+        _aiAssistantService = aiAssistantService;
     }
 
-    #region 创建咨询会话
+    #region Create Consultation Session
 
     /// <summary>
-    /// 创建 AI 咨询会话（简化接口）
-    /// 内部协调: 创建对话 + 发送初始消息 + 记录日志
+    /// Creates AI consultation session (simplified interface)
+    /// Internal coordination: Create conversation + Send initial message + Log activity
     /// </summary>
     public async Task<ConsultationSession> StartAiConsultationAsync(Guid patientId, string? initialMessage = null)
     {
-        // 1. 创建对话
+        // 1. Create conversation
         var conversation = await _conversationService.CreateAiConversationAsync(patientId, initialMessage);
 
-        // 2. 记录活动日志
+        // 2. Log activity
         var messagePreview = initialMessage != null && initialMessage.Length > 50 
             ? initialMessage.Substring(0, 50) + "..." 
             : initialMessage ?? "";
@@ -59,10 +64,10 @@ public class ConsultationFacade
             $"{{\"conversation_id\": \"{conversation.Id}\", \"initial_message\": \"{messagePreview}\"}}"
         );
 
-        // 3. 获取消息列表
+        // 3. Get message list
         var messages = await _messageService.GetByConversationIdAsync(conversation.Id);
 
-        // 4. 返回统一的会话对象
+        // 4. Return unified session object
         return new ConsultationSession
         {
             Conversation = conversation,
@@ -73,8 +78,8 @@ public class ConsultationFacade
     }
 
     /// <summary>
-    /// 创建医生咨询会话（简化接口）
-    /// 内部协调: 验证医生 + 创建对话 + 发送初始消息 + 记录日志
+    /// Creates doctor consultation session (simplified interface)
+    /// Internal coordination: Verify doctor + Create conversation + Send initial message + Log activity
     /// </summary>
     public async Task<ConsultationSession> StartDoctorConsultationAsync(
         Guid patientId, 
@@ -105,7 +110,7 @@ public class ConsultationFacade
         // 4. 获取消息列表
         var messages = await _messageService.GetByConversationIdAsync(conversation.Id);
 
-        // 5. 返回统一的会话对象
+        // 5. Return unified session object
         return new ConsultationSession
         {
             Conversation = conversation,
@@ -124,55 +129,146 @@ public class ConsultationFacade
 
     #endregion
 
-    #region 发送消息
+    #region Send Messages
 
     /// <summary>
-    /// 发送患者消息（简化接口）
-    /// 内部协调: 创建消息 + 更新对话 + 触发 AI 响应（如果是 AI 对话）
+    /// Sends patient message (simplified interface)
+    /// Internal coordination: Create message + Update conversation + Trigger AI response (if AI conversation)
+    /// Uses transaction to ensure data consistency
     /// </summary>
     public async Task<MessageResult> SendPatientMessageAsync(
         Guid conversationId, 
         Guid patientId, 
         string content)
     {
-        // 1. 获取对话信息
-        var conversation = await _conversationService.GetByIdAsync(conversationId);
-        if (conversation == null)
+        Console.WriteLine("=== [FACADE DEBUG] SendPatientMessageAsync Started ===");
+        Console.WriteLine($"[FACADE] Conversation ID: {conversationId}");
+        Console.WriteLine($"[FACADE] Patient ID: {patientId}");
+        Console.WriteLine($"[FACADE] Content Length: {content.Length} chars");
+
+        // 使用事务确保所有操作的原子性
+        using var db = DbClient.Instance.GetDb();
+        using var transaction = await db.Database.BeginTransactionAsync();
+        
+        try
         {
-            throw new InvalidOperationException("Conversation not found");
+            // 1. 获取对话信息
+            Console.WriteLine("[FACADE] Step 1: Getting conversation...");
+            var conversation = await db.Conversations.FindAsync(conversationId);
+            if (conversation == null)
+            {
+                Console.WriteLine("[FACADE ERROR] Conversation not found!");
+                throw new InvalidOperationException("Conversation not found");
+            }
+            Console.WriteLine($"[FACADE] Conversation found - Is AI: {conversation.AssignedDoctorId == null}");
+
+            // 2. 创建患者消息
+            Console.WriteLine("[FACADE] Step 2: Creating patient message...");
+            var patientMessage = new Message
+            {
+                ConversationId = conversationId,
+                SenderId = patientId,
+                SenderType = MessageSenderType.Patient,
+                Content = content,
+                CreatedAt = DateTime.UtcNow
+            };
+            
+            db.Messages.Add(patientMessage);
+            
+            // 更新对话的最后消息时间和计数
+            conversation.LastMessageAt = DateTime.UtcNow;
+            conversation.UpdatedAt = DateTime.UtcNow;
+            conversation.TotalMessages++;
+            
+            await db.SaveChangesAsync();
+            Console.WriteLine($"[FACADE] Patient message created - ID: {patientMessage.Id}");
+
+            // 3. 记录活动日志
+            Console.WriteLine("[FACADE] Step 3: Logging activity...");
+            var activityLog = new ActivityLog
+            {
+                UserId = patientId,
+                Action = "send_message",
+                Details = $"{{\"conversation_id\": \"{conversationId}\", \"message_id\": \"{patientMessage.Id}\", \"sender_type\": \"patient\"}}",
+                CreatedAt = DateTime.UtcNow
+            };
+            db.ActivityLogs.Add(activityLog);
+            await db.SaveChangesAsync();
+            Console.WriteLine("[FACADE] Activity logged");
+
+            // 4. 如果是 AI 对话，触发 AI 响应
+            Message? aiResponse = null;
+            if (conversation.AssignedDoctorId == null)
+            {
+                Console.WriteLine("[FACADE] Step 4: This is an AI conversation, generating AI response...");
+                
+                try
+                {
+                    // 生成 AI 响应（这个操作在事务外部，因为它调用外部 API）
+                    var aiResponseContent = await GenerateAiResponseContentAsync(content);
+                    
+                    // 创建 AI 消息（在事务内）
+                    aiResponse = new Message
+                    {
+                        ConversationId = conversationId,
+                        SenderId = null,
+                        SenderType = MessageSenderType.AI,
+                        Content = aiResponseContent.Content,
+                        AiModelUsed = aiResponseContent.ModelUsed,
+                        AiConfidenceScore = aiResponseContent.ConfidenceScore,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    
+                    db.Messages.Add(aiResponse);
+                    
+                    // 更新对话统计
+                    conversation.LastMessageAt = DateTime.UtcNow;
+                    conversation.UpdatedAt = DateTime.UtcNow;
+                    conversation.TotalMessages++;
+                    conversation.AiMessagesCount++;
+                    
+                    await db.SaveChangesAsync();
+                    Console.WriteLine($"[FACADE] AI response created - ID: {aiResponse.Id}, Length: {aiResponse.Content.Length} chars");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[FACADE WARNING] AI response generation failed: {ex.Message}");
+                    Console.WriteLine("[FACADE] Continuing without AI response (patient message will be saved)");
+                    // AI 响应失败不影响患者消息的保存
+                    // 但我们仍然在事务中，所以如果需要可以回滚
+                }
+            }
+            else
+            {
+                Console.WriteLine("[FACADE] Step 4: This is a doctor conversation, skipping AI response");
+            }
+
+            // 提交事务
+            await transaction.CommitAsync();
+            Console.WriteLine("[FACADE] Transaction committed successfully");
+            Console.WriteLine("=== [FACADE DEBUG] SendPatientMessageAsync Completed ===\n");
+
+            return new MessageResult
+            {
+                PatientMessage = patientMessage,
+                AiResponse = aiResponse,
+                IsAiConversation = conversation.AssignedDoctorId == null
+            };
         }
-
-        // 2. 创建患者消息
-        var patientMessage = await _messageService.CreatePatientMessageAsync(
-            conversationId, 
-            patientId, 
-            content
-        );
-
-        // 3. 记录活动日志
-        await _activityLogService.LogActivityAsync(
-            patientId,
-            "send_message",
-            $"{{\"conversation_id\": \"{conversationId}\", \"message_id\": \"{patientMessage.Id}\", \"sender_type\": \"patient\"}}"
-        );
-
-        // 4. 如果是 AI 对话，触发 AI 响应
-        Message? aiResponse = null;
-        if (conversation.AssignedDoctorId == null)
+        catch (Exception ex)
         {
-            aiResponse = await GenerateAiResponseAsync(conversationId, content);
+            // 回滚事务
+            await transaction.RollbackAsync();
+            Console.WriteLine("=== [FACADE ERROR] Transaction rolled back ===");
+            Console.WriteLine($"[FACADE ERROR] Exception Type: {ex.GetType().Name}");
+            Console.WriteLine($"[FACADE ERROR] Message: {ex.Message}");
+            Console.WriteLine($"[FACADE ERROR] Stack Trace: {ex.StackTrace}");
+            throw;
         }
-
-        return new MessageResult
-        {
-            PatientMessage = patientMessage,
-            AiResponse = aiResponse,
-            IsAiConversation = conversation.AssignedDoctorId == null
-        };
     }
 
     /// <summary>
-    /// 发送医生消息（简化接口）
+    /// Sends doctor message (simplified interface)
     /// </summary>
     public async Task<Message> SendDoctorMessageAsync(
         Guid conversationId, 
@@ -186,7 +282,7 @@ public class ConsultationFacade
             content
         );
 
-        // 2. 记录活动日志
+        // 2. Log activity
         await _activityLogService.LogActivityAsync(
             doctorId,
             "send_message",
@@ -198,11 +294,11 @@ public class ConsultationFacade
 
     #endregion
 
-    #region 获取咨询信息
+    #region Get Consultation Information
 
     /// <summary>
-    /// 获取完整的咨询会话信息（简化接口）
-    /// 内部协调: 获取对话 + 获取消息 + 获取医生信息 + 标记已读
+    /// Gets complete consultation session information (simplified interface)
+    /// Internal coordination: Get conversation + Get messages + Get doctor info + Mark as read
     /// </summary>
     public async Task<ConsultationSession> GetConsultationSessionAsync(
         Guid conversationId, 
@@ -253,7 +349,7 @@ public class ConsultationFacade
     }
 
     /// <summary>
-    /// 获取患者的所有咨询列表（简化接口）
+    /// Gets all patient consultations list (simplified interface)
     /// </summary>
     public async Task<List<ConversationListItem>> GetPatientConsultationsAsync(Guid patientId)
     {
@@ -261,7 +357,7 @@ public class ConsultationFacade
     }
 
     /// <summary>
-    /// 获取可用医生列表（简化接口）
+    /// Gets available doctors list (simplified interface)
     /// </summary>
     public async Task<List<DoctorListItem>> GetAvailableDoctorsAsync()
     {
@@ -270,18 +366,18 @@ public class ConsultationFacade
 
     #endregion
 
-    #region 管理咨询
+    #region Manage Consultation
 
     /// <summary>
-    /// 关闭咨询会话（简化接口）
-    /// 内部协调: 更新状态 + 记录日志
+    /// Closes consultation session (simplified interface)
+    /// Internal coordination: Update status + Log activity
     /// </summary>
     public async Task CloseConsultationAsync(Guid conversationId, Guid userId)
     {
         // 1. 更新对话状态
         await _conversationService.UpdateStatusAsync(conversationId, ConversationStatus.Closed);
 
-        // 2. 记录活动日志
+        // 2. Log activity
         await _activityLogService.LogActivityAsync(
             userId,
             "close_consultation",
@@ -290,14 +386,14 @@ public class ConsultationFacade
     }
 
     /// <summary>
-    /// 归档咨询会话（简化接口）
+    /// Archives consultation session (simplified interface)
     /// </summary>
     public async Task ArchiveConsultationAsync(Guid conversationId, Guid userId)
     {
         // 1. 更新对话状态
         await _conversationService.UpdateStatusAsync(conversationId, ConversationStatus.Archived);
 
-        // 2. 记录活动日志
+        // 2. Log activity
         await _activityLogService.LogActivityAsync(
             userId,
             "archive_consultation",
@@ -306,7 +402,7 @@ public class ConsultationFacade
     }
 
     /// <summary>
-    /// 更新咨询标题（简化接口）
+    /// Updates consultation title (simplified interface)
     /// </summary>
     public async Task UpdateConsultationTitleAsync(Guid conversationId, string title, Guid userId)
     {
@@ -321,83 +417,56 @@ public class ConsultationFacade
 
     #endregion
 
-    #region 私有辅助方法
+    #region Private Helper Methods
 
     /// <summary>
-    /// 生成 AI 响应（内部方法）
-    /// 在实际项目中，这里会调用真实的 AI 服务（如 OpenAI、Claude 等）
+    /// Generates AI response content (does not involve database operations)
+    /// This method only calls AI API, returns response content and metadata
     /// </summary>
-    private async Task<Message> GenerateAiResponseAsync(Guid conversationId, string userMessage)
+    private async Task<AiResponseContent> GenerateAiResponseContentAsync(string userMessage)
     {
-        // 模拟 AI 思考时间
-        await Task.Delay(1500);
+        Console.WriteLine("=== [AI GENERATION DEBUG] GenerateAiResponseContentAsync Started ===");
+        Console.WriteLine($"[AI GEN] User Message: {userMessage}");
+        Console.WriteLine($"[AI GEN] Current AI Model: {_aiAssistantService.CurrentModelName}");
+        
+        try
+        {
+            // 调用真实的 AI 服务
+            Console.WriteLine("[AI GEN] Calling AiAssistantService.GenerateMedicalResponseAsync...");
+            string aiResponse = await _aiAssistantService.GenerateMedicalResponseAsync(
+                patientQuery: userMessage,
+                medicalContext: null,
+                temperature: 0.7
+            );
+            
+            Console.WriteLine($"[AI GEN] Response received from AI - Length: {aiResponse.Length} chars");
+            Console.WriteLine($"[AI GEN] Response preview: {aiResponse.Substring(0, Math.Min(150, aiResponse.Length))}...");
+            Console.WriteLine("=== [AI GENERATION DEBUG] GenerateAiResponseContentAsync Completed ===\n");
 
-        // 简单的响应生成逻辑（实际项目中应该调用 AI API）
-        string aiResponse = GenerateSimpleAiResponse(userMessage);
-
-        // 创建 AI 消息
-        var aiMessage = await _messageService.CreateAiMessageAsync(
-            conversationId,
-            aiResponse,
-            "GPT-4",
-            0.85m
-        );
-
-        return aiMessage;
-    }
-
-    /// <summary>
-    /// 简单的 AI 响应生成（示例）
-    /// </summary>
-    private string GenerateSimpleAiResponse(string userMessage)
-    {
-        var lowerMessage = userMessage.ToLower();
-
-        if (lowerMessage.Contains("pain") || lowerMessage.Contains("疼痛"))
-        {
-            return "I understand you're experiencing pain. Can you describe the pain in more detail? For example:\n" +
-                   "- Where exactly is the pain located?\n" +
-                   "- Is it sharp or dull?\n" +
-                   "- When did it start?\n" +
-                   "- Does anything make it better or worse?\n\n" +
-                   "This information will help me provide better guidance.";
+            return new AiResponseContent
+            {
+                Content = aiResponse,
+                ModelUsed = _aiAssistantService.CurrentModelName,
+                ConfidenceScore = 0.85m
+            };
         }
-        else if (lowerMessage.Contains("fever") || lowerMessage.Contains("发烧"))
+        catch (Exception ex)
         {
-            return "Fever can be a sign of infection. Have you measured your temperature? " +
-                   "Are you experiencing any other symptoms like chills, body aches, or fatigue?\n\n" +
-                   "If your fever is above 39°C (102°F) or persists for more than 3 days, " +
-                   "I recommend consulting with a human doctor.";
-        }
-        else if (lowerMessage.Contains("headache") || lowerMessage.Contains("头痛"))
-        {
-            return "Headaches can have various causes. Let me ask you a few questions:\n" +
-                   "- How long have you had this headache?\n" +
-                   "- Is it constant or does it come and go?\n" +
-                   "- On a scale of 1-10, how severe is the pain?\n" +
-                   "- Are you experiencing any other symptoms like nausea or sensitivity to light?";
-        }
-        else if (lowerMessage.Contains("cough") || lowerMessage.Contains("咳嗽"))
-        {
-            return "I see you have a cough. To better understand your condition:\n" +
-                   "- Is it a dry cough or are you producing mucus?\n" +
-                   "- How long have you had this cough?\n" +
-                   "- Do you have any other symptoms like fever or shortness of breath?\n" +
-                   "- Have you been exposed to anyone who was sick recently?";
-        }
-        else if (lowerMessage.Contains("thank") || lowerMessage.Contains("谢谢"))
-        {
-            return "You're welcome! I'm here to help. If you have any other questions or concerns about your health, " +
-                   "please don't hesitate to ask. Your well-being is my priority.";
-        }
-        else
-        {
-            return "Thank you for sharing that information. To provide you with the best possible guidance, " +
-                   "could you tell me more about:\n" +
-                   "- When did these symptoms start?\n" +
-                   "- How severe are they on a scale of 1-10?\n" +
-                   "- Have you tried any treatments or medications?\n\n" +
-                   "The more details you provide, the better I can assist you.";
+            Console.WriteLine("=== [AI GENERATION ERROR] ===");
+            Console.WriteLine($"[AI GEN ERROR] Exception Type: {ex.GetType().Name}");
+            Console.WriteLine($"[AI GEN ERROR] Message: {ex.Message}");
+            Console.WriteLine($"[AI GEN ERROR] Stack Trace: {ex.StackTrace}");
+            
+            // 如果 AI 调用失败，返回错误消息
+            Console.WriteLine("[AI GEN] Returning error message...");
+            Console.WriteLine("=== [AI GENERATION ERROR] Fallback message returned ===\n");
+            
+            return new AiResponseContent
+            {
+                Content = "I apologize, but I'm having trouble processing your request right now. Please try again in a moment, or consider consulting with a human doctor for immediate assistance.",
+                ModelUsed = "Error",
+                ConfidenceScore = 0.0m
+            };
         }
     }
 
@@ -407,7 +476,17 @@ public class ConsultationFacade
 #region DTOs (Data Transfer Objects)
 
 /// <summary>
-/// 咨询会话完整信息
+/// AI response content (for transaction management)
+/// </summary>
+internal class AiResponseContent
+{
+    public string Content { get; set; } = string.Empty;
+    public string ModelUsed { get; set; } = string.Empty;
+    public decimal ConfidenceScore { get; set; }
+}
+
+/// <summary>
+/// Complete consultation session information
 /// </summary>
 public class ConsultationSession
 {
@@ -418,7 +497,7 @@ public class ConsultationSession
 }
 
 /// <summary>
-/// 医生信息摘要
+/// Doctor information summary
 /// </summary>
 public class DoctorInfo
 {
@@ -430,7 +509,7 @@ public class DoctorInfo
 }
 
 /// <summary>
-/// 消息发送结果
+/// Message send result
 /// </summary>
 public class MessageResult
 {

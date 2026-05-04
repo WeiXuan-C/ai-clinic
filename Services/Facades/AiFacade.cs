@@ -3,23 +3,23 @@ using ai_clinic.Services.AI;
 namespace ai_clinic.Services.Facades;
 
 /// <summary>
-/// 🎭 FACADE PATTERN - AI模型外观类
-/// 为复杂的AI模型切换系统提供统一的高层接口
+/// FACADE PATTERN - AI Model Facade
+/// Provides a unified high-level interface for the complex AI model switching system
 ///
-/// 子系统包括:
-/// - AiModelContext: 管理策略选择和切换 (Strategy Pattern Context)
-/// - AiAssistantService: 提供高级AI功能
-/// - OpenRouterApiClient: 处理外部API调用 (Adapter Pattern Adaptee)
+/// Subsystems include:
+/// - AiModelContext: Manages strategy selection and switching (Strategy Pattern Context)
+/// - AiAssistantService: Provides advanced AI functionality
+/// - OpenRouterApiClient: Handles external API calls (Adapter Pattern Adaptee)
 ///
-/// 设计模式组合:
-/// - Facade Pattern: 简化AI服务的使用
-/// - Strategy Pattern: 动态切换AI模型
-/// - Adapter Pattern: 适配OpenRouter API
+/// Design pattern combination:
+/// - Facade Pattern: Simplifies AI service usage
+/// - Strategy Pattern: Dynamically switches AI models
+/// - Adapter Pattern: Adapts OpenRouter API
 ///
-/// 使用场景:
-/// - 简化客户端代码，隐藏AI模型切换的复杂性
-/// - 提供一站式的AI功能接口
-/// - 协调多个AI服务之间的交互
+/// Use cases:
+/// - Simplifies client code, hides AI model switching complexity
+/// - Provides one-stop AI functionality interface
+/// - Coordinates interactions between multiple AI services
 /// </summary>
 public class AiFacade
 {
@@ -38,11 +38,11 @@ public class AiFacade
         _activityLogService = activityLogService;
     }
 
-    #region 模型管理 (Model Management)
+    #region Model Management
 
     /// <summary>
-    /// 获取所有可用的AI模型
-    /// 简化接口: 隐藏内部实现细节
+    /// Gets all available AI models
+    /// Simplified interface: Hides internal implementation details
     /// </summary>
     public List<AiModelInfo> GetAvailableModels()
     {
@@ -60,7 +60,7 @@ public class AiFacade
     }
 
     /// <summary>
-    /// 获取当前活动的AI模型信息
+    /// Gets the current active AI model information
     /// </summary>
     public CurrentAiModelInfo GetCurrentModel()
     {
@@ -73,8 +73,8 @@ public class AiFacade
     }
 
     /// <summary>
-    /// 切换到指定的AI模型
-    /// 内部协调: 切换策略 + 记录日志
+    /// Switches to the specified AI model
+    /// Internal coordination: Switch strategy + Log activity
     /// </summary>
     public async Task<ModelSwitchResult> SwitchModelAsync(string modelKey, Guid? userId = null)
     {
@@ -117,8 +117,8 @@ public class AiFacade
     }
 
     /// <summary>
-    /// 根据任务类型智能选择最佳模型
-    /// 高级功能: 自动策略选择
+    /// Intelligently selects the best model based on task type
+    /// Advanced feature: Automatic strategy selection
     /// </summary>
     public async Task<ModelSwitchResult> SwitchToOptimalModelAsync(AiTaskType taskType, Guid? userId = null)
     {
@@ -136,11 +136,11 @@ public class AiFacade
 
     #endregion
 
-    #region AI响应生成 (AI Response Generation)
+    #region AI Response Generation
 
     /// <summary>
-    /// 生成通用AI响应
-    /// 简化接口: 使用当前模型生成响应
+    /// Generates general AI response
+    /// Simplified interface: Uses current model to generate response
     /// </summary>
     public async Task<AiResponseResult> GenerateResponseAsync(
         string prompt,
@@ -188,8 +188,8 @@ public class AiFacade
     }
 
     /// <summary>
-    /// 生成医疗咨询响应
-    /// 内部协调: 选择合适的模型 + 生成响应 + 记录日志
+    /// Generates medical consultation response
+    /// Internal coordination: Select appropriate model + Generate response + Log activity
     /// </summary>
     public async Task<AiResponseResult> GenerateMedicalConsultationAsync(
         string patientQuery,
@@ -248,8 +248,8 @@ public class AiFacade
     }
 
     /// <summary>
-    /// 生成医生咨询笔记
-    /// 内部协调: 使用低温度参数 + 生成结构化笔记 + 记录日志
+    /// Generates doctor consultation note
+    /// Internal coordination: Use low temperature parameter + Generate structured note + Log activity
     /// </summary>
     public async Task<AiResponseResult> GenerateConsultationNoteAsync(
         string conversationSummary,
@@ -293,8 +293,8 @@ public class AiFacade
     }
 
     /// <summary>
-    /// 分析医疗文档
-    /// 内部协调: 切换到OCR模型 + 分析文档 + 切换回原模型 + 记录日志
+    /// Analyzes medical document
+    /// Internal coordination: Switch to OCR model + Analyze document + Switch back to original model + Log activity
     /// </summary>
     public async Task<AiResponseResult> AnalyzeMedicalDocumentAsync(
         string documentText,
@@ -349,11 +349,11 @@ public class AiFacade
 
     #endregion
 
-    #region 批量处理 (Batch Processing)
+    #region Batch Processing
 
     /// <summary>
-    /// 批量处理多个AI任务
-    /// 高级功能: 为每个任务选择最佳模型并并行处理
+    /// Processes multiple AI tasks in batch
+    /// Advanced feature: Selects best model for each task and processes in parallel
     /// </summary>
     public async Task<BatchAiResult> ProcessBatchTasksAsync(
         List<AiTask> tasks,
@@ -415,20 +415,20 @@ public class AiFacade
 
     #endregion
 
-    #region 私有辅助方法 (Private Helper Methods)
+    #region Private Helper Methods
 
     /// <summary>
-    /// 获取模型描述
+    /// Gets model description
     /// </summary>
     private static string GetModelDescription(string modelKey)
     {
         return modelKey switch
         {
-            "owl-alpha" => "高性能推理模型，适合复杂医疗咨询和诊断建议",
-            "nemotron" => "轻量级快速响应模型，适合简单查询和快速回复",
-            "qianfan-ocr" => "OCR专用模型，适合医疗文档识别和分析",
-            "gemma-4" => "通用强大模型，适合各种医疗场景",
-            _ => "AI模型"
+            "owl-alpha" => "High-performance reasoning model, suitable for complex medical consultations and diagnostic recommendations",
+            "nemotron" => "Lightweight fast response model, suitable for simple queries and quick replies",
+            "qianfan-ocr" => "OCR specialized model, suitable for medical document recognition and analysis",
+            "gemma-4" => "General powerful model, suitable for various medical scenarios",
+            _ => "AI model"
         };
     }
 
@@ -438,7 +438,7 @@ public class AiFacade
 #region DTOs (Data Transfer Objects)
 
 /// <summary>
-/// AI模型信息
+/// AI model information
 /// </summary>
 public class AiModelInfo
 {
@@ -450,7 +450,7 @@ public class AiModelInfo
 }
 
 /// <summary>
-/// 当前AI模型信息
+/// Current AI model information
 /// </summary>
 public class CurrentAiModelInfo
 {
@@ -459,7 +459,7 @@ public class CurrentAiModelInfo
 }
 
 /// <summary>
-/// 模型切换结果
+/// Model switch result
 /// </summary>
 public class ModelSwitchResult
 {
@@ -471,7 +471,7 @@ public class ModelSwitchResult
 }
 
 /// <summary>
-/// AI响应结果
+/// AI response result
 /// </summary>
 public class AiResponseResult
 {
@@ -482,7 +482,7 @@ public class AiResponseResult
 }
 
 /// <summary>
-/// AI任务类型
+/// AI task type
 /// </summary>
 public enum AiTaskType
 {
@@ -493,7 +493,7 @@ public enum AiTaskType
 }
 
 /// <summary>
-/// AI任务
+/// AI task
 /// </summary>
 public class AiTask
 {
@@ -506,7 +506,7 @@ public class AiTask
 }
 
 /// <summary>
-/// AI任务结果
+/// AI task result
 /// </summary>
 public class AiTaskResult
 {
@@ -518,7 +518,7 @@ public class AiTaskResult
 }
 
 /// <summary>
-/// 批量AI处理结果
+/// Batch AI processing result
 /// </summary>
 public class BatchAiResult
 {

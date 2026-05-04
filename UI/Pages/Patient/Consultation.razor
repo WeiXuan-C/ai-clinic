@@ -325,6 +325,26 @@
         gap: 6px;
     }
 
+    .model-selector-btn {
+        padding: 6px 12px;
+        background: #f3f4f6;
+        color: #374151;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .model-selector-btn:hover {
+        background: #e5e7eb;
+        border-color: #0ea5e9;
+    }
+
     .input-box {
         display: flex;
         gap: 8px;
@@ -597,6 +617,61 @@
         font-size: 18px;
         font-weight: 500;
     }
+
+    /* Model Selector Styles */
+    .model-card {
+        padding: 16px;
+        border: 2px solid #e5e7eb;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+        margin-bottom: 12px;
+    }
+
+    .model-card:hover {
+        border-color: #0ea5e9;
+        background: #f0f9ff;
+    }
+
+    .model-card.selected {
+        border-color: #0ea5e9;
+        background: #e0f2fe;
+    }
+
+    .model-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+
+    .model-name {
+        font-size: 16px;
+        font-weight: 600;
+        color: #111827;
+    }
+
+    .model-badge {
+        padding: 4px 8px;
+        background: #10b981;
+        color: white;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    .model-id {
+        font-size: 12px;
+        color: #6b7280;
+        font-family: monospace;
+        margin-bottom: 8px;
+    }
+
+    .model-description {
+        font-size: 13px;
+        color: #4b5563;
+        line-height: 1.5;
+    }
 </style>
 
 <div class="consultation-container">
@@ -708,6 +783,9 @@
             <div class="input-area">
                 <div class="input-features">
                     <span class="feature-badge">🔒 End-to-end encrypted medical sanctuary</span>
+                    <button class="model-selector-btn" @onclick="ShowModelSelector">
+                        🤖 @AiAssistantService.CurrentModelName
+                    </button>
                 </div>
                 
                 <div class="input-box">
@@ -887,6 +965,44 @@
                         disabled="@(!isAiMode && selectedDoctorId == null)">
                     Create Conversation
                 </button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Model Selector Modal -->
+@if (showModelSelectorModal)
+{
+    <div class="modal-overlay" @onclick="CloseModelSelector">
+        <div class="modal-content" @onclick:stopPropagation="true">
+            <div class="modal-header">Select AI Model</div>
+            
+            <div style="margin-bottom: 16px;">
+                <p style="font-size: 14px; color: #6b7280;">
+                    Choose the AI model that best fits your needs. Each model has different strengths.
+                </p>
+            </div>
+
+            <div style="max-height: 400px; overflow-y: auto;">
+                @foreach (var model in availableModels)
+                {
+                    <div class="model-card @(currentModelKey == model.Key ? "selected" : "")"
+                         @onclick="@(() => SwitchModel(model.Key))">
+                        <div class="model-card-header">
+                            <div class="model-name">@model.DisplayName</div>
+                            @if (currentModelKey == model.Key)
+                            {
+                                <span class="model-badge">ACTIVE</span>
+                            }
+                        </div>
+                        <div class="model-id">@model.ModelId</div>
+                        <div class="model-description">@model.Description</div>
+                    </div>
+                }
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn-cancel" @onclick="CloseModelSelector">Close</button>
             </div>
         </div>
     </div>
