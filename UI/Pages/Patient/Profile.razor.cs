@@ -142,7 +142,8 @@ public partial class Profile : ComponentBase
             Console.WriteLine($"[Profile] Uploading photo: {file.Name}, Size: {file.Size}");
 
             // Validate file size (5MB)
-            if (file.Size > 5 * 1024 * 1024)
+            const long maxFileSize = 5 * 1024 * 1024;
+            if (file.Size > maxFileSize)
             {
                 errorMessage = "File size exceeds 5MB limit";
                 return;
@@ -156,12 +157,45 @@ public partial class Profile : ComponentBase
                 return;
             }
 
-            // Read photo data
-            using var memoryStream = new MemoryStream();
-            await file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024).CopyToAsync(memoryStream);
-            var photoData = memoryStream.ToArray();
+            // Show uploading message
+            successMessage = "Uploading photo...";
+            StateHasChanged();
 
-            Console.WriteLine($"[Profile] Photo data size: {photoData.Length} bytes");
+            // Read photo data with chunked reading for better reliability
+            byte[] photoData;
+            try
+            {
+                using var memoryStream = new MemoryStream();
+                using var stream = file.OpenReadStream(maxAllowedSize: maxFileSize);
+                
+                // Read in chunks to avoid timeout issues
+                var buffer = new byte[81920]; // 80KB chunks
+                int bytesRead;
+                var totalBytesRead = 0L;
+                
+                while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                {
+                    await memoryStream.WriteAsync(buffer, 0, bytesRead);
+                    totalBytesRead += bytesRead;
+                    
+                    // Optional: Update progress
+                    if (totalBytesRead % (512 * 1024) == 0) // Every 512KB
+                    {
+                        Console.WriteLine($"[Profile] Read {totalBytesRead} / {file.Size} bytes");
+                    }
+                }
+                
+                photoData = memoryStream.ToArray();
+                Console.WriteLine($"[Profile] Photo data size: {photoData.Length} bytes");
+            }
+            catch (Exception readEx)
+            {
+                Console.WriteLine($"[Profile] Error reading file stream: {readEx.Message}");
+                errorMessage = "Failed to read the image file. Please try again or use a different image.";
+                successMessage = null;
+                StateHasChanged();
+                return;
+            }
 
             // Update profile photo in database
             var success = await PatientProfileService.UpdateProfilePhotoAsync(currentUserId, photoData);
@@ -182,6 +216,7 @@ public partial class Profile : ComponentBase
             else
             {
                 errorMessage = "Failed to upload photo";
+                successMessage = null;
                 Console.WriteLine("[Profile] Failed to upload photo");
             }
         }
@@ -189,7 +224,12 @@ public partial class Profile : ComponentBase
         {
             Console.WriteLine($"[Profile] Error uploading photo: {ex.Message}");
             Console.WriteLine($"[Profile] Stack trace: {ex.StackTrace}");
-            errorMessage = $"Error uploading photo: {ex.Message}";
+            errorMessage = $"Error uploading photo. Please try again with a smaller image.";
+            successMessage = null;
+        }
+        finally
+        {
+            StateHasChanged();
         }
     }
 

@@ -214,8 +214,8 @@ else
                 <div class="form-group">
                     <label class="body-sm">Accepting New Patients</label>
                     <select class="form-input" @bind="profileData!.IsAcceptingPatients" disabled="@(!isEditing)">
-                        <option value="true">Yes</option>
-                        <option value="false">No</option>
+                        <option value="@true">Yes</option>
+                        <option value="@false">No</option>
                     </select>
                 </div>
                 <div class="form-group full-width">

@@ -70,9 +70,13 @@
         await base.OnAfterRenderAsync(firstRender);
     }
 
-    private void HandleLogout()
+    private async Task HandleLogout()
     {
-        Navigation.NavigateTo("/auth/signin");
+        // Clear authentication state and session
+        await AuthState.ClearCurrentUserAsync();
+        
+        // Navigate to sign-in page
+        Navigation.NavigateTo("/auth/signin", forceLoad: true);
     }
 
     public void Dispose()
