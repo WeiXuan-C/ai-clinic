@@ -92,10 +92,10 @@
                                 }
                                 <div class="log-meta">
                                     <span class="log-id">
-                                        <i class="bi bi-hash"></i> @log.Id.ToString().Substring(0, 8)
+                                        <i class="bi bi-hash"></i> @(log.Id.ToString().Length > 8 ? log.Id.ToString().Substring(0, 8) : log.Id.ToString())
                                     </span>
                                     <span class="log-user">
-                                        <i class="bi bi-person"></i> User ID: @log.UserId.ToString().Substring(0, 8)
+                                        <i class="bi bi-person"></i> User ID: @(log.UserId.ToString().Length > 8 ? log.UserId.ToString().Substring(0, 8) : log.UserId.ToString())
                                     </span>
                                 </div>
                             </div>

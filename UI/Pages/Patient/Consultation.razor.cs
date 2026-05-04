@@ -28,6 +28,10 @@ public partial class Consultation : ComponentBase
     private List<DoctorListItem> availableDoctors = new();
     private List<DoctorListItem> filteredDoctors = new();
     private string _doctorSearchQuery = "";
+    private bool showModelSelectorModal = false;
+    private List<AiModelInfo> availableModels = new();
+    private string currentModelKey = "owl-alpha";
+    private Guid? selectedDoctorId = null;
     private string doctorSearchQuery
     {
         get => _doctorSearchQuery;
@@ -37,11 +41,6 @@ public partial class Consultation : ComponentBase
             FilterDoctors();
         }
     }
-    private bool showModelSelectorModal = false;
-    private List<DoctorListItem> availableDoctors = new();
-    private List<AiModelInfo> availableModels = new();
-    private string currentModelKey = "owl-alpha";
-    private Guid? selectedDoctorId = null;
 
     protected override async Task OnInitializedAsync()
     {
@@ -383,6 +382,7 @@ public partial class Consultation : ComponentBase
             DoctorAvailabilityStatus.Offline => "color: #ef4444; font-weight: 500;",
             _ => "color: #6b7280;"
         };
+    }
     /// <summary>
     /// Shows model selector
     /// </summary>

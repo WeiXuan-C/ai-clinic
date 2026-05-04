@@ -16,6 +16,7 @@
     private string? userEmail = null;
     private string? userInitials = null;
     private string? userPhotoUrl = null;
+    private string currentPath = "";
 
     protected override void OnInitialized()
     {
@@ -24,6 +25,16 @@
         
         // Initialize user data from AuthState
         UpdateUserInfo();
+        
+        // Subscribe to navigation changes
+        Navigation.LocationChanged += OnLocationChanged;
+        currentPath = Navigation.Uri;
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        currentPath = e.Location;
+        InvokeAsync(StateHasChanged);
     }
 
     private async void UpdateUserInfo()
@@ -79,10 +90,16 @@
         Navigation.NavigateTo("/auth/signin", forceLoad: true);
     }
 
+    private bool IsActive(string href)
+    {
+        return currentPath.Contains(href, StringComparison.OrdinalIgnoreCase);
+    }
+
     public void Dispose()
     {
         // Unsubscribe from auth state changes
         AuthState.OnAuthStateChanged -= UpdateUserInfo;
+        Navigation.LocationChanged -= OnLocationChanged;
     }
 }
 
@@ -124,30 +141,30 @@
         </div>
 
         <nav class="sidebar-nav">
-            <a href="/doctor/dashboard" class="nav-item">
+            <a href="/doctor/dashboard" class="nav-item @(IsActive("/doctor/dashboard") ? "active" : "")">
                 <i data-lucide="layout-dashboard" class="nav-icon"></i>
                 <span>Dashboard</span>
             </a>
-            <a href="/doctor/consultation" class="nav-item">
+            <a href="/doctor/consultation" class="nav-item @(IsActive("/doctor/consultation") ? "active" : "")">
                 <i data-lucide="users" class="nav-icon"></i>
                 <span>Patients</span>
             </a>
-            <a href="/doctor/records" class="nav-item">
+            <a href="/doctor/records" class="nav-item @(IsActive("/doctor/records") ? "active" : "")">
                 <i data-lucide="file-text" class="nav-icon"></i>
                 <span>Medical Records</span>
             </a>
-            <a href="/doctor/analytics" class="nav-item">
+            <a href="/doctor/analytics" class="nav-item @(IsActive("/doctor/analytics") ? "active" : "")">
                 <i data-lucide="bar-chart-3" class="nav-icon"></i>
                 <span>Analytics</span>
             </a>
-            <a href="/doctor/support" class="nav-item">
+            <a href="/doctor/support" class="nav-item @(IsActive("/doctor/support") ? "active" : "")">
                 <i data-lucide="life-buoy" class="nav-icon"></i>
                 <span>Support</span>
             </a>
         </nav>
 
         <div class="sidebar-footer">
-            <a href="/doctor/settings" class="nav-item">
+            <a href="/doctor/settings" class="nav-item @(IsActive("/doctor/settings") ? "active" : "")">
                 <i data-lucide="settings" class="nav-icon"></i>
                 <span>Settings</span>
             </a>

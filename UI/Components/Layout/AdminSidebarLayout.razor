@@ -13,6 +13,7 @@
     private string? userName = null;
     private string? userEmail = null;
     private string? userInitials = null;
+    private string currentPath = "";
 
     protected override void OnInitialized()
     {
@@ -21,6 +22,16 @@
         
         // Initialize user data from AuthState
         UpdateUserInfo();
+        
+        // Subscribe to navigation changes
+        Navigation.LocationChanged += OnLocationChanged;
+        currentPath = Navigation.Uri;
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        currentPath = e.Location;
+        InvokeAsync(StateHasChanged);
     }
 
     private async void UpdateUserInfo()
@@ -62,10 +73,16 @@
         Navigation.NavigateTo("/auth/signin", forceLoad: true);
     }
 
+    private bool IsActive(string href)
+    {
+        return currentPath.Contains(href, StringComparison.OrdinalIgnoreCase);
+    }
+
     public void Dispose()
     {
         // Unsubscribe from auth state changes
         AuthState.OnAuthStateChanged -= UpdateUserInfo;
+        Navigation.LocationChanged -= OnLocationChanged;
     }
 }
 
@@ -103,23 +120,23 @@
         </div>
 
         <nav class="sidebar-nav">
-            <a href="/admin/dashboard" class="nav-item">
+            <a href="/admin/dashboard" class="nav-item @(IsActive("/admin/dashboard") ? "active" : "")">
                 <i data-lucide="layout-dashboard" class="nav-icon"></i>
                 <span>Dashboard</span>
             </a>
-            <a href="/admin/users" class="nav-item">
+            <a href="/admin/users" class="nav-item @(IsActive("/admin/users") ? "active" : "")">
                 <i data-lucide="users" class="nav-icon"></i>
                 <span>All Users</span>
             </a>
-            <a href="/admin/verify-doctors" class="nav-item">
+            <a href="/admin/verify-doctors" class="nav-item @(IsActive("/admin/verify-doctors") ? "active" : "")">
                 <i data-lucide="user-check" class="nav-icon"></i>
                 <span>Verify Doctors</span>
             </a>
-            <a href="/admin/support-tickets" class="nav-item">
+            <a href="/admin/support-tickets" class="nav-item @(IsActive("/admin/support-tickets") ? "active" : "")">
                 <i data-lucide="ticket" class="nav-icon"></i>
                 <span>Support Tickets</span>
             </a>
-            <a href="/admin/activity-logs" class="nav-item">
+            <a href="/admin/activity-logs" class="nav-item @(IsActive("/admin/activity-logs") ? "active" : "")">
                 <i data-lucide="activity" class="nav-icon"></i>
                 <span>Activity Logs</span>
             </a>
@@ -161,12 +178,15 @@
     /* Admin Sidebar - Orange/Red theme */
     .sidebar.admin-sidebar {
         width: 280px;
+        min-width: 280px;
+        max-width: 280px;
         min-height: 100vh;
         max-height: 100vh;
         background: linear-gradient(180deg, #dc2626 0%, #b91c1c 100%);
         display: flex;
         flex-direction: column;
         overflow-y: auto;
+        overflow-x: hidden;
         position: fixed;
         left: 0;
         top: 0;
@@ -243,12 +263,21 @@
         user-select: none;
     }
 
+    .profile-info {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+    }
+
     .profile-info h3 {
         font-size: 14px;
         font-weight: 600;
         color: white;
         margin-bottom: 4px;
         line-height: 1.2;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .profile-info p {
@@ -256,6 +285,9 @@
         color: rgba(255, 255, 255, 0.8);
         margin-bottom: 8px;
         line-height: 1.2;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .status-badge.admin-badge {
