@@ -3,6 +3,7 @@ using Microsoft.JSInterop;
 using ai_clinic.Models;
 using ai_clinic.Services;
 using ai_clinic.Services.Facades;
+using static ai_clinic.Services.Facades.ConsultationFacade;
 
 namespace ai_clinic.UI.Pages.Patient;
 
@@ -32,6 +33,11 @@ public partial class Consultation : ComponentBase
     private List<AiModelInfo> availableModels = new();
     private string currentModelKey = "owl-alpha";
     private Guid? selectedDoctorId = null;
+    private List<RecommendedDoctorItem> recommendedDoctors = new();
+    private bool showRecommendedDoctors = false;
+    private bool isLoadingRecommendations = false;
+    private bool showAllRecommendedDoctorsModal = false;
+    private Guid? selectedRecommendedDoctorId = null;
     private string doctorSearchQuery
     {
         get => _doctorSearchQuery;
@@ -121,6 +127,10 @@ public partial class Consultation : ComponentBase
             currentConversation = session.Conversation;
             messages = session.Messages;
             isAiMode = session.IsAiConsultation;
+            
+            // Reset recommendations when switching conversations
+            showRecommendedDoctors = false;
+            recommendedDoctors = new();
             
             StateHasChanged();
             await ScrollToBottom();
@@ -412,6 +422,104 @@ public partial class Consultation : ComponentBase
     {
         showModelSelectorModal = false;
         StateHasChanged();
+    }
+
+    /// <summary>
+    /// Loads AI-recommended doctors based on conversation context
+    /// </summary>
+    private async Task LoadRecommendedDoctors()
+    {
+        if (currentConversation == null)
+            return;
+
+        isLoadingRecommendations = true;
+        showRecommendedDoctors = true;
+        StateHasChanged();
+
+        try
+        {
+            Console.WriteLine($"[UI] Loading recommended doctors for conversation {currentConversation.Id}");
+            
+            recommendedDoctors = await ConsultationFacade.GetAiRecommendedDoctorsAsync(
+                currentConversation.Id,
+                maxResults: 5
+            );
+
+            Console.WriteLine($"[UI] Loaded {recommendedDoctors.Count} recommended doctors");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[UI] Error loading recommended doctors: {ex.Message}");
+            recommendedDoctors = new();
+        }
+        finally
+        {
+            isLoadingRecommendations = false;
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>
+    /// Shows all recommended doctors in a modal
+    /// </summary>
+    private void ShowAllRecommendedDoctors()
+    {
+        showAllRecommendedDoctorsModal = true;
+        selectedRecommendedDoctorId = null;
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Closes all recommended doctors modal
+    /// </summary>
+    private void CloseAllRecommendedDoctors()
+    {
+        showAllRecommendedDoctorsModal = false;
+        selectedRecommendedDoctorId = null;
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Shows doctor details (placeholder for future implementation)
+    /// </summary>
+    private void ShowDoctorDetails(RecommendedDoctorItem doctor)
+    {
+        Console.WriteLine($"[UI] Showing details for Dr. {doctor.FullName}");
+        // Future: Show detailed doctor profile modal
+    }
+
+    /// <summary>
+    /// Starts consultation with a recommended doctor
+    /// </summary>
+    private async Task StartConsultationWithDoctor(Guid? doctorId)
+    {
+        if (doctorId == null)
+            return;
+
+        try
+        {
+            Console.WriteLine($"[UI] Starting consultation with doctor {doctorId}");
+            
+            // Create new doctor consultation
+            var newSession = await ConsultationFacade.StartDoctorConsultationAsync(
+                AuthState.CurrentUser!.Id,
+                doctorId.Value
+            );
+
+            // Close modals
+            showAllRecommendedDoctorsModal = false;
+            selectedRecommendedDoctorId = null;
+
+            // Reload conversations and switch to new one
+            await LoadConversations();
+            await LoadConversation(newSession.Conversation.Id);
+
+            Console.WriteLine($"[UI] Successfully started consultation with doctor");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[UI] Error starting consultation with doctor: {ex.Message}");
+        }
     }
 
     /// <summary>

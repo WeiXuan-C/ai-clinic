@@ -63,6 +63,9 @@ public static class DependencyInjectionExtensions
         // High-level service: Provides domain-specific AI functionality
         services.AddScoped<AiAssistantService>();
         
+        // 🔄 Workflow Services - Orchestrate complex multi-step processes
+        services.AddScoped<PatientConsultationWorkflowService>(); // 患者咨询工作流
+        
         // 🎭 AI Facade: Unified interface for AI model switching and generation
         // Coordinates: AiModelContext + AiAssistantService + ActivityLogService
         services.AddScoped<AiFacade>(); // AI外观 - 协调模型切换、响应生成、日志记录等子系统

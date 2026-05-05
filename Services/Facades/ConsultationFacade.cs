@@ -1,6 +1,7 @@
 ﻿using ai_clinic.Models;
 using ai_clinic.Data;
 using ai_clinic.Services.Hubs;
+using ai_clinic.Services.DoctorRecommendation;
 using Microsoft.AspNetCore.SignalR;
 
 namespace ai_clinic.Services.Facades;
@@ -31,6 +32,7 @@ public class ConsultationFacade
     private readonly DoctorProfileService _doctorProfileService;
     private readonly ActivityLogService _activityLogService;
     private readonly AiAssistantService _aiAssistantService;
+    private readonly DoctorRecommendationService _doctorRecommendationService;
     private readonly IHubContext<ConsultationHub> _hubContext;
     private readonly ILogger<ConsultationFacade> _logger;
 
@@ -40,6 +42,7 @@ public class ConsultationFacade
         DoctorProfileService doctorProfileService,
         ActivityLogService activityLogService,
         AiAssistantService aiAssistantService,
+        DoctorRecommendationService doctorRecommendationService,
         IHubContext<ConsultationHub> hubContext,
         ILogger<ConsultationFacade> logger)
     {
@@ -48,6 +51,7 @@ public class ConsultationFacade
         _doctorProfileService = doctorProfileService;
         _activityLogService = activityLogService;
         _aiAssistantService = aiAssistantService;
+        _doctorRecommendationService = doctorRecommendationService;
         _hubContext = hubContext;
         _logger = logger;
     }
@@ -380,6 +384,198 @@ public class ConsultationFacade
         return await _conversationService.GetAvailableDoctorsAsync();
     }
 
+    /// <summary>
+    /// Gets AI-recommended doctors based on conversation context (simplified interface)
+    /// Uses Strategy Pattern to intelligently match doctors based on symptoms and conversation history
+    /// </summary>
+    public async Task<List<RecommendedDoctorItem>> GetAiRecommendedDoctorsAsync(
+        Guid conversationId, 
+        int maxResults = 5)
+    {
+        _logger.LogInformation($"[FACADE] Getting AI-recommended doctors for conversation {conversationId}");
+
+        // 1. Get conversation messages to extract symptoms and context
+        var messages = await _messageService.GetByConversationIdAsync(conversationId);
+        
+        // 2. Extract symptoms from patient messages using AI
+        var patientMessages = messages
+            .Where(m => m.SenderType == MessageSenderType.Patient)
+            .Select(m => m.Content)
+            .ToList();
+        
+        var conversationContext = string.Join(" ", patientMessages);
+        
+        // 3. Use AI to extract symptoms and conditions
+        var extractedInfo = await ExtractSymptomsFromConversationAsync(conversationContext);
+        
+        // 4. Build search criteria
+        var criteria = new DoctorSearchCriteria
+        {
+            Symptoms = extractedInfo.Symptoms,
+            Conditions = extractedInfo.Conditions,
+            PreferredSpecialization = extractedInfo.SuggestedSpecialization,
+            MaxResults = maxResults,
+            MinRating = 4.0m // Only recommend highly-rated doctors
+        };
+
+        _logger.LogInformation($"[FACADE] Search criteria - Symptoms: {string.Join(", ", criteria.Symptoms)}, " +
+                             $"Specialization: {criteria.PreferredSpecialization}");
+
+        // 5. Get recommendations using Strategy Pattern
+        var matchResults = await _doctorRecommendationService.GetRecommendedDoctorsAsync(criteria);
+        
+        // 6. Convert to UI-friendly format
+        var recommendedDoctors = matchResults.Select(result => new RecommendedDoctorItem
+        {
+            UserId = result.Doctor.UserId,
+            FullName = result.Doctor.FullName,
+            PrimarySpecialization = result.Doctor.PrimarySpecialization,
+            YearsOfExperience = result.Doctor.YearsOfExperience,
+            AverageRating = result.Doctor.AverageRating,
+            TotalRatings = result.Doctor.TotalRatings,
+            ProfilePhotoUrl = result.Doctor.ProfilePhotoUrl,
+            AvailabilityStatus = result.Doctor.AvailabilityStatus,
+            MatchScore = result.MatchScore,
+            MatchReasons = result.MatchReasons,
+            IsRecommended = true
+        }).ToList();
+
+        _logger.LogInformation($"[FACADE] Found {recommendedDoctors.Count} recommended doctors");
+
+        return recommendedDoctors;
+    }
+
+    /// <summary>
+    /// Extracts symptoms and conditions from conversation using AI
+    /// </summary>
+    private async Task<ExtractedMedicalInfo> ExtractSymptomsFromConversationAsync(string conversationContext)
+    {
+        try
+        {
+            // Use AI to analyze conversation and extract medical information
+            var prompt = $@"Analyze the following patient conversation and extract:
+1. List of symptoms mentioned
+2. Any medical conditions mentioned
+3. Suggested medical specialization
+
+Conversation:
+{conversationContext}
+
+Respond in JSON format:
+{{
+    ""symptoms"": [""symptom1"", ""symptom2""],
+    ""conditions"": [""condition1""],
+    ""suggested_specialization"": ""specialization_name""
+}}";
+
+            var aiResponse = await _aiAssistantService.GenerateMedicalResponseAsync(
+                patientQuery: prompt,
+                medicalContext: null,
+                temperature: 0.3 // Lower temperature for more focused extraction
+            );
+
+            // Parse AI response (simplified - in production, use proper JSON parsing)
+            var info = ParseMedicalInfoFromAiResponse(aiResponse);
+            return info;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[FACADE] Failed to extract symptoms from conversation, using fallback");
+            
+            // Fallback: simple keyword extraction
+            return ExtractSymptomsUsingKeywords(conversationContext);
+        }
+    }
+
+    /// <summary>
+    /// Parses medical information from AI response
+    /// </summary>
+    private ExtractedMedicalInfo ParseMedicalInfoFromAiResponse(string aiResponse)
+    {
+        try
+        {
+            // Try to parse JSON response
+            var jsonStart = aiResponse.IndexOf('{');
+            var jsonEnd = aiResponse.LastIndexOf('}');
+            
+            if (jsonStart >= 0 && jsonEnd > jsonStart)
+            {
+                var jsonStr = aiResponse.Substring(jsonStart, jsonEnd - jsonStart + 1);
+                var parsed = System.Text.Json.JsonSerializer.Deserialize<ExtractedMedicalInfo>(
+                    jsonStr, 
+                    new System.Text.Json.JsonSerializerOptions 
+                    { 
+                        PropertyNameCaseInsensitive = true 
+                    }
+                );
+                
+                if (parsed != null)
+                {
+                    return parsed;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[FACADE] Failed to parse AI response as JSON");
+        }
+
+        // Fallback to empty info
+        return new ExtractedMedicalInfo();
+    }
+
+    /// <summary>
+    /// Fallback method: Extract symptoms using simple keyword matching
+    /// </summary>
+    private ExtractedMedicalInfo ExtractSymptomsUsingKeywords(string text)
+    {
+        var info = new ExtractedMedicalInfo();
+        var lowerText = text.ToLower();
+
+        // Common symptoms
+        var symptomKeywords = new Dictionary<string, string>
+        {
+            { "headache", "Headache" },
+            { "fever", "Fever" },
+            { "cough", "Cough" },
+            { "pain", "Pain" },
+            { "dizzy", "Dizziness" },
+            { "nausea", "Nausea" },
+            { "fatigue", "Fatigue" },
+            { "chest pain", "Chest Pain" },
+            { "shortness of breath", "Shortness of Breath" },
+            { "sore throat", "Sore Throat" }
+        };
+
+        foreach (var keyword in symptomKeywords)
+        {
+            if (lowerText.Contains(keyword.Key))
+            {
+                info.Symptoms.Add(keyword.Value);
+            }
+        }
+
+        // Suggest specialization based on symptoms
+        if (info.Symptoms.Any(s => s.Contains("Chest") || s.Contains("Heart")))
+        {
+            info.SuggestedSpecialization = "Cardiology";
+        }
+        else if (info.Symptoms.Any(s => s.Contains("Headache") || s.Contains("Dizzy")))
+        {
+            info.SuggestedSpecialization = "Neurology";
+        }
+        else if (info.Symptoms.Any(s => s.Contains("Cough") || s.Contains("Breath")))
+        {
+            info.SuggestedSpecialization = "Pulmonology";
+        }
+        else
+        {
+            info.SuggestedSpecialization = "General Practice";
+        }
+
+        return info;
+    }
+
     #endregion
 
     #region Manage Consultation
@@ -531,6 +727,34 @@ public class MessageResult
     public Message PatientMessage { get; set; } = null!;
     public Message? AiResponse { get; set; }
     public bool IsAiConversation { get; set; }
+}
+
+/// <summary>
+/// Recommended doctor item with match information
+/// </summary>
+public class RecommendedDoctorItem
+{
+    public Guid UserId { get; set; }
+    public string FullName { get; set; } = string.Empty;
+    public string PrimarySpecialization { get; set; } = string.Empty;
+    public int? YearsOfExperience { get; set; }
+    public decimal AverageRating { get; set; }
+    public int TotalRatings { get; set; }
+    public string? ProfilePhotoUrl { get; set; }
+    public DoctorAvailabilityStatus AvailabilityStatus { get; set; }
+    public decimal MatchScore { get; set; }
+    public List<string> MatchReasons { get; set; } = new();
+    public bool IsRecommended { get; set; }
+}
+
+/// <summary>
+/// Extracted medical information from conversation
+/// </summary>
+internal class ExtractedMedicalInfo
+{
+    public List<string> Symptoms { get; set; } = new();
+    public List<string> Conditions { get; set; } = new();
+    public string? SuggestedSpecialization { get; set; }
 }
 
 #endregion

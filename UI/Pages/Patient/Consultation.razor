@@ -672,6 +672,27 @@
         color: #4b5563;
         line-height: 1.5;
     }
+
+    /* Recommended Doctor Card */
+    .recommended-doctor-card {
+        padding: 12px;
+        border: 2px solid #e5e7eb;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+        background: white;
+    }
+
+    .recommended-doctor-card:hover {
+        border-color: #0ea5e9;
+        background: #f0f9ff;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(14, 165, 233, 0.15);
+    }
+
+    .recommended-doctor-card button:hover {
+        background: #0284c7;
+    }
 </style>
 
 <div class="consultation-container">
@@ -840,6 +861,107 @@
                     <strong>Status:</strong> @currentConversation.Status
                 </p>
             </div>
+
+            @* AI推荐医生列表 *@
+            @if (currentConversation.AssignedDoctorId == null && messages.Count >= 3 && !isLoadingRecommendations)
+            {
+                <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e5e7eb;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <h3 style="font-size: 16px; font-weight: 600; color: #111827; margin: 0;">
+                            🤖 AI Recommendations
+                        </h3>
+                        @if (!showRecommendedDoctors)
+                        {
+                            <button @onclick="LoadRecommendedDoctors" 
+                                    style="padding: 6px 12px; background: #0ea5e9; color: white; border: none; border-radius: 6px; font-size: 12px; cursor: pointer;">
+                                Show
+                            </button>
+                        }
+                    </div>
+                    
+                    @if (showRecommendedDoctors)
+                    {
+                        <p style="font-size: 13px; color: #6b7280; margin-bottom: 16px; line-height: 1.5;">
+                            Based on your symptoms, here are recommended specialists:
+                        </p>
+
+                        @if (recommendedDoctors.Any())
+                        {
+                            <div style="display: flex; flex-direction: column; gap: 12px;">
+                                @foreach (var doctor in recommendedDoctors.Take(3))
+                                {
+                                    <div class="recommended-doctor-card" @onclick="@(() => ShowDoctorDetails(doctor))">
+                                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                                            <div style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0;">
+                                                👨‍⚕️
+                                            </div>
+                                            <div style="flex: 1; min-width: 0;">
+                                                <div style="font-size: 14px; font-weight: 600; color: #111827; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                                    Dr. @doctor.FullName
+                                                </div>
+                                                <div style="font-size: 12px; color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                                    @doctor.PrimarySpecialization
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                                            <div style="font-size: 11px; color: #f59e0b; font-weight: 500;">
+                                                ⭐ @doctor.AverageRating.ToString("F1")
+                                            </div>
+                                            <div style="font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                                                @doctor.MatchScore.ToString("F0")% Match
+                                            </div>
+                                        </div>
+
+                                        @if (doctor.MatchReasons.Any())
+                                        {
+                                            <div style="font-size: 11px; color: #10b981; margin-bottom: 8px;">
+                                                ✓ @doctor.MatchReasons.First()
+                                            </div>
+                                        }
+
+                                        <button @onclick="@(() => StartConsultationWithDoctor(doctor.UserId))" 
+                                                @onclick:stopPropagation="true"
+                                                style="width: 100%; padding: 8px; background: #0ea5e9; color: white; border: none; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer; transition: background 0.2s;">
+                                            Consult Now
+                                        </button>
+                                    </div>
+                                }
+                            </div>
+
+                            @if (recommendedDoctors.Count > 3)
+                            {
+                                <button @onclick="ShowAllRecommendedDoctors" 
+                                        style="width: 100%; margin-top: 12px; padding: 8px; background: transparent; color: #0ea5e9; border: 1px solid #0ea5e9; border-radius: 6px; font-size: 12px; font-weight: 500; cursor: pointer;">
+                                    View All (@recommendedDoctors.Count)
+                                </button>
+                            }
+                        }
+                        else
+                        {
+                            <div style="text-align: center; padding: 16px; color: #6b7280; font-size: 13px;">
+                                <div style="font-size: 32px; margin-bottom: 8px;">🔍</div>
+                                <div>No recommendations yet</div>
+                            </div>
+                        }
+                    }
+                </div>
+            }
+                
+            @if (isLoadingRecommendations)
+            {
+                <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e5e7eb;">
+                    <div style="text-align: center; padding: 24px; color: #6b7280;">
+                        <div class="typing-indicator" style="margin: 0 auto 12px;">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                        </div>
+                        <div style="font-size: 13px;">Finding best doctors for you...</div>
+                    </div>
+                </div>
+            }
         }
         else
         {
@@ -1003,6 +1125,77 @@
 
             <div class="modal-actions">
                 <button class="btn-cancel" @onclick="CloseModelSelector">Close</button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- All Recommended Doctors Modal -->
+@if (showAllRecommendedDoctorsModal)
+{
+    <div class="modal-overlay" @onclick="CloseAllRecommendedDoctors">
+        <div class="modal-content" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                🤖 AI Recommended Doctors
+                <div style="font-size: 14px; font-weight: 400; color: #6b7280; margin-top: 8px;">
+                    Based on your symptoms and conversation history
+                </div>
+            </div>
+
+            <div class="doctor-list">
+                @foreach (var doctor in recommendedDoctors)
+                {
+                    <div class="doctor-card @(selectedRecommendedDoctorId == doctor.UserId ? "selected" : "")"
+                         @onclick="@(() => selectedRecommendedDoctorId = doctor.UserId)">
+                        <div class="doctor-avatar">👨‍⚕️</div>
+                        <div class="doctor-info">
+                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 4px;">
+                                <div class="doctor-name">Dr. @doctor.FullName</div>
+                                <div style="font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                                    @doctor.MatchScore.ToString("F0")% Match
+                                </div>
+                            </div>
+                            <div class="doctor-specialty">@doctor.PrimarySpecialization</div>
+                            <div class="doctor-rating">
+                                ⭐ @doctor.AverageRating.ToString("F1") (@doctor.TotalRatings reviews)
+                            </div>
+                            @if (doctor.YearsOfExperience.HasValue)
+                            {
+                                <div style="font-size: 12px; color: #6b7280; margin-top: 4px;">
+                                    @doctor.YearsOfExperience years experience
+                                </div>
+                            }
+                            <div style="font-size: 12px; margin-top: 8px;">
+                                <span style="@GetAvailabilityStatusStyle(doctor.AvailabilityStatus)">
+                                    @GetAvailabilityStatusText(doctor.AvailabilityStatus)
+                                </span>
+                            </div>
+                            @if (doctor.MatchReasons.Any())
+                            {
+                                <div style="margin-top: 8px; padding: 8px; background: #f0fdf4; border-radius: 6px;">
+                                    <div style="font-size: 11px; font-weight: 600; color: #10b981; margin-bottom: 4px;">
+                                        Why recommended:
+                                    </div>
+                                    @foreach (var reason in doctor.MatchReasons.Take(2))
+                                    {
+                                        <div style="font-size: 11px; color: #059669; margin-bottom: 2px;">
+                                            ✓ @reason
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn-cancel" @onclick="CloseAllRecommendedDoctors">Cancel</button>
+                <button class="btn-create" 
+                        @onclick="@(() => StartConsultationWithDoctor(selectedRecommendedDoctorId))"
+                        disabled="@(selectedRecommendedDoctorId == null)">
+                    Start Consultation
+                </button>
             </div>
         </div>
     </div>
