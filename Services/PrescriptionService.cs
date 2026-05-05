@@ -47,4 +47,17 @@ public class PrescriptionService
         await db.SaveChangesAsync();
         return prescription;
     }
+
+    public async Task<bool> DeleteAsync(Guid prescriptionId)
+    {
+        using var db = DbClient.Instance.GetDb();
+        var prescription = await db.Prescriptions.FindAsync(prescriptionId);
+        if (prescription != null)
+        {
+            db.Prescriptions.Remove(prescription);
+            await db.SaveChangesAsync();
+            return true;
+        }
+        return false;
+    }
 }

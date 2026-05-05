@@ -58,8 +58,12 @@
                     </div>
                 </div>
                 
-                <div class="feature-card card placeholder">
-                    <div class="placeholder-content"></div>
+                <div class="feature-card card">
+                    <div class="feature-icon tertiary">
+                        <i data-lucide="refresh-cw"></i>
+                    </div>
+                    <h3 class="headline-sm">Hybrid Care</h3>
+                    <p class="body-md">Seamlessly transition between AI diagnostics and human consultations without losing context.</p>
                 </div>
                 
                 <div class="feature-card card featured">
@@ -69,21 +73,6 @@
                     <h3 class="headline-sm">Real Doctors</h3>
                     <p class="body-md">Direct access to elite specialists across a global network of premier healthcare organizations.</p>
                     <a href="/general/doctors" class="feature-link">Browse Specialists →</a>
-                </div>
-                
-                <div class="feature-card card">
-                    <div class="feature-icon tertiary">
-                        <i data-lucide="refresh-cw"></i>
-                    </div>
-                    <h3 class="headline-sm">Hybrid Care</h3>
-                    <p class="body-md">Seamlessly transition between AI diagnostics and human consultations without losing context.</p>
-                </div>
-                
-                <div class="feature-card card image-card">
-                    <div class="card-image"></div>
-                    <div class="card-overlay">
-                        <p class="overlay-text">Bridging the gap with Intelligence.</p>
-                    </div>
                 </div>
             </div>
         </div>
@@ -446,17 +435,6 @@
         color: var(--secondary);
     }
 
-    .feature-card.placeholder {
-        background: var(--surface-container-low);
-    }
-
-    .placeholder-content {
-        width: 100%;
-        height: 200px;
-        background: linear-gradient(135deg, var(--surface-container) 0%, var(--surface-container-high) 100%);
-        border-radius: var(--radius-lg);
-    }
-
     .feature-card.featured {
         background: linear-gradient(135deg, var(--primary) 0%, var(--primary-container) 100%);
         color: var(--on-primary);
@@ -476,32 +454,8 @@
         gap: 0.5rem;
     }
 
-    .feature-card.image-card {
-        position: relative;
-        overflow: hidden;
-        min-height: 300px;
-        padding: 0;
-    }
-
-    .card-image {
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(135deg, #4a90a4 0%, #2c5f6f 100%);
-    }
-
-    .card-overlay {
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        padding: 2rem;
-        background: linear-gradient(to top, rgba(0, 0, 0, 0.8) 0%, transparent 100%);
-    }
-
-    .overlay-text {
-        color: white;
-        font-size: 1.25rem;
-        font-weight: 600;
+    .feature-link:hover {
+        text-decoration: underline;
     }
 
     /* Journey Section */
@@ -638,6 +592,12 @@
         gap: 0.5rem;
         color: var(--secondary);
         font-weight: 600;
+    }
+
+    .rating-star {
+        width: 1rem;
+        height: 1rem;
+        color: #fbbf24;
     }
 
     /* Testimonials Section */

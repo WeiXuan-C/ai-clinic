@@ -10,9 +10,8 @@ public class Document
     [Column("id")]
     public Guid Id { get; set; } = Guid.NewGuid();
 
-    [Required]
     [Column("conversation_id")]
-    public Guid ConversationId { get; set; }
+    public Guid? ConversationId { get; set; }
 
     [Required]
     [Column("uploaded_by_user_id")]
@@ -54,10 +53,32 @@ public class Document
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+    // ============================================
+    // MEDICAL DOCUMENT FIELDS (Optional)
+    // For patient medical records not tied to conversations
+    // ============================================
+
+    [Column("patient_id")]
+    public Guid? PatientId { get; set; }
+
+    [MaxLength(255)]
+    [Column("title")]
+    public string? Title { get; set; }
+
+    [MaxLength(100)]
+    [Column("document_type_string")]
+    public string? DocumentTypeString { get; set; }
+
+    [Column("file_data")]
+    public byte[]? FileData { get; set; }
+
     // Navigation properties
     [ForeignKey("ConversationId")]
     public Conversation Conversation { get; set; } = null!;
 
     [ForeignKey("UploadedByUserId")]
     public User UploadedByUser { get; set; } = null!;
+
+    [ForeignKey("PatientId")]
+    public PatientProfile? Patient { get; set; }
 }

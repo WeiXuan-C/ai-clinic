@@ -1,7 +1,7 @@
 @page "/patient/dashboard"
 @layout Components.Layout.SidebarLayout
-@using ai_clinic.Services
-@inject AuthStateService AuthState
+@using ai_clinic.Services.Facades
+@inject AuthFacade AuthFacade
 
 <PageTitle>Dashboard - AI Medical Clinic</PageTitle>
 
@@ -613,14 +613,14 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // AuthState should already be initialized by the layout or app
+        // AuthFacade should already be initialized by the layout or app
         // If not, it will initialize itself on first access
-        
-        // Load user data from auth state
-        if (AuthState.IsAuthenticated && AuthState.CurrentUser != null)
+
+        // Load user data from auth facade
+        if (AuthFacade.IsAuthenticated && AuthFacade.CurrentUser != null)
         {
-            displayName = AuthState.GetDisplayName();
-            userInitials = AuthState.GetUserInitials();
+            displayName = AuthFacade.GetDisplayName();
+            userInitials = AuthFacade.GetUserInitials();
         }
 
         await base.OnInitializedAsync();

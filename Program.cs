@@ -38,6 +38,7 @@ try
     
     // Run manual migrations for existing databases
     await DatabaseMigrationHelper.AddProfilePhotoColumnAsync("Data Source=ai-clinic.db");
+    await DatabaseMigrationHelper.AddMedicalDocumentFieldsAsync("Data Source=ai-clinic.db");
     
     var logger = app.Services.GetRequiredService<ILogger<Program>>();
     logger.LogInformation("数据库已准备就绪");

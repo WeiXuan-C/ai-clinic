@@ -1,13 +1,15 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using ai_clinic.Services.Facades;
-using ai_clinic.Services;
 using ai_clinic.Models;
 
 namespace ai_clinic.UI.Pages.Patient;
 
 public partial class Profile : ComponentBase
 {
+    [Inject] private NavigationManager Navigation { get; set; } = null!;
+    [Inject] private AuthFacade AuthFacade { get; set; } = null!;
+    [Inject] private PatientFacade PatientFacade { get; set; } = null!;
     private PatientProfile? profileData;
     private bool isLoading = true;
     private bool isEditing = false;
@@ -19,7 +21,7 @@ public partial class Profile : ComponentBase
 
     protected override async Task OnInitializedAsync()
     {
-        var user = AuthState.CurrentUser;
+        var user = AuthFacade.CurrentUser;
         if (user == null)
         {
             Navigation.NavigateTo("/auth/signin");
@@ -46,7 +48,7 @@ public partial class Profile : ComponentBase
                 profileData = new PatientProfile 
                 { 
                     UserId = currentUserId,
-                    User = AuthState.CurrentUser!
+                    User = AuthFacade.CurrentUser!
                 };
             }
             else
@@ -96,9 +98,9 @@ public partial class Profile : ComponentBase
             
             await LoadProfileAsync();
             
-            // Trigger AuthState update to refresh sidebar
-            AuthState.NotifyStateChanged();
-            Console.WriteLine("[Profile] AuthState change event triggered");
+            // Trigger AuthFacade update to refresh sidebar
+            AuthFacade.NotifyStateChanged();
+            Console.WriteLine("[Profile] AuthFacade change event triggered");
         }
         catch (Exception ex)
         {
@@ -199,9 +201,9 @@ public partial class Profile : ComponentBase
                 // Reload profile to get updated data
                 await LoadProfileAsync();
                 
-                // Trigger AuthState update to refresh sidebar
-                AuthState.NotifyStateChanged();
-                Console.WriteLine("[Profile] Photo uploaded, profile reloaded, and AuthState change event triggered");
+                // Trigger AuthFacade update to refresh sidebar
+                AuthFacade.NotifyStateChanged();
+                Console.WriteLine("[Profile] Photo uploaded, profile reloaded, and AuthFacade change event triggered");
                 
                 StateHasChanged();
             }

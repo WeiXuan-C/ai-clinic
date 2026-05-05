@@ -1,9 +1,8 @@
 @page "/admin/dashboard"
 @using ai_clinic.Models
-@using ai_clinic.Services
 @using ai_clinic.Services.Facades
 @layout Components.Layout.AdminSidebarLayout
-@inject AuthStateService AuthState
+@inject AuthFacade AuthFacade
 @inject AdminFacade AdminFacade
 @inject NavigationManager Navigation
 

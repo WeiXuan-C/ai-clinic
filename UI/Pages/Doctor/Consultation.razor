@@ -1,10 +1,9 @@
 @page "/doctor/consultation"
 @layout Components.Layout.DoctorSidebarLayout
 @using ai_clinic.Models
-@using ai_clinic.Services
 @using ai_clinic.Services.Facades
 @inject DoctorFacade DoctorFacade
-@inject AuthStateService AuthStateService
+@inject AuthFacade AuthFacade
 @inject NavigationManager NavigationManager
 
 <PageTitle>Consultations - AI Medical Clinic</PageTitle>
@@ -200,8 +199,8 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // Get current doctor ID from auth state
-        var currentUser = AuthStateService.CurrentUser;
+        // Get current doctor ID from auth facade
+        var currentUser = AuthFacade.CurrentUser;
         if (currentUser == null || currentUser.Role != UserRole.Doctor)
         {
             NavigationManager.NavigateTo("/auth/login");

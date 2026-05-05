@@ -1,6 +1,6 @@
 using ai_clinic.Models;
 
-namespace ai_clinic.Services;
+namespace ai_clinic.Services.Facades;
 
 /// <summary>
 /// Facade pattern implementation for authentication operations
@@ -192,9 +192,84 @@ public class AuthFacade
     /// <summary>
     /// Check if user is authenticated
     /// </summary>
-    public bool IsAuthenticated()
+    public bool IsAuthenticated => _authStateService.IsAuthenticated;
+
+    /// <summary>
+    /// Get current authenticated user
+    /// </summary>
+    public User? CurrentUser => _authStateService.CurrentUser;
+
+    /// <summary>
+    /// Get current user's patient profile (if user is a patient)
+    /// </summary>
+    public PatientProfile? CurrentPatientProfile => _authStateService.CurrentPatientProfile;
+
+    /// <summary>
+    /// Get current user's doctor profile (if user is a doctor)
+    /// </summary>
+    public DoctorProfile? CurrentDoctorProfile => _authStateService.CurrentDoctorProfile;
+
+    /// <summary>
+    /// Check if authentication state is initialized
+    /// </summary>
+    public bool IsInitialized => _authStateService.IsInitialized;
+
+    /// <summary>
+    /// Check if current user is a patient
+    /// </summary>
+    public bool IsPatient => _authStateService.IsPatient;
+
+    /// <summary>
+    /// Check if current user is a doctor
+    /// </summary>
+    public bool IsDoctor => _authStateService.IsDoctor;
+
+    /// <summary>
+    /// Check if current user is an admin
+    /// </summary>
+    public bool IsAdmin => _authStateService.IsAdmin;
+
+    /// <summary>
+    /// Event triggered when authentication state changes
+    /// </summary>
+    public event Action? OnAuthStateChanged
     {
-        return _authStateService.IsAuthenticated;
+        add => _authStateService.OnAuthStateChanged += value;
+        remove => _authStateService.OnAuthStateChanged -= value;
+    }
+
+    /// <summary>
+    /// Get user initials for avatar display
+    /// </summary>
+    public string GetUserInitials()
+    {
+        return _authStateService.GetUserInitials();
+    }
+
+    /// <summary>
+    /// Get display name for current user
+    /// </summary>
+    public string GetDisplayName()
+    {
+        return _authStateService.GetDisplayName();
+    }
+
+    /// <summary>
+    /// Notify subscribers that auth state has changed
+    /// Call this after updating profile information
+    /// </summary>
+    public void NotifyStateChanged()
+    {
+        _authStateService.NotifyStateChanged();
+    }
+
+    /// <summary>
+    /// Force re-check authentication from cookie
+    /// Useful when you suspect the session might have changed
+    /// </summary>
+    public async Task<bool> RevalidateSessionAsync()
+    {
+        return await _authStateService.RevalidateSessionAsync(_userService, _patientProfileService, _doctorProfileService);
     }
 
     /// <summary>
@@ -214,6 +289,22 @@ public class AuthFacade
     public async Task<User?> GetUserWithProfileAsync(Guid userId)
     {
         return await _userService.GetByIdAsync(userId);
+    }
+
+    /// <summary>
+    /// Refresh current user data from database
+    /// </summary>
+    public async Task RefreshCurrentUserAsync()
+    {
+        if (_authStateService.CurrentUser != null)
+        {
+            await _authStateService.SetCurrentUserAsync(
+                _authStateService.CurrentUser,
+                _userService,
+                _patientProfileService,
+                _doctorProfileService
+            );
+        }
     }
 }
 

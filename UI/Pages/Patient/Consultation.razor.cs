@@ -3,6 +3,8 @@ using Microsoft.JSInterop;
 using ai_clinic.Models;
 using ai_clinic.Services;
 using ai_clinic.Services.Facades;
+using ConversationListItem = ai_clinic.Services.ConversationListItem;
+using DoctorListItem = ai_clinic.Services.DoctorListItem;
 
 namespace ai_clinic.UI.Pages.Patient;
 
@@ -12,27 +14,27 @@ namespace ai_clinic.UI.Pages.Patient;
 public partial class Consultation : ComponentBase
 {
     [Inject] private NavigationManager Navigation { get; set; } = null!;
-    [Inject] private AuthStateService AuthState { get; set; } = null!;
+    [Inject] private AuthFacade AuthFacade { get; set; } = null!;
     [Inject] private ConsultationFacade ConsultationFacade { get; set; } = null!;
     [Inject] private AiAssistantService AiAssistantService { get; set; } = null!;
     [Inject] private IJSRuntime JS { get; set; } = null!;
 
-    private List<ConversationListItem> conversationList = new();
-    private List<Message> messages = new();
+    private List<ConversationListItem> conversationList = [];
+    private List<Message> messages = [];
     private Conversation? currentConversation;
     private string newMessage = "";
     private bool isTyping = false;
     private bool isAiMode = true;
     private bool showNewConversationModal = false;
     private bool isLoadingDoctors = false;
-    private List<DoctorListItem> availableDoctors = new();
-    private List<DoctorListItem> filteredDoctors = new();
+    private List<DoctorListItem> availableDoctors = [];
+    private List<DoctorListItem> filteredDoctors = [];
     private string _doctorSearchQuery = "";
     private bool showModelSelectorModal = false;
-    private List<AiModelInfo> availableModels = new();
+    private List<AiModelInfo> availableModels = [];
     private string currentModelKey = "owl-alpha";
     private Guid? selectedDoctorId = null;
-    private string doctorSearchQuery
+    private string DoctorSearchQuery
     {
         get => _doctorSearchQuery;
         set
@@ -44,7 +46,7 @@ public partial class Consultation : ComponentBase
 
     protected override async Task OnInitializedAsync()
     {
-        if (!AuthState.IsAuthenticated || AuthState.CurrentUser?.Role != UserRole.Patient)
+        if (!AuthFacade.IsAuthenticated || AuthFacade.CurrentUser?.Role != UserRole.Patient)
         {
             Navigation.NavigateTo("/auth/signin");
             return;
@@ -69,14 +71,14 @@ public partial class Consultation : ComponentBase
             DisplayName = m.DisplayName,
             Description = GetModelDescription(m.Key)
         }).ToList();
-        
-        currentModelKey = models.FirstOrDefault()?.Key ?? "owl-alpha";
+
+        currentModelKey = models.Count > 0 ? models[0].Key : "owl-alpha";
     }
 
     /// <summary>
     /// Gets model description
     /// </summary>
-    private string GetModelDescription(string modelKey)
+    private static string GetModelDescription(string modelKey)
     {
         return modelKey switch
         {
@@ -95,7 +97,7 @@ public partial class Consultation : ComponentBase
     /// </summary>
     private async Task LoadConversations()
     {
-        conversationList = await ConsultationFacade.GetPatientConsultationsAsync(AuthState.CurrentUser!.Id);
+        conversationList = await ConsultationFacade.GetPatientConsultationsAsync(AuthFacade.CurrentUser!.Id);
         
         // Load the first conversation if exists
         if (conversationList.Any())
@@ -114,7 +116,7 @@ public partial class Consultation : ComponentBase
         {
             var session = await ConsultationFacade.GetConsultationSessionAsync(
                 conversationId, 
-                AuthState.CurrentUser!.Id,
+                AuthFacade.CurrentUser!.Id,
                 UserRole.Patient
             );
 
@@ -138,9 +140,9 @@ public partial class Consultation : ComponentBase
     {
         isLoadingDoctors = true;
         showNewConversationModal = true;
-        doctorSearchQuery = "";
+        DoctorSearchQuery = "";
         StateHasChanged();
-        
+
         try
         {
             availableDoctors = await ConsultationFacade.GetAvailableDoctorsAsync();
@@ -149,8 +151,8 @@ public partial class Consultation : ComponentBase
         catch (Exception ex)
         {
             Console.WriteLine($"Error loading doctors: {ex.Message}");
-            availableDoctors = new List<DoctorListItem>();
-            filteredDoctors = new List<DoctorListItem>();
+            availableDoctors = [];
+            filteredDoctors = [];
         }
         finally
         {
@@ -172,7 +174,7 @@ public partial class Consultation : ComponentBase
             if (withAi)
             {
                 // 使用 Facade 创建 AI 咨询
-                newSession = await ConsultationFacade.StartAiConsultationAsync(AuthState.CurrentUser!.Id);
+                newSession = await ConsultationFacade.StartAiConsultationAsync(AuthFacade.CurrentUser!.Id);
             }
             else
             {
@@ -182,7 +184,7 @@ public partial class Consultation : ComponentBase
                 }
                 // 使用 Facade 创建医生咨询
                 newSession = await ConsultationFacade.StartDoctorConsultationAsync(
-                    AuthState.CurrentUser!.Id, 
+                    AuthFacade.CurrentUser!.Id, 
                     selectedDoctorId.Value
                 );
             }
@@ -202,7 +204,7 @@ public partial class Consultation : ComponentBase
     {
         showNewConversationModal = false;
         selectedDoctorId = null;
-        doctorSearchQuery = "";
+        DoctorSearchQuery = "";
         StateHasChanged();
     }
 
@@ -211,15 +213,15 @@ public partial class Consultation : ComponentBase
     /// </summary>
     private void FilterDoctors()
     {
-        if (string.IsNullOrWhiteSpace(doctorSearchQuery))
+        if (string.IsNullOrWhiteSpace(_doctorSearchQuery))
         {
             filteredDoctors = availableDoctors;
         }
         else
         {
-            var query = doctorSearchQuery.ToLower();
+            var query = _doctorSearchQuery.ToLower();
             filteredDoctors = availableDoctors
-                .Where(d => 
+                .Where(d =>
                     d.FullName.ToLower().Contains(query) ||
                     d.PrimarySpecialization.ToLower().Contains(query))
                 .ToList();
@@ -242,7 +244,7 @@ public partial class Consultation : ComponentBase
 
         Console.WriteLine("=== [DEBUG] SendMessage Started ===");
         Console.WriteLine($"[DEBUG] Conversation ID: {currentConversation.Id}");
-        Console.WriteLine($"[DEBUG] Patient ID: {AuthState.CurrentUser!.Id}");
+        Console.WriteLine($"[DEBUG] Patient ID: {AuthFacade.CurrentUser!.Id}");
         Console.WriteLine($"[DEBUG] Message Content: {messageContent}");
         Console.WriteLine($"[DEBUG] Is AI Mode: {isAiMode}");
 
@@ -254,7 +256,7 @@ public partial class Consultation : ComponentBase
             
             var result = await ConsultationFacade.SendPatientMessageAsync(
                 currentConversation.Id,
-                AuthState.CurrentUser!.Id,
+                AuthFacade.CurrentUser!.Id,
                 messageContent
             );
 
@@ -273,14 +275,14 @@ public partial class Consultation : ComponentBase
             {
                 Console.WriteLine($"[DEBUG] AI Response ID: {result.AiResponse.Id}");
                 Console.WriteLine($"[DEBUG] AI Response Content Length: {result.AiResponse.Content.Length} chars");
-                Console.WriteLine($"[DEBUG] AI Response Preview: {result.AiResponse.Content.Substring(0, Math.Min(100, result.AiResponse.Content.Length))}...");
-                
+                Console.WriteLine($"[DEBUG] AI Response Preview: {result.AiResponse.Content[..Math.Min(100, result.AiResponse.Content.Length)]}...");
+
                 await Task.Delay(500); // 短暂延迟，让用户看到 typing indicator
                 messages.Add(result.AiResponse);
                 isTyping = false;
                 StateHasChanged();
                 await ScrollToBottom();
-                
+
                 Console.WriteLine("[DEBUG] AI response added to UI");
             }
             else
@@ -288,7 +290,7 @@ public partial class Consultation : ComponentBase
                 Console.WriteLine("[DEBUG] No AI response (likely doctor conversation)");
                 isTyping = false;
             }
-            
+
             Console.WriteLine("=== [DEBUG] SendMessage Completed Successfully ===\n");
         }
         catch (Exception ex)
@@ -334,7 +336,7 @@ public partial class Consultation : ComponentBase
         StateHasChanged();
     }
 
-    private string FormatTime(DateTime dateTime)
+    private static string FormatTime(DateTime dateTime)
     {
         var now = DateTime.UtcNow;
         var diff = now - dateTime;
@@ -351,7 +353,7 @@ public partial class Consultation : ComponentBase
             return dateTime.ToString("MMM dd");
     }
 
-    private string GetStatusBadgeClass(ConversationStatus status)
+    private static string GetStatusBadgeClass(ConversationStatus status)
     {
         return status switch
         {
@@ -362,7 +364,7 @@ public partial class Consultation : ComponentBase
         };
     }
 
-    private string GetAvailabilityStatusText(DoctorAvailabilityStatus status)
+    private static string GetAvailabilityStatusText(DoctorAvailabilityStatus status)
     {
         return status switch
         {
@@ -373,7 +375,7 @@ public partial class Consultation : ComponentBase
         };
     }
 
-    private string GetAvailabilityStatusStyle(DoctorAvailabilityStatus status)
+    private static string GetAvailabilityStatusStyle(DoctorAvailabilityStatus status)
     {
         return status switch
         {
@@ -425,3 +427,4 @@ public partial class Consultation : ComponentBase
         public string Description { get; set; } = string.Empty;
     }
 }
+

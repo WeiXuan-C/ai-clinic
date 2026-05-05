@@ -47,4 +47,17 @@ public class MedicalRecordService
         await db.SaveChangesAsync();
         return record;
     }
+
+    public async Task<bool> DeleteAsync(Guid recordId)
+    {
+        using var db = DbClient.Instance.GetDb();
+        var record = await db.MedicalRecords.FindAsync(recordId);
+        if (record != null)
+        {
+            db.MedicalRecords.Remove(record);
+            await db.SaveChangesAsync();
+            return true;
+        }
+        return false;
+    }
 }

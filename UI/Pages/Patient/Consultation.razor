@@ -884,14 +884,14 @@
                 <!-- Search Box -->
                 <div style="margin-bottom: 16px;">
                     <div style="position: relative;">
-                        <input type="text" 
-                               placeholder="Search by name or specialization..." 
-                               @bind="doctorSearchQuery"
+                        <input type="text"
+                               placeholder="Search by name or specialization..."
+                               @bind="DoctorSearchQuery"
                                @bind:event="oninput"
                                style="width: 100%; padding: 12px 40px 12px 16px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; outline: none;" />
                         <span style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 18px; color: #9ca3af;">🔍</span>
                     </div>
-                    @if (!string.IsNullOrWhiteSpace(doctorSearchQuery) && filteredDoctors.Any())
+                    @if (!string.IsNullOrWhiteSpace(DoctorSearchQuery) && filteredDoctors.Any())
                     {
                         <div style="margin-top: 8px; font-size: 12px; color: #6b7280;">
                             Found @filteredDoctors.Count doctor(s)
@@ -939,7 +939,7 @@
                             </div>
                         }
                     }
-                    else if (!string.IsNullOrWhiteSpace(doctorSearchQuery))
+                    else if (!string.IsNullOrWhiteSpace(DoctorSearchQuery))
                     {
                         <div style="text-align: center; padding: 32px; color: #6b7280;">
                             <div style="font-size: 48px; margin-bottom: 16px;">🔍</div>

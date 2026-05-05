@@ -166,6 +166,15 @@ public class DoctorFacade
     }
 
     /// <summary>
+    /// Get all active doctors
+    /// For public doctor directory
+    /// </summary>
+    public async Task<List<DoctorProfile>> GetAllActiveDoctorsAsync()
+    {
+        return await _doctorProfileService.GetAllAsync();
+    }
+
+    /// <summary>
     /// Get doctor's conversations list
     /// Simplified interface for UI layer
     /// </summary>

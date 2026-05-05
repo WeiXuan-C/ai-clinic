@@ -67,6 +67,9 @@ public static class DependencyInjectionExtensions
         // Coordinates: AiModelContext + AiAssistantService + ActivityLogService
         services.AddScoped<AiFacade>(); // AI外观 - 协调模型切换、响应生成、日志记录等子系统
 
+        // Anonymous consultation service for non-logged-in users
+        services.AddScoped<AnonymousConsultationService>();
+
         return services;
     }
 }

@@ -1,11 +1,10 @@
 @page "/doctor/chat/{ConversationId:guid}"
 @layout Components.Layout.DoctorSidebarLayout
 @using ai_clinic.Models
-@using ai_clinic.Services
 @using ai_clinic.Services.Facades
 @inject ConsultationFacade ConsultationFacade
 @inject DoctorFacade DoctorFacade
-@inject AuthStateService AuthStateService
+@inject AuthFacade AuthFacade
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JS
 
@@ -816,8 +815,8 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // Get current doctor ID from auth state
-        var currentUser = AuthStateService.CurrentUser;
+        // Get current doctor ID from auth facade
+        var currentUser = AuthFacade.CurrentUser;
         if (currentUser == null || currentUser.Role != UserRole.Doctor)
         {
             NavigationManager.NavigateTo("/auth/login");
@@ -825,7 +824,7 @@
         }
 
         currentDoctorId = currentUser.Id;
-        
+
         // Load both conversation list and current conversation
         await Task.WhenAll(
             LoadConversationList(),

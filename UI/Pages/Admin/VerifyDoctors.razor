@@ -1,9 +1,8 @@
 @page "/admin/verify-doctors"
 @using ai_clinic.Models
-@using ai_clinic.Services
 @using ai_clinic.Services.Facades
 @layout Components.Layout.AdminSidebarLayout
-@inject AuthStateService AuthState
+@inject AuthFacade AuthFacade
 @inject AdminFacade AdminFacade
 @inject NavigationManager Navigation
 
@@ -216,7 +215,7 @@
             _isProcessing = true;
             _errorMessage = null;
 
-            var currentUser = AuthState.CurrentUser;
+            var currentUser = AuthFacade.CurrentUser;
             if (currentUser == null)
             {
                 _errorMessage = "You must be logged in to perform this action.";
@@ -248,7 +247,7 @@
             _isProcessing = true;
             _errorMessage = null;
 
-            var currentUser = AuthState.CurrentUser;
+            var currentUser = AuthFacade.CurrentUser;
             if (currentUser == null)
             {
                 _errorMessage = "You must be logged in to perform this action.";
@@ -280,7 +279,7 @@
             _isProcessing = true;
             _errorMessage = null;
 
-            var currentUser = AuthState.CurrentUser;
+            var currentUser = AuthFacade.CurrentUser;
             if (currentUser == null)
             {
                 _errorMessage = "You must be logged in to perform this action.";
@@ -315,3 +314,4 @@
         Navigation.NavigateTo("/admin/dashboard");
     }
 }
+

@@ -1,8 +1,7 @@
 @page "/admin/users"
 @using ai_clinic.Models
-@using ai_clinic.Services
 @using ai_clinic.Services.Facades
-@inject AuthStateService AuthState
+@inject AuthFacade AuthFacade
 @inject AdminFacade AdminFacade
 @inject NavigationManager Navigation
 @layout Components.Layout.AdminSidebarLayout
@@ -377,7 +376,7 @@
 
         try
         {
-            var currentUser = AuthState.CurrentUser;
+            var currentUser = AuthFacade.CurrentUser;
             if (currentUser == null)
             {
                 _errorMessage = "You must be logged in to perform this action.";
@@ -404,7 +403,7 @@
     {
         try
         {
-            var currentUser = AuthState.CurrentUser;
+            var currentUser = AuthFacade.CurrentUser;
             if (currentUser == null)
             {
                 _errorMessage = "You must be logged in to perform this action.";
@@ -447,7 +446,7 @@
 
         try
         {
-            var currentUser = AuthState.CurrentUser;
+            var currentUser = AuthFacade.CurrentUser;
             if (currentUser == null)
             {
                 _errorMessage = "You must be logged in to perform this action.";
@@ -510,3 +509,4 @@
         };
     }
 }
+

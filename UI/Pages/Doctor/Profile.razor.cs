@@ -1,13 +1,15 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using ai_clinic.Services.Facades;
-using ai_clinic.Services;
 using ai_clinic.Models;
 
 namespace ai_clinic.UI.Pages.Doctor;
 
 public partial class Profile : ComponentBase
 {
+    [Inject] private NavigationManager Navigation { get; set; } = null!;
+    [Inject] private AuthFacade AuthFacade { get; set; } = null!;
+    [Inject] private DoctorFacade DoctorFacade { get; set; } = null!;
     private DoctorProfile? profileData;
     private bool isLoading = true;
     private bool isEditing = false;
@@ -19,7 +21,7 @@ public partial class Profile : ComponentBase
 
     protected override async Task OnInitializedAsync()
     {
-        var user = AuthState.CurrentUser;
+        var user = AuthFacade.CurrentUser;
         if (user == null)
         {
             Navigation.NavigateTo("/auth/signin");
@@ -46,7 +48,7 @@ public partial class Profile : ComponentBase
                 profileData = new DoctorProfile 
                 { 
                     UserId = currentUserId,
-                    User = AuthState.CurrentUser!,
+                    User = AuthFacade.CurrentUser!,
                     FullName = "",
                     LicenseNumber = "",
                     PrimarySpecialization = ""
@@ -100,7 +102,7 @@ public partial class Profile : ComponentBase
             await LoadProfileAsync();
             
             // Trigger AuthState update to refresh sidebar
-            AuthState.NotifyStateChanged();
+            AuthFacade.NotifyStateChanged();
             Console.WriteLine("[DoctorProfile] AuthState change event triggered");
         }
         catch (Exception ex)
@@ -203,7 +205,7 @@ public partial class Profile : ComponentBase
                 await LoadProfileAsync();
                 
                 // Trigger AuthState update to refresh sidebar
-                AuthState.NotifyStateChanged();
+                AuthFacade.NotifyStateChanged();
                 Console.WriteLine("[DoctorProfile] Photo uploaded, profile reloaded, and AuthState change event triggered");
                 
                 StateHasChanged();
@@ -243,7 +245,7 @@ public partial class Profile : ComponentBase
                 photoDataUrl = null;
                 
                 // Trigger AuthState update to refresh sidebar
-                AuthState.NotifyStateChanged();
+                AuthFacade.NotifyStateChanged();
                 
                 StateHasChanged();
             }
@@ -258,3 +260,4 @@ public partial class Profile : ComponentBase
         }
     }
 }
+

@@ -1,9 +1,8 @@
 @page "/auth/signup"
 @layout Components.Layout.EmptyLayout
 @using ai_clinic.Models
-@using ai_clinic.Services
+@using ai_clinic.Services.Facades
 @inject AuthFacade AuthFacade
-@inject AuthStateService AuthState
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 
@@ -554,11 +553,11 @@
     {
         // Check if already logged in
         await AuthFacade.InitializeAuthStateAsync();
-        
-        if (AuthState.IsAuthenticated && AuthState.CurrentUser != null)
+
+        if (AuthFacade.IsAuthenticated && AuthFacade.CurrentUser != null)
         {
             // Redirect to appropriate dashboard
-            switch (AuthState.CurrentUser.Role)
+            switch (AuthFacade.CurrentUser.Role)
             {
                 case UserRole.Patient:
                     Navigation.NavigateTo("/patient/dashboard");

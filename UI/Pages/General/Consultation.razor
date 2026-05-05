@@ -54,7 +54,7 @@
         <!-- Messages Container -->
         <div class="messages-wrapper">
             <div class="chat-container">
-                <div class="messages-container" @ref="messagesContainer">
+                <div class="messages-container" id="messages-container">
                 @foreach (var message in messages)
                 {
                     @if (message.Type == MessageType.AI)
@@ -141,111 +141,58 @@
             </div>
         </div>
     }
+
+    <!-- Login Prompt Modal -->
+    @if (showLoginPrompt)
+    {
+        <div class="modal-overlay" @onclick="CloseLoginPrompt">
+            <div class="modal-content" @onclick:stopPropagation="true">
+                <div class="modal-header">
+                    <h2 class="modal-title">Continue Your Consultation</h2>
+                    <button class="modal-close" @onclick="CloseLoginPrompt">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="login-prompt-icon">
+                        <i data-lucide="lock" style="font-size: 3rem; color: var(--primary);"></i>
+                    </div>
+                    <p class="login-prompt-text">
+                        You've reached the limit of 3 free queries. Sign in or create an account to continue your consultation and access more features.
+                    </p>
+                    <div class="login-prompt-features">
+                        <div class="feature-item">
+                            <i data-lucide="check-circle"></i>
+                            <span>Unlimited AI consultations</span>
+                        </div>
+                        <div class="feature-item">
+                            <i data-lucide="check-circle"></i>
+                            <span>Connect with real doctors</span>
+                        </div>
+                        <div class="feature-item">
+                            <i data-lucide="check-circle"></i>
+                            <span>Save your medical history</span>
+                        </div>
+                        <div class="feature-item">
+                            <i data-lucide="check-circle"></i>
+                            <span>Access prescriptions and records</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-primary" @onclick="NavigateToSignIn">
+                        <i data-lucide="log-in"></i>
+                        Sign In
+                    </button>
+                    <button class="btn-secondary" @onclick="NavigateToSignUp">
+                        <i data-lucide="user-plus"></i>
+                        Create Account
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
 </div>
-
-@code {
-    private ElementReference messagesContainer;
-    private List<ChatMessage> messages = new();
-    private string newMessage = "";
-    private bool isTyping = false;
-    private int availableCredits = 10;
-
-    protected override void OnInitialized()
-    {
-        // Start with empty messages for clean UI
-        messages = new List<ChatMessage>();
-    }
-
-    private async Task SendMessage()
-    {
-        if (string.IsNullOrWhiteSpace(newMessage)) return;
-
-        // Deduct credit
-        if (availableCredits > 0)
-        {
-            availableCredits--;
-        }
-
-        var userMessage = new ChatMessage
-        {
-            Type = MessageType.User,
-            Content = newMessage
-        };
-
-        messages.Add(userMessage);
-        newMessage = "";
-
-        // Simulate AI response
-        isTyping = true;
-        StateHasChanged();
-        await Task.Delay(2000);
-
-        var aiResponse = new ChatMessage
-        {
-            Type = MessageType.AI,
-            Content = "Thank you for your question. I'm analyzing your health data and will provide insights shortly."
-        };
-        messages.Add(aiResponse);
-        isTyping = false;
-        StateHasChanged();
-    }
-
-    private async Task HandleKeyPress(KeyboardEventArgs e)
-    {
-        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(newMessage))
-        {
-            await SendMessage();
-        }
-    }
-
-    private void HandleAIInsight(string insight)
-    {
-        // Handle AI insight click
-        Console.WriteLine($"AI Insight clicked: {insight}");
-    }
-
-    private void HandleSuggestion(bool accepted)
-    {
-        if (accepted)
-        {
-            messages.Add(new ChatMessage
-            {
-                Type = MessageType.AI,
-                Content = "Great! I'm preparing a summary of your activity logs from the past 7 days..."
-            });
-        }
-        StateHasChanged();
-    }
-
-    private void AttachDocument()
-    {
-        // Handle document attachment
-        Console.WriteLine("Attach document clicked");
-    }
-
-    private void VoiceInput()
-    {
-        // Handle voice input
-        Console.WriteLine("Voice input clicked");
-    }
-
-    public enum MessageType
-    {
-        AI,
-        User,
-        Doctor,
-        Suggestion
-    }
-
-    public class ChatMessage
-    {
-        public MessageType Type { get; set; }
-        public string Content { get; set; } = "";
-        public string? ActionLabel { get; set; }
-        public string? DoctorName { get; set; }
-        public string? Title { get; set; }
-    }
-}
 
 
 <style>
@@ -772,6 +719,163 @@
         .footer-right {
             width: 100%;
             justify-content: flex-start;
+        }
+    }
+
+    /* Login Prompt Modal */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        padding: 1rem;
+    }
+
+    .modal-content {
+        background: var(--surface);
+        border-radius: var(--radius-xl);
+        max-width: 500px;
+        width: 100%;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        animation: modalSlideIn 0.3s ease-out;
+    }
+
+    @@keyframes modalSlideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.5rem;
+        border-bottom: 1px solid var(--outline-variant);
+    }
+
+    .modal-title {
+        font-family: var(--font-headline);
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--on-surface);
+        margin: 0;
+    }
+
+    .modal-close {
+        width: 36px;
+        height: 36px;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        transition: all 0.3s ease;
+        font-size: 1.25rem;
+        color: var(--on-surface-variant);
+    }
+
+    .modal-close:hover {
+        background: var(--surface-container-high);
+    }
+
+    .modal-body {
+        padding: 2rem 1.5rem;
+        text-align: center;
+    }
+
+    .login-prompt-icon {
+        margin-bottom: 1.5rem;
+    }
+
+    .login-prompt-text {
+        font-size: 1rem;
+        color: var(--on-surface-variant);
+        line-height: 1.6;
+        margin-bottom: 2rem;
+    }
+
+    .login-prompt-features {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        text-align: left;
+        margin-bottom: 1rem;
+    }
+
+    .feature-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        font-size: 0.9375rem;
+        color: var(--on-surface);
+    }
+
+    .feature-item i {
+        font-size: 1.25rem;
+        color: var(--primary);
+        flex-shrink: 0;
+    }
+
+    .modal-footer {
+        display: flex;
+        gap: 0.75rem;
+        padding: 1.5rem;
+        border-top: 1px solid var(--outline-variant);
+    }
+
+    .btn-primary,
+    .btn-secondary {
+        flex: 1;
+        padding: 0.875rem 1.5rem;
+        border: none;
+        border-radius: var(--radius-lg);
+        font-family: var(--font-body);
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .btn-primary {
+        background: var(--primary);
+        color: var(--on-primary);
+    }
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 61, 155, 0.3);
+    }
+
+    .btn-secondary {
+        background: var(--surface-container-high);
+        color: var(--on-surface);
+    }
+
+    .btn-secondary:hover {
+        background: var(--surface-container-highest);
+    }
+
+    @@media (max-width: 768px) {
+        .modal-footer {
+            flex-direction: column;
         }
     }
 </style>
