@@ -1,9 +1,10 @@
 @page "/admin/verify-doctors"
 @using ai_clinic.Models
 @using ai_clinic.Services
+@using ai_clinic.Services.Facades
 @layout Components.Layout.AdminSidebarLayout
 @inject AuthStateService AuthState
-@inject AdminService AdminService
+@inject AdminFacade AdminFacade
 @inject NavigationManager Navigation
 
 <PageTitle>Verify Doctors - Admin Panel</PageTitle>
@@ -177,17 +178,17 @@
             _isLoading = true;
             _errorMessage = null;
 
-            // Load counts
-            var allDoctors = await AdminService.GetAllDoctorsAsync();
+            // Load all doctors using AdminFacade
+            var allDoctors = await AdminFacade.GetDoctorsForVerificationAsync();
             _allCount = allDoctors.Count;
             _verifiedCount = allDoctors.Count(d => d.IsVerified);
             _pendingCount = allDoctors.Count(d => !d.IsVerified);
 
-            // Load filtered doctors
+            // Filter doctors based on current filter
             _doctors = _currentFilter switch
             {
-                "pending" => await AdminService.GetPendingVerificationsAsync(),
-                "verified" => await AdminService.GetAllDoctorsAsync(isVerified: true),
+                "pending" => allDoctors.Where(d => !d.IsVerified).ToList(),
+                "verified" => allDoctors.Where(d => d.IsVerified).ToList(),
                 "all" => allDoctors,
                 _ => allDoctors
             };
@@ -222,21 +223,13 @@
                 return;
             }
 
-            var success = await AdminService.VerifyDoctorAsync(
+            await AdminFacade.VerifyDoctorAsync(
                 doctorUserId, 
                 currentUser.Id, 
-                isVerified, 
-                "Verified by admin");
+                isVerified);
 
-            if (success)
-            {
-                _successMessage = "Doctor verified successfully!";
-                await LoadDoctors();
-            }
-            else
-            {
-                _errorMessage = "Failed to verify doctor.";
-            }
+            _successMessage = "Doctor verified successfully!";
+            await LoadDoctors();
         }
         catch (Exception ex)
         {
@@ -262,21 +255,13 @@
                 return;
             }
 
-            var success = await AdminService.VerifyDoctorAsync(
+            await AdminFacade.VerifyDoctorAsync(
                 doctorUserId, 
                 currentUser.Id, 
-                false, 
-                "Rejected by admin");
+                false);
 
-            if (success)
-            {
-                _successMessage = "Doctor verification rejected.";
-                await LoadDoctors();
-            }
-            else
-            {
-                _errorMessage = "Failed to reject doctor.";
-            }
+            _successMessage = "Doctor verification rejected.";
+            await LoadDoctors();
         }
         catch (Exception ex)
         {
@@ -302,21 +287,13 @@
                 return;
             }
 
-            var success = await AdminService.VerifyDoctorAsync(
+            await AdminFacade.VerifyDoctorAsync(
                 doctorUserId, 
                 currentUser.Id, 
-                false, 
-                "Verification revoked by admin");
+                false);
 
-            if (success)
-            {
-                _successMessage = "Doctor verification revoked.";
-                await LoadDoctors();
-            }
-            else
-            {
-                _errorMessage = "Failed to revoke verification.";
-            }
+            _successMessage = "Doctor verification revoked.";
+            await LoadDoctors();
         }
         catch (Exception ex)
         {

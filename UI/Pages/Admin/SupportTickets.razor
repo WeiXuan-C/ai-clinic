@@ -4,7 +4,6 @@
 @using ai_clinic.Services.Facades
 @layout Components.Layout.AdminSidebarLayout
 @inject AuthStateService AuthState
-@inject SupportTicketService TicketService
 @inject AdminFacade AdminFacade
 @inject NavigationManager Navigation
 
@@ -243,7 +242,7 @@
             _errorMessage = null;
 
             // Load all tickets for counts
-            var allTickets = await TicketService.GetAllTicketsAsync();
+            var allTickets = await AdminFacade.GetSupportTicketsAsync();
             _allCount = allTickets.Count;
             _openCount = allTickets.Count(t => t.Status == "Open");
             _inProgressCount = allTickets.Count(t => t.Status == "In Progress");
@@ -335,7 +334,15 @@
         try
         {
             _errorMessage = null;
-            await TicketService.UpdateStatusAsync(ticketId, newStatus);
+            
+            var currentUser = AuthState.CurrentUser;
+            if (currentUser == null)
+            {
+                _errorMessage = "You must be logged in to perform this action.";
+                return;
+            }
+
+            await AdminFacade.UpdateSupportTicketStatusAsync(ticketId, newStatus, currentUser.Id);
             _successMessage = $"Ticket status updated to {newStatus}";
             await LoadTickets();
         }

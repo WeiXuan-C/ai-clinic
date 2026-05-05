@@ -88,4 +88,28 @@ public class SupportTicketService
             .OrderByDescending(st => st.CreatedAt)
             .ToListAsync();
     }
+
+    /// <summary>
+    /// Get all support tickets (alias for GetAllTicketsAsync)
+    /// </summary>
+    public async Task<List<SupportTicket>> GetAllAsync()
+    {
+        return await GetAllTicketsAsync();
+    }
+
+    /// <summary>
+    /// Get support tickets by status
+    /// </summary>
+    public async Task<List<SupportTicket>> GetByStatusAsync(string status)
+    {
+        using var db = DbClient.Instance.GetDb();
+        return await db.SupportTickets
+            .Include(st => st.User)
+            .Include(st => st.Attachments)
+            .Include(st => st.Responses)
+                .ThenInclude(r => r.Responder)
+            .Where(st => st.Status == status)
+            .OrderByDescending(st => st.CreatedAt)
+            .ToListAsync();
+    }
 }

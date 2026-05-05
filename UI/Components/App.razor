@@ -105,6 +105,18 @@
             }
         };
 
+        // Scroll to bottom of element
+        window.scrollToBottom = function(elementId) {
+            try {
+                const element = document.getElementById(elementId);
+                if (element) {
+                    element.scrollTop = element.scrollHeight;
+                }
+            } catch (e) {
+                console.warn('Scroll to bottom failed:', e);
+            }
+        };
+
         // Start Blazor manually to avoid double-start
         Blazor.start().then(() => {
             console.log('Blazor started successfully');

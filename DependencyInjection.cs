@@ -38,13 +38,17 @@ public static class DependencyInjectionExtensions
         services.AddScoped<AuthStateService>(); // Authentication state management
         services.AddScoped<AdminService>(); // Admin operations service
 
+        // 🔔 Real-time Services - SignalR for live messaging
+        // Scoped lifetime ensures proper lifecycle management in Blazor Server
+        services.AddScoped<SignalRConsultationService>();
+
         // 🎭 Facade Pattern: High-level business operation coordinators
         // These facades manage multiple subsystems and provide simplified interfaces
         services.AddScoped<AuthFacade>();
         services.AddScoped<PatientFacade>();
         services.AddScoped<DoctorFacade>();
         services.AddScoped<AdminFacade>();
-        services.AddScoped<ConsultationFacade>(); // 咨询外观 - 协调对话、消息、医生等子系统
+        services.AddScoped<ConsultationFacade>(); // 咨询外观 - 协调对话、消息、医生、SignalR等子系统
 
         // 🤖 AI Services - Strategy & Adapter Patterns
         // Adaptee: OpenRouter API client (the external API we're adapting)

@@ -1,5 +1,7 @@
 ﻿using ai_clinic.Models;
 using ai_clinic.Data;
+using ai_clinic.Services.Hubs;
+using Microsoft.AspNetCore.SignalR;
 
 namespace ai_clinic.Services.Facades;
 
@@ -13,11 +15,13 @@ namespace ai_clinic.Services.Facades;
 /// - DoctorProfileService: Manages doctor information
 /// - ActivityLogService: Records activity logs
 /// - AiAssistantService: AI assistant service
+/// - ConsultationHub (SignalR): Real-time messaging
 /// 
 /// Use cases:
 /// - Simplifies client code, hides subsystem complexity
 /// - Provides one-stop consultation functionality interface
 /// - Coordinates interactions between multiple services
+/// - Enables real-time message delivery via SignalR
 /// </summary>
 public class ConsultationFacade
 {
@@ -27,19 +31,25 @@ public class ConsultationFacade
     private readonly DoctorProfileService _doctorProfileService;
     private readonly ActivityLogService _activityLogService;
     private readonly AiAssistantService _aiAssistantService;
+    private readonly IHubContext<ConsultationHub> _hubContext;
+    private readonly ILogger<ConsultationFacade> _logger;
 
     public ConsultationFacade(
         ConversationService conversationService,
         MessageService messageService,
         DoctorProfileService doctorProfileService,
         ActivityLogService activityLogService,
-        AiAssistantService aiAssistantService)
+        AiAssistantService aiAssistantService,
+        IHubContext<ConsultationHub> hubContext,
+        ILogger<ConsultationFacade> logger)
     {
         _conversationService = conversationService;
         _messageService = messageService;
         _doctorProfileService = doctorProfileService;
         _activityLogService = activityLogService;
         _aiAssistantService = aiAssistantService;
+        _hubContext = hubContext;
+        _logger = logger;
     }
 
     #region Create Consultation Session
@@ -133,7 +143,7 @@ public class ConsultationFacade
 
     /// <summary>
     /// Sends patient message (simplified interface)
-    /// Internal coordination: Create message + Update conversation + Trigger AI response (if AI conversation)
+    /// Internal coordination: Create message + Update conversation + Trigger AI response (if AI conversation) + Send via SignalR
     /// Uses transaction to ensure data consistency
     /// </summary>
     public async Task<MessageResult> SendPatientMessageAsync(
@@ -141,10 +151,8 @@ public class ConsultationFacade
         Guid patientId, 
         string content)
     {
-        Console.WriteLine("=== [FACADE DEBUG] SendPatientMessageAsync Started ===");
-        Console.WriteLine($"[FACADE] Conversation ID: {conversationId}");
-        Console.WriteLine($"[FACADE] Patient ID: {patientId}");
-        Console.WriteLine($"[FACADE] Content Length: {content.Length} chars");
+        _logger.LogInformation("=== [FACADE] SendPatientMessageAsync Started ===");
+        _logger.LogInformation($"[FACADE] Conversation ID: {conversationId}, Patient ID: {patientId}");
 
         // 使用事务确保所有操作的原子性
         using var db = DbClient.Instance.GetDb();
@@ -153,17 +161,13 @@ public class ConsultationFacade
         try
         {
             // 1. 获取对话信息
-            Console.WriteLine("[FACADE] Step 1: Getting conversation...");
             var conversation = await db.Conversations.FindAsync(conversationId);
             if (conversation == null)
             {
-                Console.WriteLine("[FACADE ERROR] Conversation not found!");
                 throw new InvalidOperationException("Conversation not found");
             }
-            Console.WriteLine($"[FACADE] Conversation found - Is AI: {conversation.AssignedDoctorId == null}");
 
             // 2. 创建患者消息
-            Console.WriteLine("[FACADE] Step 2: Creating patient message...");
             var patientMessage = new Message
             {
                 ConversationId = conversationId,
@@ -181,10 +185,12 @@ public class ConsultationFacade
             conversation.TotalMessages++;
             
             await db.SaveChangesAsync();
-            Console.WriteLine($"[FACADE] Patient message created - ID: {patientMessage.Id}");
+            _logger.LogInformation($"[FACADE] Patient message created - ID: {patientMessage.Id}");
+
+            // 🔔 REAL-TIME: Send patient message via SignalR
+            await _hubContext.SendMessageToConversation(conversationId, patientMessage);
 
             // 3. 记录活动日志
-            Console.WriteLine("[FACADE] Step 3: Logging activity...");
             var activityLog = new ActivityLog
             {
                 UserId = patientId,
@@ -194,16 +200,18 @@ public class ConsultationFacade
             };
             db.ActivityLogs.Add(activityLog);
             await db.SaveChangesAsync();
-            Console.WriteLine("[FACADE] Activity logged");
 
             // 4. 如果是 AI 对话，触发 AI 响应
             Message? aiResponse = null;
             if (conversation.AssignedDoctorId == null)
             {
-                Console.WriteLine("[FACADE] Step 4: This is an AI conversation, generating AI response...");
+                _logger.LogInformation("[FACADE] AI conversation detected, generating response...");
                 
                 try
                 {
+                    // 🔔 REAL-TIME: Notify that AI is thinking
+                    await _hubContext.SendAiStatusUpdate(conversationId, "thinking", "AI is processing your message...");
+                    
                     // 生成 AI 响应（这个操作在事务外部，因为它调用外部 API）
                     var aiResponseContent = await GenerateAiResponseContentAsync(content);
                     
@@ -228,25 +236,26 @@ public class ConsultationFacade
                     conversation.AiMessagesCount++;
                     
                     await db.SaveChangesAsync();
-                    Console.WriteLine($"[FACADE] AI response created - ID: {aiResponse.Id}, Length: {aiResponse.Content.Length} chars");
+                    _logger.LogInformation($"[FACADE] AI response created - ID: {aiResponse.Id}");
+
+                    // 🔔 REAL-TIME: Send AI response via SignalR
+                    await _hubContext.SendMessageToConversation(conversationId, aiResponse);
+                    
+                    // 🔔 REAL-TIME: Clear AI status
+                    await _hubContext.SendAiStatusUpdate(conversationId, "ready", null);
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[FACADE WARNING] AI response generation failed: {ex.Message}");
-                    Console.WriteLine("[FACADE] Continuing without AI response (patient message will be saved)");
-                    // AI 响应失败不影响患者消息的保存
-                    // 但我们仍然在事务中，所以如果需要可以回滚
+                    _logger.LogWarning(ex, "[FACADE] AI response generation failed");
+                    
+                    // 🔔 REAL-TIME: Notify AI error
+                    await _hubContext.SendAiStatusUpdate(conversationId, "error", "AI response failed. Please try again.");
                 }
-            }
-            else
-            {
-                Console.WriteLine("[FACADE] Step 4: This is a doctor conversation, skipping AI response");
             }
 
             // 提交事务
             await transaction.CommitAsync();
-            Console.WriteLine("[FACADE] Transaction committed successfully");
-            Console.WriteLine("=== [FACADE DEBUG] SendPatientMessageAsync Completed ===\n");
+            _logger.LogInformation("[FACADE] Transaction committed successfully");
 
             return new MessageResult
             {
@@ -257,18 +266,15 @@ public class ConsultationFacade
         }
         catch (Exception ex)
         {
-            // 回滚事务
             await transaction.RollbackAsync();
-            Console.WriteLine("=== [FACADE ERROR] Transaction rolled back ===");
-            Console.WriteLine($"[FACADE ERROR] Exception Type: {ex.GetType().Name}");
-            Console.WriteLine($"[FACADE ERROR] Message: {ex.Message}");
-            Console.WriteLine($"[FACADE ERROR] Stack Trace: {ex.StackTrace}");
+            _logger.LogError(ex, "[FACADE] Transaction rolled back");
             throw;
         }
     }
 
     /// <summary>
     /// Sends doctor message (simplified interface)
+    /// Internal coordination: Create message + Update conversation + Send via SignalR
     /// </summary>
     public async Task<Message> SendDoctorMessageAsync(
         Guid conversationId, 
@@ -281,6 +287,9 @@ public class ConsultationFacade
             doctorId, 
             content
         );
+
+        // 🔔 REAL-TIME: Send doctor message via SignalR
+        await _hubContext.SendMessageToConversation(conversationId, doctorMessage);
 
         // 2. Log activity
         await _activityLogService.LogActivityAsync(
@@ -298,7 +307,7 @@ public class ConsultationFacade
 
     /// <summary>
     /// Gets complete consultation session information (simplified interface)
-    /// Internal coordination: Get conversation + Get messages + Get doctor info + Mark as read
+    /// Internal coordination: Get conversation + Get messages + Get doctor info + Mark as read + Send read receipt
     /// </summary>
     public async Task<ConsultationSession> GetConsultationSessionAsync(
         Guid conversationId, 
@@ -320,6 +329,13 @@ public class ConsultationFacade
             ? MessageSenderType.Patient 
             : MessageSenderType.Doctor;
         await _messageService.MarkConversationAsReadAsync(conversationId, excludeSenderType);
+
+        // 🔔 REAL-TIME: Send read receipts for unread messages
+        var unreadMessages = messages.Where(m => !m.IsRead && m.SenderType != excludeSenderType);
+        foreach (var message in unreadMessages)
+        {
+            await _hubContext.SendMessageReadReceipt(conversationId, message.Id, userId);
+        }
 
         // 4. 获取医生信息（如果有）
         DoctorInfo? doctorInfo = null;
@@ -370,12 +386,15 @@ public class ConsultationFacade
 
     /// <summary>
     /// Closes consultation session (simplified interface)
-    /// Internal coordination: Update status + Log activity
+    /// Internal coordination: Update status + Log activity + Notify via SignalR
     /// </summary>
     public async Task CloseConsultationAsync(Guid conversationId, Guid userId)
     {
         // 1. 更新对话状态
         await _conversationService.UpdateStatusAsync(conversationId, ConversationStatus.Closed);
+
+        // 🔔 REAL-TIME: Notify status change
+        await _hubContext.SendConversationStatusUpdate(conversationId, ConversationStatus.Closed);
 
         // 2. Log activity
         await _activityLogService.LogActivityAsync(
@@ -387,11 +406,15 @@ public class ConsultationFacade
 
     /// <summary>
     /// Archives consultation session (simplified interface)
+    /// Internal coordination: Update status + Log activity + Notify via SignalR
     /// </summary>
     public async Task ArchiveConsultationAsync(Guid conversationId, Guid userId)
     {
         // 1. 更新对话状态
         await _conversationService.UpdateStatusAsync(conversationId, ConversationStatus.Archived);
+
+        // 🔔 REAL-TIME: Notify status change
+        await _hubContext.SendConversationStatusUpdate(conversationId, ConversationStatus.Archived);
 
         // 2. Log activity
         await _activityLogService.LogActivityAsync(
@@ -425,23 +448,21 @@ public class ConsultationFacade
     /// </summary>
     private async Task<AiResponseContent> GenerateAiResponseContentAsync(string userMessage)
     {
-        Console.WriteLine("=== [AI GENERATION DEBUG] GenerateAiResponseContentAsync Started ===");
-        Console.WriteLine($"[AI GEN] User Message: {userMessage}");
-        Console.WriteLine($"[AI GEN] Current AI Model: {_aiAssistantService.CurrentModelName}");
+        _logger.LogInformation("=== [AI GENERATION] GenerateAiResponseContentAsync Started ===");
+        _logger.LogInformation($"[AI GEN] User Message Length: {userMessage.Length} chars");
+        _logger.LogInformation($"[AI GEN] Current AI Model: {_aiAssistantService.CurrentModelName}");
         
         try
         {
             // 调用真实的 AI 服务
-            Console.WriteLine("[AI GEN] Calling AiAssistantService.GenerateMedicalResponseAsync...");
             string aiResponse = await _aiAssistantService.GenerateMedicalResponseAsync(
                 patientQuery: userMessage,
                 medicalContext: null,
                 temperature: 0.7
             );
             
-            Console.WriteLine($"[AI GEN] Response received from AI - Length: {aiResponse.Length} chars");
-            Console.WriteLine($"[AI GEN] Response preview: {aiResponse.Substring(0, Math.Min(150, aiResponse.Length))}...");
-            Console.WriteLine("=== [AI GENERATION DEBUG] GenerateAiResponseContentAsync Completed ===\n");
+            _logger.LogInformation($"[AI GEN] Response received - Length: {aiResponse.Length} chars");
+            _logger.LogInformation("=== [AI GENERATION] Completed Successfully ===");
 
             return new AiResponseContent
             {
@@ -452,15 +473,9 @@ public class ConsultationFacade
         }
         catch (Exception ex)
         {
-            Console.WriteLine("=== [AI GENERATION ERROR] ===");
-            Console.WriteLine($"[AI GEN ERROR] Exception Type: {ex.GetType().Name}");
-            Console.WriteLine($"[AI GEN ERROR] Message: {ex.Message}");
-            Console.WriteLine($"[AI GEN ERROR] Stack Trace: {ex.StackTrace}");
+            _logger.LogError(ex, "[AI GEN] AI generation failed");
             
             // 如果 AI 调用失败，返回错误消息
-            Console.WriteLine("[AI GEN] Returning error message...");
-            Console.WriteLine("=== [AI GENERATION ERROR] Fallback message returned ===\n");
-            
             return new AiResponseContent
             {
                 Content = "I apologize, but I'm having trouble processing your request right now. Please try again in a moment, or consider consulting with a human doctor for immediate assistance.",

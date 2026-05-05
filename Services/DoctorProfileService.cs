@@ -136,4 +136,15 @@ public class DoctorProfileService
             await db.SaveChangesAsync();
         }
     }
+
+    /// <summary>
+    /// Get all doctor profiles
+    /// </summary>
+    public async Task<List<DoctorProfile>> GetAllAsync()
+    {
+        using var db = DbClient.Instance.GetDb();
+        return await db.DoctorProfiles
+            .Include(d => d.User)
+            .ToListAsync();
+    }
 }

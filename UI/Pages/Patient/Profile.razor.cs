@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
+using ai_clinic.Services.Facades;
 using ai_clinic.Services;
 using ai_clinic.Models;
 
@@ -36,7 +37,8 @@ public partial class Profile : ComponentBase
             isLoading = true;
             errorMessage = null;
 
-            profileData = await PatientProfileService.GetByUserIdAsync(currentUserId);
+            // Use PatientFacade instead of PatientProfileService
+            profileData = await PatientFacade.GetPatientProfileAsync(currentUserId);
             
             if (profileData == null)
             {
@@ -85,18 +87,8 @@ public partial class Profile : ComponentBase
             Console.WriteLine($"[Profile] Profile ID: {profileData!.Id}");
             Console.WriteLine($"[Profile] Full Name: {profileData.FullName}");
 
-            if (profileData!.Id == Guid.Empty)
-            {
-                // Create new profile
-                Console.WriteLine("[Profile] Creating new profile");
-                await PatientProfileService.CreateAsync(profileData);
-            }
-            else
-            {
-                // Update existing profile
-                Console.WriteLine("[Profile] Updating existing profile");
-                await PatientProfileService.UpdateAsync(profileData);
-            }
+            // Use PatientFacade to save profile
+            await PatientFacade.SavePatientProfileAsync(profileData);
 
             successMessage = "Profile saved successfully!";
             isEditing = false;
@@ -197,8 +189,8 @@ public partial class Profile : ComponentBase
                 return;
             }
 
-            // Update profile photo in database
-            var success = await PatientProfileService.UpdateProfilePhotoAsync(currentUserId, photoData);
+            // Use PatientFacade to update profile photo
+            var success = await PatientFacade.UpdatePatientProfilePhotoAsync(currentUserId, photoData);
             if (success)
             {
                 successMessage = "Photo uploaded successfully!";
@@ -240,7 +232,8 @@ public partial class Profile : ComponentBase
             errorMessage = null;
             successMessage = null;
 
-            var success = await PatientProfileService.UpdateProfilePhotoAsync(currentUserId, null!);
+            // Use PatientFacade to delete profile photo
+            var success = await PatientFacade.UpdatePatientProfilePhotoAsync(currentUserId, null!);
             if (success)
             {
                 successMessage = "Photo deleted successfully!";

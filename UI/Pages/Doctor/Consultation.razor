@@ -1,5 +1,11 @@
 @page "/doctor/consultation"
 @layout Components.Layout.DoctorSidebarLayout
+@using ai_clinic.Models
+@using ai_clinic.Services
+@using ai_clinic.Services.Facades
+@inject DoctorFacade DoctorFacade
+@inject AuthStateService AuthStateService
+@inject NavigationManager NavigationManager
 
 <PageTitle>Consultations - AI Medical Clinic</PageTitle>
 
@@ -10,20 +16,20 @@
     <div class="header-left">
         <h1>My Consultations</h1>
         <p class="body-md" style="margin: 0.5rem;">
-            <span class="status-indicator status-available">●</span>
-            5 active chatrooms
+            <span class="status-indicator status-@GetStatusClass()">●</span>
+            @GetActiveCount() active chatrooms
         </p>
     </div>
     <div class="header-right">
         <div class="availability-selector">
             <label class="body-sm">Availability:</label>
-            <select class="availability-dropdown">
+            <select class="availability-dropdown" @bind="selectedAvailability" @bind:after="OnAvailabilityChanged">
                 <option value="available">🟢 Available</option>
                 <option value="busy">🟡 Busy</option>
                 <option value="offline">🔴 Offline</option>
             </select>
         </div>
-        <button class="btn btn-secondary">
+        <button class="btn btn-secondary" @onclick="LoadDataAsync">
             <i data-lucide="refresh-cw"></i>
             Refresh
         </button>
@@ -32,17 +38,17 @@
 
 <!-- Filter Tabs -->
 <div class="filter-tabs">
-    <button class="tab-btn active">
-        All Chatrooms (5)
+    <button class="tab-btn @(selectedFilter == "all" ? "active" : "")" @onclick='() => SetFilter("all")'>
+        All Chatrooms (@conversations.Count)
     </button>
-    <button class="tab-btn">
-        Active (3)
+    <button class="tab-btn @(selectedFilter == "active" ? "active" : "")" @onclick='() => SetFilter("active")'>
+        Active (@GetFilteredCount(ConversationStatus.Active))
     </button>
-    <button class="tab-btn">
-        Pending (2)
+    <button class="tab-btn @(selectedFilter == "pending" ? "active" : "")" @onclick='() => SetFilter("pending")'>
+        Pending (@GetFilteredCount(ConversationStatus.Deactive))
     </button>
-    <button class="tab-btn">
-        Completed (0)
+    <button class="tab-btn @(selectedFilter == "completed" ? "active" : "")" @onclick='() => SetFilter("completed")'>
+        Completed (@GetFilteredCount(ConversationStatus.Closed))
     </button>
 </div>
 
@@ -54,69 +60,74 @@
             <h2 class="headline-md">Chatrooms</h2>
             <div class="search-box">
                 <i data-lucide="search"></i>
-                <input type="text" placeholder="Search chatrooms..." />
+                <input type="text" placeholder="Search chatrooms..." @bind="searchQuery" @bind:event="oninput" />
             </div>
         </div>
         
-        <div class="chatrooms-list">
-            <div class="chatroom-item active">
-                <div class="chatroom-avatar">
-                    <span>SJ</span>
-                </div>
-                <div class="chatroom-info">
-                    <h4 class="headline-sm">Patient Consultation</h4>
-                    <p class="body-sm">
-                        Symptoms: Headache, Fever
-                    </p>
-                    <p class="body-sm">
-                        Messages: 12 
-                        <span class="ai-badge">
-                            <i data-lucide="bot"></i>
-                            5 AI
-                        </span>
-                    </p>
-                </div>
-                <div class="chatroom-meta">
-                    <span class="badge badge-active">ACTIVE</span>
-                    <span class="time-badge">5 min ago</span>
-                    <span class="specialization-tag">Cardiology</span>
-                </div>
-                <div class="chatroom-actions">
-                    <button class="btn-primary-sm">
-                        <i data-lucide="message-circle"></i>
-                        Enter Chat
-                    </button>
-                </div>
+        @if (isLoading)
+        {
+            <div class="loading-state">
+                <i data-lucide="loader"></i>
+                <p>Loading consultations...</p>
             </div>
-            <div class="chatroom-item urgent">
-                <div class="chatroom-avatar">
-                    <span>MC</span>
-                </div>
-                <div class="chatroom-info">
-                    <h4 class="headline-sm">Urgent Consultation</h4>
-                    <p class="body-sm">
-                        Symptoms: Chest Pain
-                    </p>
-                    <p class="body-sm">
-                        Messages: 3 
-                        <span class="ai-badge">
-                            <i data-lucide="bot"></i>
-                            2 AI
-                        </span>
-                    </p>
-                </div>
-                <div class="chatroom-meta">
-                    <span class="badge badge-urgent">URGENT</span>
-                    <span class="time-badge">2 min ago</span>
-                </div>
-                <div class="chatroom-actions">
-                    <button class="btn-primary-sm">
-                        <i data-lucide="message-circle"></i>
-                        Enter Chat
-                    </button>
-                </div>
+        }
+        else if (!GetFilteredConversations().Any())
+        {
+            <div class="empty-state">
+                <i data-lucide="inbox"></i>
+                <h3>No consultations found</h3>
+                <p>@GetEmptyStateMessage()</p>
             </div>
-        </div>
+        }
+        else
+        {
+            <div class="chatrooms-list">
+                @foreach (var conversation in GetFilteredConversations())
+                {
+                    var patientInitials = GetPatientInitials(conversation);
+                    var statusClass = GetConversationStatusClass(conversation.Status);
+                    var statusBadge = GetStatusBadge(conversation.Status);
+                    var timeAgo = GetTimeAgo(conversation.LastMessageAt);
+                    var messageCount = conversation.TotalMessages;
+                    var aiMessageCount = conversation.AiMessagesCount;
+                    var symptoms = conversation.InitialSymptoms ?? "No symptoms specified";
+                    var specialization = conversation.AiSuggestedSpecialization ?? conversation.RequiredSpecialization ?? "General";
+                    
+                    <div class="chatroom-item @statusClass" @onclick="() => EnterChat(conversation.Id)">
+                        <div class="chatroom-avatar">
+                            <span>@patientInitials</span>
+                        </div>
+                        <div class="chatroom-info">
+                            <h4 class="headline-sm">@(conversation.Title ?? "Patient Consultation")</h4>
+                            <p class="body-sm">
+                                Symptoms: @symptoms
+                            </p>
+                            <p class="body-sm">
+                                Messages: @messageCount
+                                @if (aiMessageCount > 0)
+                                {
+                                    <span class="ai-badge">
+                                        <i data-lucide="bot"></i>
+                                        @aiMessageCount AI
+                                    </span>
+                                }
+                            </p>
+                        </div>
+                        <div class="chatroom-meta">
+                            <span class="badge @statusBadge">@conversation.Status.ToString().ToUpper()</span>
+                            <span class="time-badge">@timeAgo</span>
+                            <span class="specialization-tag">@specialization</span>
+                        </div>
+                        <div class="chatroom-actions">
+                            <button class="btn-primary-sm" @onclick:stopPropagation="true" @onclick="() => EnterChat(conversation.Id)">
+                                <i data-lucide="message-circle"></i>
+                                Enter Chat
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
     </section>
 
     <!-- Quick Stats -->
@@ -129,38 +140,38 @@
                 <h4 class="headline-sm">Your Status</h4>
             </div>
             <div class="availability-display">
-                <span class="status-dot status-available"></span>
-                <span class="status-text">Available</span>
+                <span class="status-dot status-@GetStatusClass()"></span>
+                <span class="status-text">@GetStatusText()</span>
             </div>
-            <p class="status-message">Ready to accept new consultations</p>
+            <p class="status-message">@GetStatusMessage()</p>
         </div>
 
         <div class="stats-list">
             <div class="stat-item">
                 <i data-lucide="message-circle" class="stat-icon"></i>
                 <div class="stat-info">
-                    <h4 class="headline-lg">5</h4>
+                    <h4 class="headline-lg">@conversations.Count</h4>
                     <p class="body-sm">Total Chatrooms</p>
                 </div>
             </div>
             <div class="stat-item">
                 <i data-lucide="activity" class="stat-icon active"></i>
                 <div class="stat-info">
-                    <h4 class="headline-lg">3</h4>
+                    <h4 class="headline-lg">@GetFilteredCount(ConversationStatus.Active)</h4>
                     <p class="body-sm">Active</p>
                 </div>
             </div>
             <div class="stat-item">
                 <i data-lucide="clock" class="stat-icon"></i>
                 <div class="stat-info">
-                    <h4 class="headline-lg">2</h4>
+                    <h4 class="headline-lg">@GetFilteredCount(ConversationStatus.Deactive)</h4>
                     <p class="body-sm">Pending</p>
                 </div>
             </div>
             <div class="stat-item">
                 <i data-lucide="check-circle" class="stat-icon success"></i>
                 <div class="stat-info">
-                    <h4 class="headline-lg">0</h4>
+                    <h4 class="headline-lg">@GetFilteredCount(ConversationStatus.Closed)</h4>
                     <p class="body-sm">Completed</p>
                 </div>
             </div>
@@ -172,12 +183,219 @@
                 <h4 class="headline-sm">AI Insights</h4>
             </div>
             <p class="body-sm">
-                3 chatrooms have AI pre-assessments.
-                Average messages per chat: 8
+                @GetAiChatroomsCount() chatrooms have AI pre-assessments.
+                Average messages per chat: @GetAverageMessages()
             </p>
         </div>
     </section>
 </div>
+
+@code {
+    private List<Conversation> conversations = new();
+    private bool isLoading = true;
+    private string selectedFilter = "all";
+    private string searchQuery = string.Empty;
+    private string selectedAvailability = "available";
+    private Guid currentDoctorId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Get current doctor ID from auth state
+        var currentUser = AuthStateService.CurrentUser;
+        if (currentUser == null || currentUser.Role != UserRole.Doctor)
+        {
+            NavigationManager.NavigateTo("/auth/login");
+            return;
+        }
+
+        currentDoctorId = currentUser.Id;
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            // Use DoctorFacade to get doctor's conversations
+            conversations = await DoctorFacade.GetDoctorConversationsAsync(currentDoctorId);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading consultations: {ex.Message}");
+            conversations = new();
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void SetFilter(string filter)
+    {
+        selectedFilter = filter;
+    }
+
+    private List<Conversation> GetFilteredConversations()
+    {
+        var filtered = conversations.AsEnumerable();
+
+        // Apply status filter
+        if (selectedFilter != "all")
+        {
+            filtered = selectedFilter switch
+            {
+                "active" => filtered.Where(c => c.Status == ConversationStatus.Active),
+                "pending" => filtered.Where(c => c.Status == ConversationStatus.Deactive),
+                "completed" => filtered.Where(c => c.Status == ConversationStatus.Closed),
+                _ => filtered
+            };
+        }
+
+        // Apply search filter
+        if (!string.IsNullOrWhiteSpace(searchQuery))
+        {
+            var query = searchQuery.ToLower();
+            filtered = filtered.Where(c =>
+                (c.Title?.ToLower().Contains(query) ?? false) ||
+                (c.InitialSymptoms?.ToLower().Contains(query) ?? false) ||
+                (c.Patient?.Email?.ToLower().Contains(query) ?? false)
+            );
+        }
+
+        return filtered.OrderByDescending(c => c.LastMessageAt).ToList();
+    }
+
+    private int GetFilteredCount(ConversationStatus status)
+    {
+        return conversations.Count(c => c.Status == status);
+    }
+
+    private int GetActiveCount()
+    {
+        return GetFilteredCount(ConversationStatus.Active);
+    }
+
+    private string GetPatientInitials(Conversation conversation)
+    {
+        if (conversation.Patient == null)
+            return "??";
+
+        var names = conversation.Patient.Email?.Split('@')[0].Split('.') ?? new[] { "U" };
+        if (names.Length >= 2)
+            return $"{names[0][0]}{names[1][0]}".ToUpper();
+        return names[0].Substring(0, Math.Min(2, names[0].Length)).ToUpper();
+    }
+
+    private string GetConversationStatusClass(ConversationStatus status)
+    {
+        return status switch
+        {
+            ConversationStatus.Active => "active",
+            ConversationStatus.Closed => "completed",
+            ConversationStatus.Deactive => "pending",
+            _ => ""
+        };
+    }
+
+    private string GetStatusBadge(ConversationStatus status)
+    {
+        return status switch
+        {
+            ConversationStatus.Active => "badge-active",
+            ConversationStatus.Closed => "badge-completed",
+            ConversationStatus.Deactive => "badge-pending",
+            ConversationStatus.Archived => "badge-default",
+            _ => "badge-default"
+        };
+    }
+
+    private string GetTimeAgo(DateTime dateTime)
+    {
+        var timeSpan = DateTime.UtcNow - dateTime;
+        
+        if (timeSpan.TotalMinutes < 1)
+            return "Just now";
+        if (timeSpan.TotalMinutes < 60)
+            return $"{(int)timeSpan.TotalMinutes} min ago";
+        if (timeSpan.TotalHours < 24)
+            return $"{(int)timeSpan.TotalHours} hour{((int)timeSpan.TotalHours != 1 ? "s" : "")} ago";
+        if (timeSpan.TotalDays < 7)
+            return $"{(int)timeSpan.TotalDays} day{((int)timeSpan.TotalDays != 1 ? "s" : "")} ago";
+        
+        return dateTime.ToString("MMM dd, yyyy");
+    }
+
+    private void EnterChat(Guid conversationId)
+    {
+        NavigationManager.NavigateTo($"/doctor/chat/{conversationId}");
+    }
+
+    private string GetStatusClass()
+    {
+        return selectedAvailability switch
+        {
+            "available" => "available",
+            "busy" => "busy",
+            "offline" => "offline",
+            _ => "available"
+        };
+    }
+
+    private string GetStatusText()
+    {
+        return selectedAvailability switch
+        {
+            "available" => "Available",
+            "busy" => "Busy",
+            "offline" => "Offline",
+            _ => "Available"
+        };
+    }
+
+    private string GetStatusMessage()
+    {
+        return selectedAvailability switch
+        {
+            "available" => "Ready to accept new consultations",
+            "busy" => "Currently in consultation",
+            "offline" => "Not accepting consultations",
+            _ => "Ready to accept new consultations"
+        };
+    }
+
+    private async Task OnAvailabilityChanged()
+    {
+        // TODO: Update doctor availability status in database
+        StateHasChanged();
+    }
+
+    private string GetEmptyStateMessage()
+    {
+        return selectedFilter switch
+        {
+            "active" => "No active consultations at the moment",
+            "pending" => "No pending consultations",
+            "completed" => "No completed consultations yet",
+            _ => "No consultations found"
+        };
+    }
+
+    private int GetAiChatroomsCount()
+    {
+        return conversations.Count(c => c.AiMessagesCount > 0);
+    }
+
+    private int GetAverageMessages()
+    {
+        if (conversations.Count == 0)
+            return 0;
+        return (int)conversations.Average(c => c.TotalMessages);
+    }
+}
 
 <style>
     .content-header {

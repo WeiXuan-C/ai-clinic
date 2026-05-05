@@ -1,0 +1,1027 @@
+@page "/doctor/chat/{ConversationId:guid}"
+@layout Components.Layout.DoctorSidebarLayout
+@using ai_clinic.Models
+@using ai_clinic.Services
+@using ai_clinic.Services.Facades
+@inject ConsultationFacade ConsultationFacade
+@inject DoctorFacade DoctorFacade
+@inject AuthStateService AuthStateService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JS
+
+<PageTitle>Chat - AI Medical Clinic</PageTitle>
+
+<link rel="stylesheet" href="/css/stitch-design-system.css" />
+
+<style>
+    /* Root container - full viewport width */
+    .doctor-chat-page-layout {
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        width: calc(100vw - 280px);
+        min-height: 100vh;
+        max-height: 100vh;
+        background: #f5f7fa;
+        gap: 0;
+        margin: -2.5rem -3rem;
+        padding: 0;
+        overflow: hidden;
+        position: relative;
+        box-sizing: border-box;
+    }
+
+    /* Chat Conversations Sidebar - internal scrolling only */
+    .doctor-chat-conversations-sidebar {
+        background: white;
+        border-right: 1px solid #e5e7eb;
+        padding: 24px 16px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        height: 100%;
+        width: 100%;
+        position: relative;
+        box-sizing: border-box;
+    }
+
+    .doctor-chat-conversations-sidebar::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .doctor-chat-conversations-sidebar::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+
+    .doctor-chat-conversations-sidebar::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 4px;
+    }
+
+    .doctor-chat-conversations-sidebar::-webkit-scrollbar-thumb:hover {
+        background: #a8a8a8;
+    }
+
+    .chat-conversations-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+        padding-bottom: 16px;
+        border-bottom: 2px solid #e5e7eb;
+    }
+
+    .chat-conversations-header h3 {
+        font-size: 14px;
+        font-weight: 700;
+        color: #111827;
+        letter-spacing: 0.5px;
+        margin: 0;
+    }
+
+    .chat-list-item {
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+        border-left: 3px solid transparent;
+    }
+
+    .chat-list-item:hover {
+        background: #f9fafb;
+    }
+
+    .chat-list-item.active {
+        background: #e0f2fe;
+        border-left-color: #1e40af;
+        border-left-width: 8px;
+        padding-left: calc(12px - 5px);
+    }
+
+    .chat-item-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 4px;
+    }
+
+    .chat-item-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #111827;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        flex: 1;
+    }
+
+    .chat-item-time {
+        font-size: 11px;
+        color: #6b7280;
+        white-space: nowrap;
+        margin-left: 8px;
+    }
+
+    .chat-item-preview {
+        font-size: 12px;
+        color: #6b7280;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        margin-bottom: 4px;
+    }
+
+    .chat-item-meta {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 11px;
+    }
+
+    .status-badge {
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .status-badge.active {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .status-badge.closed {
+        background: #e5e7eb;
+        color: #4b5563;
+    }
+
+    .ai-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+        color: #10b981;
+        font-size: 11px;
+    }
+
+    .doctor-chat-main-container {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        width: 100%;
+        background: white;
+        overflow: hidden;
+        position: relative;
+        box-sizing: border-box;
+    }
+
+    .doctor-chat-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.5rem 3rem;
+        background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
+        color: white;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        flex-shrink: 0;
+        box-sizing: border-box;
+    }
+
+    .doctor-chat-header-info {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .doctor-chat-header h2 {
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 700;
+        font-family: 'Manrope', sans-serif;
+    }
+
+    .doctor-chat-patient-badge {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 20px;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+
+    .doctor-chat-conversation-stats {
+        display: flex;
+        gap: 1.5rem;
+        font-size: 0.875rem;
+        opacity: 0.9;
+    }
+
+    .doctor-chat-stat-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .doctor-chat-messages-area {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding: 2rem 3rem;
+        background: #f7f9fb;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        min-height: 0;
+        box-sizing: border-box;
+    }
+
+    .doctor-chat-messages-area::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .doctor-chat-messages-area::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+
+    .doctor-chat-messages-area::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 4px;
+    }
+
+    .doctor-chat-messages-area::-webkit-scrollbar-thumb:hover {
+        background: #a8a8a8;
+    }
+
+    .doctor-chat-loading-state, .doctor-chat-error-state, .doctor-chat-empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 3rem 2rem;
+        gap: 1rem;
+        color: #434654;
+    }
+
+    .doctor-chat-error-state {
+        color: #d32f2f;
+    }
+
+    .doctor-chat-error-state i, .doctor-chat-empty-state i {
+        font-size: 3rem;
+        opacity: 0.5;
+    }
+
+    .doctor-chat-empty-state h3 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #191c1e;
+        margin: 0;
+    }
+
+    .doctor-chat-message {
+        display: flex;
+        gap: 1rem;
+        max-width: 85%;
+        animation: slideIn 0.3s ease-out;
+    }
+
+    @@keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .doctor-chat-patient-message {
+        align-self: flex-start;
+    }
+
+    .doctor-chat-doctor-message {
+        align-self: flex-end;
+        flex-direction: row-reverse;
+    }
+
+    .doctor-chat-ai-message {
+        align-self: flex-start;
+    }
+
+    .doctor-chat-message-avatar {
+        width: 40px;
+        height: 40px;
+        min-width: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+    }
+
+    .doctor-chat-patient-message .doctor-chat-message-avatar {
+        background: #3b82f6;
+        color: white;
+    }
+
+    .doctor-chat-doctor-message .doctor-chat-message-avatar {
+        background: #1e40af;
+        color: white;
+    }
+
+    .doctor-chat-ai-message .doctor-chat-message-avatar {
+        background: #10b981;
+        color: white;
+    }
+
+    .doctor-chat-message-bubble {
+        flex: 1;
+        padding: 1rem 1.25rem;
+        border-radius: 16px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    }
+
+    .doctor-chat-patient-message .doctor-chat-message-bubble {
+        background: white;
+        color: #191c1e;
+        border-bottom-left-radius: 4px;
+    }
+
+    .doctor-chat-doctor-message .doctor-chat-message-bubble {
+        background: #1e40af;
+        color: white;
+        border-bottom-right-radius: 4px;
+    }
+
+    .doctor-chat-ai-message .doctor-chat-message-bubble {
+        background: white;
+        color: #191c1e;
+        border-bottom-left-radius: 4px;
+        border-left: 3px solid #10b981;
+    }
+
+    .doctor-chat-message-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+
+    .doctor-chat-message-sender {
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        opacity: 0.8;
+    }
+
+    .doctor-chat-message-time {
+        font-size: 0.75rem;
+        opacity: 0.6;
+    }
+
+    .doctor-chat-message-content {
+        font-size: 0.9375rem;
+        line-height: 1.6;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+    }
+
+    .doctor-chat-ai-badge-inline {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.25rem 0.5rem;
+        background: #d1fae5;
+        color: #065f46;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-top: 0.5rem;
+    }
+
+    .doctor-chat-typing-indicator {
+        display: flex;
+        gap: 6px;
+        padding: 12px 16px;
+        background: #d1fae5;
+        border-radius: 12px;
+        width: fit-content;
+    }
+
+    .doctor-chat-typing-indicator span {
+        width: 8px;
+        height: 8px;
+        background: #10b981;
+        border-radius: 50%;
+        animation: typing 1.4s infinite;
+    }
+
+    .doctor-chat-typing-indicator span:nth-child(2) {
+        animation-delay: 0.2s;
+    }
+
+    .doctor-chat-typing-indicator span:nth-child(3) {
+        animation-delay: 0.4s;
+    }
+
+    @@keyframes typing {
+        0%, 60%, 100% {
+            transform: translateY(0);
+        }
+        30% {
+            transform: translateY(-10px);
+        }
+    }
+
+    .doctor-chat-input-area {
+        display: flex;
+        gap: 1rem;
+        padding: 1.5rem 3rem;
+        background: white;
+        border-top: 1px solid #e6e8ea;
+        flex-shrink: 0;
+        box-sizing: border-box;
+    }
+
+    .doctor-chat-message-input {
+        flex: 1;
+        padding: 1rem 1.25rem;
+        border: 2px solid #e6e8ea;
+        border-radius: 12px;
+        font-size: 0.9375rem;
+        font-family: 'Inter', sans-serif;
+        outline: none;
+        resize: none;
+        max-height: 120px;
+        transition: all 0.2s;
+    }
+
+    .doctor-chat-message-input:focus {
+        border-color: #1e40af;
+        box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
+    }
+
+    .doctor-chat-message-input:disabled {
+        background: #f7f9fb;
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+
+    .doctor-chat-send-button {
+        width: 56px;
+        height: 56px;
+        min-width: 56px;
+        background: #1e40af;
+        color: white;
+        border: none;
+        border-radius: 12px;
+        font-size: 1.25rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .doctor-chat-send-button:hover:not(:disabled) {
+        background: #1e3a8a;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(30, 64, 175, 0.3);
+    }
+
+    .doctor-chat-send-button:disabled {
+        background: #d1d5db;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .doctor-chat-actions-area {
+        display: flex;
+        gap: 1rem;
+        padding: 1rem 3rem 1.5rem;
+        background: white;
+        border-top: 1px solid #e6e8ea;
+        flex-shrink: 0;
+        box-sizing: border-box;
+    }
+
+    .doctor-chat-action-button {
+        flex: 1;
+        padding: 0.75rem 1.5rem;
+        background: #1e40af;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .doctor-chat-action-button:hover:not(:disabled) {
+        background: #1e3a8a;
+        transform: translateY(-1px);
+    }
+
+    .doctor-chat-action-button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .doctor-chat-action-button.secondary {
+        background: #e6e8ea;
+        color: #191c1e;
+    }
+
+    .doctor-chat-action-button.secondary:hover:not(:disabled) {
+        background: #d8dadc;
+    }
+
+    @@media (max-width: 768px) {
+        .doctor-chat-page-layout {
+            grid-template-columns: 1fr;
+        }
+
+        .doctor-chat-conversations-sidebar {
+            display: none;
+        }
+
+        .doctor-chat-main-container {
+            min-height: 100vh;
+            max-height: 100vh;
+            border-radius: 0;
+        }
+
+        .doctor-chat-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .doctor-chat-conversation-stats {
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .doctor-chat-message {
+            max-width: 90%;
+        }
+
+        .doctor-chat-actions-area {
+            flex-direction: column;
+        }
+    }
+</style>
+
+<div class="doctor-chat-page-layout">
+    <!-- Left Sidebar: Chat List -->
+    <div class="doctor-chat-conversations-sidebar">
+        <div class="chat-conversations-header">
+            <h3>MY CONSULTATIONS</h3>
+        </div>
+        
+        @if (isLoadingList)
+        {
+            <div style="text-align: center; padding: 24px; color: #6b7280;">
+                <div class="doctor-chat-typing-indicator" style="margin: 0 auto;">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+                <div style="margin-top: 16px; font-size: 12px;">Loading...</div>
+            </div>
+        }
+        else if (!conversationList.Any())
+        {
+            <div style="text-align: center; padding: 24px; color: #6b7280;">
+                <p style="font-size: 13px;">No conversations yet</p>
+            </div>
+        }
+        else
+        {
+            <div class="chat-list">
+                @foreach (var conv in conversationList)
+                {
+                    <div class="chat-list-item @(ConversationId == conv.Id ? "active" : "")" 
+                         @onclick="() => NavigateToChat(conv.Id)">
+                        <div class="chat-item-header">
+                            <div class="chat-item-title">@(conv.Title ?? "Patient Consultation")</div>
+                            <div class="chat-item-time">@FormatTime(conv.LastMessageAt)</div>
+                        </div>
+                        <div class="chat-item-preview">
+                            @if (!string.IsNullOrEmpty(conv.InitialSymptoms))
+                            {
+                                @conv.InitialSymptoms
+                            }
+                            else
+                            {
+                                <text>No symptoms specified</text>
+                            }
+                        </div>
+                        <div class="chat-item-meta">
+                            <span class="status-badge @(conv.Status == ConversationStatus.Active ? "active" : "closed")">
+                                @conv.Status
+                            </span>
+                            <span style="color: #6b7280;">@conv.TotalMessages msg</span>
+                            @if (conv.AiMessagesCount > 0)
+                            {
+                                <span class="ai-indicator">
+                                    <i data-lucide="bot" style="width: 12px; height: 12px;"></i>
+                                    @conv.AiMessagesCount
+                                </span>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    <!-- Main Chat Area -->
+    <div class="doctor-chat-main-container">
+    @if (isLoading)
+    {
+        <div class="doctor-chat-loading-state">
+            <i data-lucide="loader"></i>
+            <p>Loading conversation...</p>
+        </div>
+    }
+    else if (currentConversation == null)
+    {
+        <div class="doctor-chat-error-state">
+            <i data-lucide="alert-circle"></i>
+            <h3>Conversation not found</h3>
+            <p>The conversation you're looking for doesn't exist or you don't have access to it.</p>
+            <button class="doctor-chat-action-button" @onclick="GoBack">
+                <i data-lucide="arrow-left"></i>
+                Go Back
+            </button>
+        </div>
+    }
+    else
+    {
+        <!-- Chat Header -->
+        <div class="doctor-chat-header">
+            <div class="doctor-chat-header-info">
+                <h2>@(currentConversation.Title ?? "Patient Consultation")</h2>
+                <span class="doctor-chat-patient-badge">
+                    <i data-lucide="user"></i>
+                    Patient
+                </span>
+            </div>
+            <div class="doctor-chat-conversation-stats">
+                <span class="doctor-chat-stat-item">
+                    <i data-lucide="message-circle"></i>
+                    @currentConversation.TotalMessages messages
+                </span>
+                <span class="doctor-chat-stat-item">
+                    <i data-lucide="clock"></i>
+                    Started @currentConversation.StartedAt.ToString("MMM dd, HH:mm")
+                </span>
+                @if (currentConversation.AiMessagesCount > 0)
+                {
+                    <span class="doctor-chat-stat-item">
+                        <i data-lucide="bot"></i>
+                        @currentConversation.AiMessagesCount AI messages
+                    </span>
+                }
+            </div>
+        </div>
+
+        <!-- Messages Area -->
+        <div class="doctor-chat-messages-area" id="messages-container">
+            @if (!messages.Any())
+            {
+                <div class="doctor-chat-empty-state">
+                    <i data-lucide="message-circle"></i>
+                    <h3>No messages yet</h3>
+                    <p>Start the conversation by sending a message to the patient.</p>
+                </div>
+            }
+            else
+            {
+                @foreach (var message in messages)
+                {
+                    <div class="doctor-chat-message @GetMessageClass(message.SenderType)">
+                        <div class="doctor-chat-message-avatar">
+                            <span>@GetMessageIcon(message.SenderType)</span>
+                        </div>
+                        <div class="doctor-chat-message-bubble">
+                            <div class="doctor-chat-message-header">
+                                <span class="doctor-chat-message-sender">@GetSenderName(message.SenderType)</span>
+                                <span class="doctor-chat-message-time">@message.CreatedAt.ToString("HH:mm")</span>
+                            </div>
+                            <div class="doctor-chat-message-content">
+                                @message.Content
+                            </div>
+                            @if (message.SenderType == MessageSenderType.AI && !string.IsNullOrEmpty(message.AiModelUsed))
+                            {
+                                <div class="doctor-chat-ai-badge-inline">
+                                    <i data-lucide="bot"></i>
+                                    @message.AiModelUsed
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+
+                @if (isTyping)
+                {
+                    <div class="doctor-chat-message doctor-chat-doctor-message">
+                        <div class="doctor-chat-message-avatar">
+                            <span>👨‍⚕️</span>
+                        </div>
+                        <div class="doctor-chat-typing-indicator">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+
+        <!-- Input Area -->
+        <div class="doctor-chat-input-area">
+            <textarea 
+                class="doctor-chat-message-input" 
+                placeholder="Type your message to the patient..." 
+                @bind="newMessage"
+                @bind:event="oninput"
+                @onkeydown="HandleKeyPress"
+                rows="1"
+                disabled="@(currentConversation.Status != ConversationStatus.Active)"></textarea>
+            
+            <button class="doctor-chat-send-button" 
+                    @onclick="SendMessage"
+                    disabled="@(string.IsNullOrWhiteSpace(newMessage) || currentConversation.Status != ConversationStatus.Active || isSending)">
+                @if (isSending)
+                {
+                    <i data-lucide="loader"></i>
+                }
+                else
+                {
+                    <i data-lucide="send"></i>
+                }
+            </button>
+        </div>
+
+        <!-- Actions Area -->
+        <div class="doctor-chat-actions-area">
+            <button class="doctor-chat-action-button secondary" @onclick="GoBack">
+                <i data-lucide="arrow-left"></i>
+                Back to Consultations
+            </button>
+            @if (currentConversation.Status == ConversationStatus.Active)
+            {
+                <button class="doctor-chat-action-button" @onclick="CompleteConsultation">
+                    <i data-lucide="check-circle"></i>
+                    Complete Consultation
+                </button>
+            }
+            else
+            {
+                <button class="doctor-chat-action-button secondary" disabled>
+                    <i data-lucide="check-circle"></i>
+                    Consultation @currentConversation.Status
+                </button>
+            }
+        </div>
+    }
+</div>
+</div>
+
+@code {
+    [Parameter]
+    public Guid ConversationId { get; set; }
+
+    private Conversation? currentConversation;
+    private List<Conversation> conversationList = new();
+    private List<Message> messages = new();
+    private string newMessage = string.Empty;
+    private bool isLoading = true;
+    private bool isLoadingList = true;
+    private bool isTyping = false;
+    private bool isSending = false;
+    private Guid currentDoctorId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Get current doctor ID from auth state
+        var currentUser = AuthStateService.CurrentUser;
+        if (currentUser == null || currentUser.Role != UserRole.Doctor)
+        {
+            NavigationManager.NavigateTo("/auth/login");
+            return;
+        }
+
+        currentDoctorId = currentUser.Id;
+        
+        // Load both conversation list and current conversation
+        await Task.WhenAll(
+            LoadConversationList(),
+            LoadConversation()
+        );
+    }
+
+    private async Task LoadConversationList()
+    {
+        isLoadingList = true;
+        StateHasChanged();
+
+        try
+        {
+            // Use DoctorFacade to get doctor's conversations
+            conversationList = await DoctorFacade.GetDoctorConversationsAsync(currentDoctorId);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading conversation list: {ex.Message}");
+            conversationList = new();
+        }
+        finally
+        {
+            isLoadingList = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadConversation()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            // Use ConsultationFacade to get complete session data
+            var session = await ConsultationFacade.GetConsultationSessionAsync(
+                ConversationId,
+                currentDoctorId,
+                UserRole.Doctor
+            );
+
+            currentConversation = session.Conversation;
+            messages = session.Messages;
+
+            // Verify this conversation is assigned to current doctor
+            if (currentConversation.AssignedDoctorId != currentDoctorId)
+            {
+                currentConversation = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading conversation: {ex.Message}");
+            currentConversation = null;
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+            await ScrollToBottom();
+        }
+    }
+
+    private async Task SendMessage()
+    {
+        if (string.IsNullOrWhiteSpace(newMessage) || currentConversation == null || isSending)
+            return;
+
+        var messageContent = newMessage;
+        newMessage = string.Empty;
+        isSending = true;
+        StateHasChanged();
+
+        try
+        {
+            // Use ConsultationFacade to send doctor message
+            var doctorMessage = await ConsultationFacade.SendDoctorMessageAsync(
+                currentConversation.Id,
+                currentDoctorId,
+                messageContent
+            );
+
+            messages.Add(doctorMessage);
+            currentConversation.TotalMessages++;
+            currentConversation.DoctorMessagesCount++;
+            
+            StateHasChanged();
+            await ScrollToBottom();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error sending message: {ex.Message}");
+            newMessage = messageContent; // Restore message on error
+        }
+        finally
+        {
+            isSending = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleKeyPress(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !e.ShiftKey && !string.IsNullOrWhiteSpace(newMessage))
+        {
+            await SendMessage();
+        }
+    }
+
+    private async Task ScrollToBottom()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("scrollToBottom", "messages-container");
+        }
+        catch
+        {
+            // Ignore JS interop errors
+        }
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/doctor/consultation");
+    }
+
+    private async Task CompleteConsultation()
+    {
+        if (currentConversation == null)
+            return;
+
+        try
+        {
+            await ConsultationFacade.CloseConsultationAsync(currentConversation.Id, currentDoctorId);
+            currentConversation.Status = ConversationStatus.Closed;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error completing consultation: {ex.Message}");
+        }
+    }
+
+    private string GetMessageClass(MessageSenderType senderType)
+    {
+        return senderType switch
+        {
+            MessageSenderType.Patient => "doctor-chat-patient-message",
+            MessageSenderType.Doctor => "doctor-chat-doctor-message",
+            MessageSenderType.AI => "doctor-chat-ai-message",
+            _ => ""
+        };
+    }
+
+    private string GetMessageIcon(MessageSenderType senderType)
+    {
+        return senderType switch
+        {
+            MessageSenderType.Patient => "👤",
+            MessageSenderType.Doctor => "👨‍⚕️",
+            MessageSenderType.AI => "🤖",
+            _ => "❓"
+        };
+    }
+
+    private string GetSenderName(MessageSenderType senderType)
+    {
+        return senderType switch
+        {
+            MessageSenderType.Patient => "Patient",
+            MessageSenderType.Doctor => "You (Doctor)",
+            MessageSenderType.AI => "AI Assistant",
+            _ => "Unknown"
+        };
+    }
+
+    private void NavigateToChat(Guid conversationId)
+    {
+        NavigationManager.NavigateTo($"/doctor/chat/{conversationId}");
+    }
+
+    private string FormatTime(DateTime dateTime)
+    {
+        var timeSpan = DateTime.UtcNow - dateTime;
+        
+        if (timeSpan.TotalMinutes < 1)
+            return "Just now";
+        if (timeSpan.TotalMinutes < 60)
+            return $"{(int)timeSpan.TotalMinutes}m ago";
+        if (timeSpan.TotalHours < 24)
+            return $"{(int)timeSpan.TotalHours}h ago";
+        if (timeSpan.TotalDays < 7)
+            return $"{(int)timeSpan.TotalDays}d ago";
+        
+        return dateTime.ToString("MMM dd");
+    }
+}

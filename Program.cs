@@ -1,6 +1,7 @@
 using MudBlazor.Services;
 using ai_clinic.Data;
 using ai_clinic;
+using ai_clinic.Services.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -57,6 +58,9 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseAntiforgery();
+
+// 🔔 Map SignalR Hub for real-time consultation messaging
+app.MapHub<ConsultationHub>("/consultationHub");
 
 app.MapRazorComponents<ai_clinic.UI.Components.App>()
     .AddInteractiveServerRenderMode();

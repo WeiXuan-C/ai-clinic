@@ -2,9 +2,6 @@
 @layout Components.Layout.SidebarLayout
 @using ai_clinic.Services
 @inject AuthStateService AuthState
-@inject UserService UserService
-@inject PatientProfileService PatientProfileService
-@inject DoctorProfileService DoctorProfileService
 
 <PageTitle>Dashboard - AI Medical Clinic</PageTitle>
 
@@ -616,12 +613,9 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // Initialize auth state
-        if (!AuthState.IsInitialized)
-        {
-            await AuthState.InitializeAsync(UserService, PatientProfileService, DoctorProfileService);
-        }
-
+        // AuthState should already be initialized by the layout or app
+        // If not, it will initialize itself on first access
+        
         // Load user data from auth state
         if (AuthState.IsAuthenticated && AuthState.CurrentUser != null)
         {

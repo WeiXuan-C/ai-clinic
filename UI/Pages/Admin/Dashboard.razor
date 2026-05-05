@@ -4,7 +4,7 @@
 @using ai_clinic.Services.Facades
 @layout Components.Layout.AdminSidebarLayout
 @inject AuthStateService AuthState
-@inject AdminService AdminService
+@inject AdminFacade AdminFacade
 @inject NavigationManager Navigation
 
 <PageTitle>Admin Dashboard - AI Clinic</PageTitle>
@@ -161,7 +161,7 @@
         {
             _isLoading = true;
             _errorMessage = null;
-            _stats = await AdminService.GetDashboardStatsAsync();
+            _stats = await AdminFacade.GetDashboardStatsAsync();
         }
         catch (Exception ex)
         {

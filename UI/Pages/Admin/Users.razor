@@ -1,8 +1,9 @@
 @page "/admin/users"
 @using ai_clinic.Models
 @using ai_clinic.Services
+@using ai_clinic.Services.Facades
 @inject AuthStateService AuthState
-@inject AdminService AdminService
+@inject AdminFacade AdminFacade
 @inject NavigationManager Navigation
 @layout Components.Layout.AdminSidebarLayout
 
@@ -308,7 +309,7 @@
             UserRole? roleFilter = string.IsNullOrEmpty(_roleFilter) ? null : Enum.Parse<UserRole>(_roleFilter);
             bool? statusFilter = string.IsNullOrEmpty(_statusFilter) ? null : bool.Parse(_statusFilter);
 
-            _paginatedUsers = await AdminService.GetAllUsersAsync(
+            _paginatedUsers = await AdminFacade.GetAllUsersAsync(
                 _currentPage,
                 _pageSize,
                 roleFilter,
@@ -383,22 +384,15 @@
                 return;
             }
 
-            var success = await AdminService.SuspendUserAsync(
+            await AdminFacade.SuspendUserAsync(
                 _selectedUser.Id,
                 currentUser.Id,
                 true,
                 _suspendReason);
 
-            if (success)
-            {
-                _successMessage = $"User {GetUserFullName(_selectedUser)} has been suspended.";
-                CloseSuspendModal();
-                await LoadUsers();
-            }
-            else
-            {
-                _errorMessage = "Failed to suspend user.";
-            }
+            _successMessage = $"User {GetUserFullName(_selectedUser)} has been suspended.";
+            CloseSuspendModal();
+            await LoadUsers();
         }
         catch (Exception ex)
         {
@@ -417,21 +411,14 @@
                 return;
             }
 
-            var success = await AdminService.SuspendUserAsync(
+            await AdminFacade.SuspendUserAsync(
                 userId,
                 currentUser.Id,
                 false,
                 "Unsuspended by admin");
 
-            if (success)
-            {
-                _successMessage = "User has been unsuspended.";
-                await LoadUsers();
-            }
-            else
-            {
-                _errorMessage = "Failed to unsuspend user.";
-            }
+            _successMessage = "User has been unsuspended.";
+            await LoadUsers();
         }
         catch (Exception ex)
         {
@@ -467,21 +454,14 @@
                 return;
             }
 
-            var success = await AdminService.DeleteUserAsync(
+            await AdminFacade.DeleteUserAsync(
                 _selectedUser.Id,
                 currentUser.Id,
                 _deleteReason);
 
-            if (success)
-            {
-                _successMessage = $"User {GetUserFullName(_selectedUser)} has been deleted.";
-                CloseDeleteModal();
-                await LoadUsers();
-            }
-            else
-            {
-                _errorMessage = "Failed to delete user.";
-            }
+            _successMessage = $"User {GetUserFullName(_selectedUser)} has been deleted.";
+            CloseDeleteModal();
+            await LoadUsers();
         }
         catch (Exception ex)
         {

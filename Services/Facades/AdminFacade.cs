@@ -139,6 +139,204 @@ public class AdminFacade
             "RespondToTicket",
             $"Ticket ID: {ticketId}");
     }
+
+    /// <summary>
+    /// Get all users with optional filtering
+    /// Simplified interface for UI layer
+    /// </summary>
+    public async Task<List<User>> GetAllUsersAsync()
+    {
+        return await _userService.GetAllUsersAsync();
+    }
+
+    /// <summary>
+    /// Get doctors for verification
+    /// Simplified interface for UI layer
+    /// </summary>
+    public async Task<List<DoctorProfile>> GetDoctorsForVerificationAsync()
+    {
+        return await _doctorProfileService.GetAllAsync();
+    }
+
+    /// <summary>
+    /// Get activity logs with optional filtering
+    /// Simplified interface for UI layer
+    /// </summary>
+    public async Task<List<ActivityLog>> GetActivityLogsAsync(string? actionFilter = null, int limit = 100)
+    {
+        if (string.IsNullOrEmpty(actionFilter))
+        {
+            return await _activityLogService.GetRecentLogsAsync(limit);
+        }
+        else
+        {
+            return await _activityLogService.GetByActionAsync(actionFilter, limit);
+        }
+    }
+
+    /// <summary>
+    /// Get support tickets with optional status filtering
+    /// Simplified interface for UI layer
+    /// </summary>
+    public async Task<List<SupportTicket>> GetSupportTicketsAsync(string? statusFilter = null)
+    {
+        if (string.IsNullOrEmpty(statusFilter))
+        {
+            return await _supportTicketService.GetAllAsync();
+        }
+        else
+        {
+            return await _supportTicketService.GetByStatusAsync(statusFilter);
+        }
+    }
+
+    /// <summary>
+    /// Update support ticket status
+    /// Simplified interface for UI layer
+    /// </summary>
+    public async Task UpdateSupportTicketStatusAsync(Guid ticketId, string status, Guid adminId)
+    {
+        await _supportTicketService.UpdateStatusAsync(ticketId, status);
+        
+        await _activityLogService.LogActivityAsync(
+            adminId,
+            "UpdateTicketStatus",
+            $"Ticket ID: {ticketId}, Status: {status}");
+    }
+
+    /// <summary>
+    /// Unsuspend a user account
+    /// Reactivates user and logs the action
+    /// </summary>
+    public async Task UnsuspendUserAsync(Guid userId, Guid adminId)
+    {
+        await _userService.ActivateAsync(userId);
+
+        await _activityLogService.LogActivityAsync(
+            adminId,
+            "UnsuspendUser",
+            $"User ID: {userId}");
+    }
+
+    /// <summary>
+    /// Delete a user account
+    /// Permanently removes user and logs the action
+    /// </summary>
+    public async Task DeleteUserAsync(Guid userId, Guid adminId)
+    {
+        await _userService.DeleteAsync(userId);
+
+        await _activityLogService.LogActivityAsync(
+            adminId,
+            "DeleteUser",
+            $"User ID: {userId}");
+    }
+
+    /// <summary>
+    /// Get dashboard statistics
+    /// Simplified interface for UI layer
+    /// </summary>
+    public async Task<AdminDashboardStats> GetDashboardStatsAsync()
+    {
+        var userCounts = await _statisticsService.GetUserCountByRoleAsync();
+        var conversationStats = await _statisticsService.GetConversationStatsAsync();
+        var allDoctors = await _doctorProfileService.GetAllAsync();
+
+        return new AdminDashboardStats
+        {
+            TotalUsers = userCounts.Values.Sum(),
+            TotalDoctors = userCounts.GetValueOrDefault(UserRole.Doctor, 0),
+            TotalPatients = userCounts.GetValueOrDefault(UserRole.Patient, 0),
+            VerifiedDoctors = allDoctors.Count(d => d.IsVerified),
+            PendingVerifications = allDoctors.Count(d => !d.IsVerified),
+            ActiveConversations = conversationStats.ActiveConversations,
+            TotalConversations = conversationStats.TotalConversations,
+            OpenSupportTickets = 0, // TODO: Get from support ticket service
+            TotalSupportTickets = 0, // TODO: Get from support ticket service
+            RecentRegistrations = 0 // TODO: Calculate recent registrations
+        };
+    }
+
+    /// <summary>
+    /// Get paginated users with filtering
+    /// Simplified interface for UI layer
+    /// </summary>
+    public async Task<PaginatedResult<User>> GetAllUsersAsync(
+        int page = 1,
+        int pageSize = 20,
+        UserRole? roleFilter = null,
+        string? searchTerm = null,
+        bool? isActiveFilter = null)
+    {
+        var allUsers = await _userService.GetAllUsersAsync();
+
+        // Apply filters
+        var filtered = allUsers.AsEnumerable();
+
+        if (roleFilter.HasValue)
+        {
+            filtered = filtered.Where(u => u.Role == roleFilter.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            var term = searchTerm.ToLower();
+            filtered = filtered.Where(u => 
+                u.Email.ToLower().Contains(term));
+        }
+
+        if (isActiveFilter.HasValue)
+        {
+            filtered = filtered.Where(u => u.IsActive == isActiveFilter.Value);
+        }
+
+        var totalCount = filtered.Count();
+        var items = filtered
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+
+        return new PaginatedResult<User>
+        {
+            Items = items,
+            Page = page,
+            PageSize = pageSize,
+            TotalCount = totalCount
+        };
+    }
+
+    /// <summary>
+    /// Suspend or unsuspend a user
+    /// Simplified interface for UI layer
+    /// </summary>
+    public async Task<bool> SuspendUserAsync(Guid userId, Guid adminId, bool suspend, string reason)
+    {
+        if (suspend)
+        {
+            await SuspendUserAsync(userId, adminId, reason);
+        }
+        else
+        {
+            await UnsuspendUserAsync(userId, adminId);
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Delete user with reason
+    /// Simplified interface for UI layer
+    /// </summary>
+    public async Task<bool> DeleteUserAsync(Guid userId, Guid adminId, string reason)
+    {
+        await DeleteUserAsync(userId, adminId);
+        
+        await _activityLogService.LogActivityAsync(
+            adminId,
+            "DeleteUser",
+            $"User ID: {userId}, Reason: {reason}");
+        
+        return true;
+    }
 }
 
 // DTOs for Facade responses

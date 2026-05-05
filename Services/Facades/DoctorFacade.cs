@@ -164,6 +164,64 @@ public class DoctorFacade
             AverageRating = performance.AverageRating
         };
     }
+
+    /// <summary>
+    /// Get doctor's conversations list
+    /// Simplified interface for UI layer
+    /// </summary>
+    public async Task<List<Conversation>> GetDoctorConversationsAsync(Guid doctorId)
+    {
+        return await _conversationService.GetByDoctorIdAsync(doctorId);
+    }
+
+    /// <summary>
+    /// Get doctor profile by user ID
+    /// Simplified interface for UI layer
+    /// </summary>
+    public async Task<DoctorProfile?> GetDoctorProfileAsync(Guid userId)
+    {
+        return await _doctorProfileService.GetByUserIdAsync(userId);
+    }
+
+    /// <summary>
+    /// Save doctor profile (create or update)
+    /// Simplified interface for UI layer
+    /// </summary>
+    public async Task SaveDoctorProfileAsync(DoctorProfile profile)
+    {
+        if (profile.Id == Guid.Empty)
+        {
+            await _doctorProfileService.CreateAsync(profile);
+        }
+        else
+        {
+            await _doctorProfileService.UpdateAsync(profile);
+        }
+
+        await _activityLogService.LogActivityAsync(
+            profile.UserId,
+            "UpdateDoctorProfile",
+            $"Profile ID: {profile.Id}");
+    }
+
+    /// <summary>
+    /// Update doctor profile photo
+    /// Simplified interface for UI layer
+    /// </summary>
+    public async Task<bool> UpdateDoctorProfilePhotoAsync(Guid userId, byte[]? photoData)
+    {
+        var success = await _doctorProfileService.UpdateProfilePhotoAsync(userId, photoData);
+        
+        if (success)
+        {
+            await _activityLogService.LogActivityAsync(
+                userId,
+                photoData != null ? "UploadProfilePhoto" : "DeleteProfilePhoto",
+                $"User ID: {userId}");
+        }
+
+        return success;
+    }
 }
 
 // DTOs for Facade responses

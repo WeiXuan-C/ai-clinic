@@ -129,4 +129,42 @@ public class UserService
             .Where(u => u.Role == role && u.IsActive)
             .ToListAsync();
     }
+
+    /// <summary>
+    /// Get all users
+    /// </summary>
+    public async Task<List<User>> GetAllUsersAsync()
+    {
+        using var db = DbClient.Instance.GetDb();
+        return await db.Users.ToListAsync();
+    }
+
+    /// <summary>
+    /// Activate user account
+    /// </summary>
+    public async Task ActivateAsync(Guid userId)
+    {
+        using var db = DbClient.Instance.GetDb();
+        var user = await db.Users.FindAsync(userId);
+        if (user != null)
+        {
+            user.IsActive = true;
+            user.UpdatedAt = DateTime.UtcNow;
+            await db.SaveChangesAsync();
+        }
+    }
+
+    /// <summary>
+    /// Delete user account
+    /// </summary>
+    public async Task DeleteAsync(Guid userId)
+    {
+        using var db = DbClient.Instance.GetDb();
+        var user = await db.Users.FindAsync(userId);
+        if (user != null)
+        {
+            db.Users.Remove(user);
+            await db.SaveChangesAsync();
+        }
+    }
 }

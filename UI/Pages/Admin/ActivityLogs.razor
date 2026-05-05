@@ -1,9 +1,10 @@
 @page "/admin/activity-logs"
 @using ai_clinic.Models
 @using ai_clinic.Services
+@using ai_clinic.Services.Facades
 @layout Components.Layout.AdminSidebarLayout
 @inject AuthStateService AuthState
-@inject ActivityLogService ActivityLogService
+@inject AdminFacade AdminFacade
 @inject NavigationManager Navigation
 
 <PageTitle>Activity Logs - Admin Panel</PageTitle>
@@ -169,9 +170,8 @@
             _isLoading = true;
             _errorMessage = null;
 
-            _logs = await ActivityLogService.GetRecentLogsAsync(_limitFilter);
+            _logs = await AdminFacade.GetActivityLogsAsync(_actionFilter, _limitFilter);
 
-            // Apply action filter if set
             if (!string.IsNullOrEmpty(_actionFilter))
             {
                 _logs = _logs.Where(l => l.Action == _actionFilter).ToList();

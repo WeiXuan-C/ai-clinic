@@ -113,6 +113,55 @@ public class PatientFacade
             ConsultationNotes = await consultationsTask
         };
     }
+
+    /// <summary>
+    /// Get patient profile by user ID
+    /// Simplified interface for UI layer
+    /// </summary>
+    public async Task<PatientProfile?> GetPatientProfileAsync(Guid userId)
+    {
+        return await _patientProfileService.GetByUserIdAsync(userId);
+    }
+
+    /// <summary>
+    /// Save patient profile (create or update)
+    /// Simplified interface for UI layer
+    /// </summary>
+    public async Task SavePatientProfileAsync(PatientProfile profile)
+    {
+        if (profile.Id == Guid.Empty)
+        {
+            await _patientProfileService.CreateAsync(profile);
+        }
+        else
+        {
+            await _patientProfileService.UpdateAsync(profile);
+        }
+
+        await _activityLogService.LogActivityAsync(
+            profile.UserId,
+            "UpdatePatientProfile",
+            $"Profile ID: {profile.Id}");
+    }
+
+    /// <summary>
+    /// Update patient profile photo
+    /// Simplified interface for UI layer
+    /// </summary>
+    public async Task<bool> UpdatePatientProfilePhotoAsync(Guid userId, byte[]? photoData)
+    {
+        var success = await _patientProfileService.UpdateProfilePhotoAsync(userId, photoData);
+        
+        if (success)
+        {
+            await _activityLogService.LogActivityAsync(
+                userId,
+                photoData != null ? "UploadProfilePhoto" : "DeleteProfilePhoto",
+                $"User ID: {userId}");
+        }
+
+        return success;
+    }
 }
 
 // DTOs for Facade responses
