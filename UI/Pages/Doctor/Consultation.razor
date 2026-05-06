@@ -1,953 +1,687 @@
 @page "/doctor/consultation"
 @layout Components.Layout.DoctorSidebarLayout
 @using ai_clinic.Models
-@using ai_clinic.Services.Facades
-@inject DoctorFacade DoctorFacade
-@inject AuthFacade AuthFacade
-@inject NavigationManager NavigationManager
+@using ai_clinic.UI.Components
 
 <PageTitle>Consultations - AI Medical Clinic</PageTitle>
 
-<link rel="stylesheet" href="/css/stitch-design-system.css" />
-
-<!-- Header -->
-<header class="content-header">
-    <div class="header-left">
-        <h1>My Consultations</h1>
-        <p class="body-md" style="margin: 0.5rem;">
-            <span class="status-indicator status-@GetStatusClass()">●</span>
-            @GetActiveCount() active chatrooms
-        </p>
-    </div>
-    <div class="header-right">
-        <div class="availability-selector">
-            <label class="body-sm">Availability:</label>
-            <select class="availability-dropdown" @bind="selectedAvailability" @bind:after="OnAvailabilityChanged">
-                <option value="available">🟢 Available</option>
-                <option value="busy">🟡 Busy</option>
-                <option value="offline">🔴 Offline</option>
-            </select>
+<div class="consultation-container">
+    <!-- Left Sidebar: History -->
+    <div class="history-sidebar">
+        <div class="history-sidebar-header">
+            <h3>CONVERSATIONS</h3>
         </div>
-        <button class="btn btn-secondary" @onclick="LoadDataAsync">
-            <i data-lucide="refresh-cw"></i>
-            Refresh
-        </button>
-    </div>
-</header>
-
-<!-- Filter Tabs -->
-<div class="filter-tabs">
-    <button class="tab-btn @(selectedFilter == "all" ? "active" : "")" @onclick='() => SetFilter("all")'>
-        All Chatrooms (@conversations.Count)
-    </button>
-    <button class="tab-btn @(selectedFilter == "active" ? "active" : "")" @onclick='() => SetFilter("active")'>
-        Active (@GetFilteredCount(ConversationStatus.Active))
-    </button>
-    <button class="tab-btn @(selectedFilter == "pending" ? "active" : "")" @onclick='() => SetFilter("pending")'>
-        Pending (@GetFilteredCount(ConversationStatus.Deactive))
-    </button>
-    <button class="tab-btn @(selectedFilter == "completed" ? "active" : "")" @onclick='() => SetFilter("completed")'>
-        Completed (@GetFilteredCount(ConversationStatus.Closed))
-    </button>
-</div>
-
-<!-- Content Grid -->
-<div class="content-grid">
-    <!-- Chatroom List -->
-    <section class="chatrooms-section">
-        <div class="section-header">
-            <h2 class="headline-md">Chatrooms</h2>
-            <div class="search-box">
-                <i data-lucide="search"></i>
-                <input type="text" placeholder="Search chatrooms..." @bind="searchQuery" @bind:event="oninput" />
-            </div>
-        </div>
-        
-        @if (isLoading)
-        {
-            <div class="loading-state">
-                <i data-lucide="loader"></i>
-                <p>Loading consultations...</p>
-            </div>
-        }
-        else if (!GetFilteredConversations().Any())
-        {
-            <div class="empty-state">
-                <i data-lucide="inbox"></i>
-                <h3>No consultations found</h3>
-                <p>@GetEmptyStateMessage()</p>
-            </div>
-        }
-        else
-        {
-            <div class="chatrooms-list">
-                @foreach (var conversation in GetFilteredConversations())
+        <div class="history-list">
+            @if (conversationList.Count > 0)
+            {
+                @foreach (var conv in conversationList)
                 {
-                    var patientInitials = GetPatientInitials(conversation);
-                    var statusClass = GetConversationStatusClass(conversation.Status);
-                    var statusBadge = GetStatusBadge(conversation.Status);
-                    var timeAgo = GetTimeAgo(conversation.LastMessageAt);
-                    var messageCount = conversation.TotalMessages;
-                    var aiMessageCount = conversation.AiMessagesCount;
-                    var symptoms = conversation.InitialSymptoms ?? "No symptoms specified";
-                    var specialization = conversation.AiSuggestedSpecialization ?? conversation.RequiredSpecialization ?? "General";
-                    
-                    <div class="chatroom-item @statusClass" @onclick="() => EnterChat(conversation.Id)">
-                        <div class="chatroom-avatar">
-                            <span>@patientInitials</span>
+                    <div class="history-item @(currentConversation?.Id == conv.Id ? "active" : "")"
+                         @onclick="@(() => LoadConversation(conv.Id))">
+                        <div class="history-header">
+                            <div class="history-title">@conv.Title</div>
+                            @if (conv.UnreadCount > 0)
+                            {
+                                <span class="unread-badge">@conv.UnreadCount</span>
+                            }
                         </div>
-                        <div class="chatroom-info">
-                            <h4 class="headline-sm">@(conversation.Title ?? "Patient Consultation")</h4>
-                            <p class="body-sm">
-                                Symptoms: @symptoms
-                            </p>
-                            <p class="body-sm">
-                                Messages: @messageCount
-                                @if (aiMessageCount > 0)
+                        <div class="history-meta">@FormatTime(conv.LastMessageAt) • @conv.Status</div>
+                        @if (conv.IsAiConversation)
+                        {
+                            <span class="ai-tag">
+                                <i data-lucide="bot" style="width: 12px; height: 12px;"></i>
+                                AI Pre-assessment
+                            </span>
+                        }
+                    </div>
+                }
+            }
+            else
+            {
+                <div style="text-align: center; padding: 24px; color: #6b7280;">
+                    <i data-lucide="inbox" style="width: 48px; height: 48px; color: #d1d5db; margin: 0 auto 12px;"></i>
+                    <p>No conversations yet</p>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Main Chat Area -->
+    <div class="chat-area">
+        @if (currentConversation != null)
+        {
+            <!-- Header -->
+            <div class="chat-header" @key="@($"header-{currentConversation.Id}")">
+                <div class="chat-header-title">
+                    <i data-lucide="user" style="width: 20px; height: 20px; color: #3b82f6;"></i>
+                    <span>@(currentConversation.Patient?.Email?.Split('@')[0] ?? "Patient")</span>
+                </div>
+            </div>
+
+            <!-- Chat Messages -->
+            <div class="messages-container" id="messages-container">
+                @foreach (var message in messages)
+                {
+                    <div class="message @(message.SenderType == MessageSenderType.Doctor ? "user-message" :
+                                         message.SenderType == MessageSenderType.AI ? "ai-message" : "patient-message")">
+                        <div class="message-avatar">
+                            @if (message.SenderType == MessageSenderType.Doctor)
+                            {
+                                @if (!string.IsNullOrEmpty(doctorPhotoUrl))
                                 {
-                                    <span class="ai-badge">
-                                        <i data-lucide="bot"></i>
-                                        @aiMessageCount AI
-                                    </span>
+                                    <img src="@doctorPhotoUrl" alt="Doctor" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" />
                                 }
-                            </p>
+                                else
+                                {
+                                    <i data-lucide="user" style="width: 20px; height: 20px; color: white;"></i>
+                                }
+                            }
+                            else if (message.SenderType == MessageSenderType.AI)
+                            {
+                                <i data-lucide="bot" style="width: 20px; height: 20px; color: white;"></i>
+                            }
+                            else
+                            {
+                                @if (!string.IsNullOrEmpty(patientPhotoUrl))
+                                {
+                                    <img src="@patientPhotoUrl" alt="Patient" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" />
+                                }
+                                else
+                                {
+                                    <i data-lucide="user" style="width: 20px; height: 20px; color: white;"></i>
+                                }
+                            }
                         </div>
-                        <div class="chatroom-meta">
-                            <span class="badge @statusBadge">@conversation.Status.ToString().ToUpper()</span>
-                            <span class="time-badge">@timeAgo</span>
-                            <span class="specialization-tag">@specialization</span>
+                        <div class="message-content">
+                            <div class="message-text">
+                                @if (message.SenderType == MessageSenderType.AI)
+                                {
+                                    <MarkdownRenderer Content="@message.Content" />
+                                }
+                                else
+                                {
+                                    @message.Content
+                                }
+
+                                @* Display attachments if any *@
+                                @if (!string.IsNullOrEmpty(message.DocumentReferences))
+                                {
+                                    var docs = GetMessageDocuments(message.Id);
+                                    if (docs.Any())
+                                    {
+                                        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(0,0,0,0.1);">
+                                            @foreach (var doc in docs)
+                                            {
+                                                @if (IsImageDocument(doc))
+                                                {
+                                                    <!-- Image attachment - display inline -->
+                                                    <div style="margin-top: 8px;">
+                                                        <img src="@GetImageDataUrl(doc)" 
+                                                             alt="@doc.FileName" 
+                                                             style="max-width: 100%; max-height: 300px; border-radius: 8px; cursor: pointer;"
+                                                             @onclick="@(() => DownloadDocument(doc))"
+                                                             title="Click to download: @doc.FileName" />
+                                                        <div style="font-size: 11px; color: #6b7280; margin-top: 4px;">
+                                                            @doc.FileName (@FormatFileSize(doc.FileSizeBytes))
+                                                        </div>
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <!-- Non-image attachment - show download link -->
+                                                    <div style="margin-top: 8px; padding: 8px 12px; background: rgba(0,0,0,0.05); border-radius: 8px; display: flex; align-items: center; gap: 8px; cursor: pointer;"
+                                                         @onclick="@(() => DownloadDocument(doc))">
+                                                        <i data-lucide="file" style="width: 16px; height: 16px; color: #6b7280;"></i>
+                                                        <div style="flex: 1; min-width: 0;">
+                                                            <div style="font-size: 12px; font-weight: 500; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                                                @doc.FileName
+                                                            </div>
+                                                            <div style="font-size: 11px; color: #6b7280;">
+                                                                @FormatFileSize(doc.FileSizeBytes)
+                                                            </div>
+                                                        </div>
+                                                        <i data-lucide="download" style="width: 16px; height: 16px; color: #8b5cf6;"></i>
+                                                    </div>
+                                                }
+                                            }
+                                        </div>
+                                    }
+                                }
+
+                                <div class="message-time">@message.CreatedAt.ToString("HH:mm")</div>
+                            </div>
                         </div>
-                        <div class="chatroom-actions">
-                            <button class="btn-primary-sm" @onclick:stopPropagation="true" @onclick="() => EnterChat(conversation.Id)">
-                                <i data-lucide="message-circle"></i>
-                                Enter Chat
-                            </button>
+                    </div>
+                }
+
+                @if (isTyping)
+                {
+                    <div class="message ai-message">
+                        <div class="message-avatar">
+                            <i data-lucide="bot" style="width: 20px; height: 20px; color: white;"></i>
+                        </div>
+                        <div class="typing-indicator">
+                            <span></span>
+                            <span></span>
+                            <span></span>
                         </div>
                     </div>
                 }
             </div>
+
+            <!-- Input Area -->
+            <div class="input-area" @key="@($"input-{currentConversation.Id}")">
+                <div class="input-features">
+                    <span class="feature-badge">
+                        <i data-lucide="shield-check" style="width: 14px; height: 14px;"></i>
+                        Professional medical consultation
+                    </span>
+                </div>
+
+                <div class="input-box">
+                    <button class="icon-btn" title="Emoji">
+                        <i data-lucide="smile" style="width: 20px; height: 20px;"></i>
+                    </button>
+                    <input type="text"
+                           placeholder="Type your response..."
+                           @bind="newMessage"
+                           @bind:event="oninput"
+                           @onkeydown="HandleKeyPress" />
+                    <button class="icon-btn" title="Voice input">
+                        <i data-lucide="mic" style="width: 20px; height: 20px;"></i>
+                    </button>
+                    <button class="send-btn @(string.IsNullOrWhiteSpace(newMessage) ? "disabled" : "")"
+                            @onclick="SendMessage"
+                            disabled="@(string.IsNullOrWhiteSpace(newMessage))"
+                            title="Send message">
+                        <i data-lucide="send" style="width: 20px; height: 20px;"></i>
+                    </button>
+                </div>
+            </div>
         }
-    </section>
+        else
+        {
+            <div class="empty-state">
+                <i data-lucide="message-circle" style="width: 64px; height: 64px; color: #d1d5db; margin-bottom: 16px;"></i>
+                <div class="empty-state-text">Select a conversation to start</div>
+            </div>
+        }
+    </div>
 
-    <!-- Quick Stats -->
-    <section class="stats-sidebar">
-        <h3 class="headline-md">Overview</h3>
-        
-        <div class="availability-card">
-            <div class="availability-header">
-                <i data-lucide="activity"></i>
-                <h4 class="headline-sm">Your Status</h4>
-            </div>
-            <div class="availability-display">
-                <span class="status-dot status-@GetStatusClass()"></span>
-                <span class="status-text">@GetStatusText()</span>
-            </div>
-            <p class="status-message">@GetStatusMessage()</p>
-        </div>
-
-        <div class="stats-list">
-            <div class="stat-item">
-                <i data-lucide="message-circle" class="stat-icon"></i>
-                <div class="stat-info">
-                    <h4 class="headline-lg">@conversations.Count</h4>
-                    <p class="body-sm">Total Chatrooms</p>
-                </div>
-            </div>
-            <div class="stat-item">
-                <i data-lucide="activity" class="stat-icon active"></i>
-                <div class="stat-info">
-                    <h4 class="headline-lg">@GetFilteredCount(ConversationStatus.Active)</h4>
-                    <p class="body-sm">Active</p>
-                </div>
-            </div>
-            <div class="stat-item">
-                <i data-lucide="clock" class="stat-icon"></i>
-                <div class="stat-info">
-                    <h4 class="headline-lg">@GetFilteredCount(ConversationStatus.Deactive)</h4>
-                    <p class="body-sm">Pending</p>
-                </div>
-            </div>
-            <div class="stat-item">
-                <i data-lucide="check-circle" class="stat-icon success"></i>
-                <div class="stat-info">
-                    <h4 class="headline-lg">@GetFilteredCount(ConversationStatus.Closed)</h4>
-                    <p class="body-sm">Completed</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="ai-summary">
-            <div class="ai-header">
-                <i data-lucide="bot"></i>
-                <h4 class="headline-sm">AI Insights</h4>
-            </div>
-            <p class="body-sm">
-                @GetAiChatroomsCount() chatrooms have AI pre-assessments.
-                Average messages per chat: @GetAverageMessages()
+    <!-- Right Sidebar: Conversation Info -->
+    <div class="context-sidebar">
+        <h3>Conversation Info</h3>
+        @if (currentConversation != null)
+        {
+            <p class="context-description">
+                Consultation with @(currentConversation.Patient?.Email?.Split('@')[0] ?? "Patient")
             </p>
-        </div>
-    </section>
+
+            <div style="margin-top: 20px;">
+                <p style="font-size: 13px; color: #6b7280; margin-bottom: 8px;">
+                    <strong>Started:</strong> @currentConversation.StartedAt.ToString("MMM dd, yyyy HH:mm")
+                </p>
+                <p style="font-size: 13px; color: #6b7280; margin-bottom: 8px;">
+                    <strong>Messages:</strong> @currentConversation.TotalMessages
+                </p>
+                <p style="font-size: 13px; color: #6b7280; margin-bottom: 8px;">
+                    <strong>Status:</strong> @currentConversation.Status
+                </p>
+                @if (!string.IsNullOrEmpty(currentConversation.InitialSymptoms))
+                {
+                    <div style="margin-top: 16px; padding: 12px; background: #f0f9ff; border-radius: 8px; border-left: 3px solid #0ea5e9;">
+                        <p style="font-size: 12px; font-weight: 600; color: #0284c7; margin-bottom: 4px;">Initial Symptoms:</p>
+                        <p style="font-size: 13px; color: #0c4a6e; line-height: 1.5; margin: 0;">@currentConversation.InitialSymptoms</p>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <p class="context-description">No conversation selected</p>
+        }
+    </div>
 </div>
 
 @code {
-    private List<Conversation> conversations = new();
-    private bool isLoading = true;
-    private string selectedFilter = "all";
-    private string searchQuery = string.Empty;
-    private string selectedAvailability = "available";
-    private Guid currentDoctorId;
-
-    protected override async Task OnInitializedAsync()
-    {
-        // Get current doctor ID from auth facade
-        var currentUser = AuthFacade.CurrentUser;
-        if (currentUser == null || currentUser.Role != UserRole.Doctor)
-        {
-            NavigationManager.NavigateTo("/auth/login");
-            return;
-        }
-
-        currentDoctorId = currentUser.Id;
-        await LoadDataAsync();
-    }
-
-    private async Task LoadDataAsync()
-    {
-        isLoading = true;
-        StateHasChanged();
-
-        try
-        {
-            // Use DoctorFacade to get doctor's conversations
-            conversations = await DoctorFacade.GetDoctorConversationsAsync(currentDoctorId);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error loading consultations: {ex.Message}");
-            conversations = new();
-        }
-        finally
-        {
-            isLoading = false;
-            StateHasChanged();
-        }
-    }
-
-    private void SetFilter(string filter)
-    {
-        selectedFilter = filter;
-    }
-
-    private List<Conversation> GetFilteredConversations()
-    {
-        var filtered = conversations.AsEnumerable();
-
-        // Apply status filter
-        if (selectedFilter != "all")
-        {
-            filtered = selectedFilter switch
-            {
-                "active" => filtered.Where(c => c.Status == ConversationStatus.Active),
-                "pending" => filtered.Where(c => c.Status == ConversationStatus.Deactive),
-                "completed" => filtered.Where(c => c.Status == ConversationStatus.Closed),
-                _ => filtered
-            };
-        }
-
-        // Apply search filter
-        if (!string.IsNullOrWhiteSpace(searchQuery))
-        {
-            var query = searchQuery.ToLower();
-            filtered = filtered.Where(c =>
-                (c.Title?.ToLower().Contains(query) ?? false) ||
-                (c.InitialSymptoms?.ToLower().Contains(query) ?? false) ||
-                (c.Patient?.Email?.ToLower().Contains(query) ?? false)
-            );
-        }
-
-        return filtered.OrderByDescending(c => c.LastMessageAt).ToList();
-    }
-
-    private int GetFilteredCount(ConversationStatus status)
-    {
-        return conversations.Count(c => c.Status == status);
-    }
-
-    private int GetActiveCount()
-    {
-        return GetFilteredCount(ConversationStatus.Active);
-    }
-
-    private string GetPatientInitials(Conversation conversation)
-    {
-        if (conversation.Patient == null)
-            return "??";
-
-        var names = conversation.Patient.Email?.Split('@')[0].Split('.') ?? new[] { "U" };
-        if (names.Length >= 2)
-            return $"{names[0][0]}{names[1][0]}".ToUpper();
-        return names[0].Substring(0, Math.Min(2, names[0].Length)).ToUpper();
-    }
-
-    private string GetConversationStatusClass(ConversationStatus status)
-    {
-        return status switch
-        {
-            ConversationStatus.Active => "active",
-            ConversationStatus.Closed => "completed",
-            ConversationStatus.Deactive => "pending",
-            _ => ""
-        };
-    }
-
-    private string GetStatusBadge(ConversationStatus status)
-    {
-        return status switch
-        {
-            ConversationStatus.Active => "badge-active",
-            ConversationStatus.Closed => "badge-completed",
-            ConversationStatus.Deactive => "badge-pending",
-            ConversationStatus.Archived => "badge-default",
-            _ => "badge-default"
-        };
-    }
-
-    private string GetTimeAgo(DateTime dateTime)
-    {
-        var timeSpan = DateTime.UtcNow - dateTime;
-        
-        if (timeSpan.TotalMinutes < 1)
-            return "Just now";
-        if (timeSpan.TotalMinutes < 60)
-            return $"{(int)timeSpan.TotalMinutes} min ago";
-        if (timeSpan.TotalHours < 24)
-            return $"{(int)timeSpan.TotalHours} hour{((int)timeSpan.TotalHours != 1 ? "s" : "")} ago";
-        if (timeSpan.TotalDays < 7)
-            return $"{(int)timeSpan.TotalDays} day{((int)timeSpan.TotalDays != 1 ? "s" : "")} ago";
-        
-        return dateTime.ToString("MMM dd, yyyy");
-    }
-
-    private void EnterChat(Guid conversationId)
-    {
-        NavigationManager.NavigateTo($"/doctor/chat/{conversationId}");
-    }
-
-    private string GetStatusClass()
-    {
-        return selectedAvailability switch
-        {
-            "available" => "available",
-            "busy" => "busy",
-            "offline" => "offline",
-            _ => "available"
-        };
-    }
-
-    private string GetStatusText()
-    {
-        return selectedAvailability switch
-        {
-            "available" => "Available",
-            "busy" => "Busy",
-            "offline" => "Offline",
-            _ => "Available"
-        };
-    }
-
-    private string GetStatusMessage()
-    {
-        return selectedAvailability switch
-        {
-            "available" => "Ready to accept new consultations",
-            "busy" => "Currently in consultation",
-            "offline" => "Not accepting consultations",
-            _ => "Ready to accept new consultations"
-        };
-    }
-
-    private async Task OnAvailabilityChanged()
-    {
-        // TODO: Update doctor availability status in database
-        StateHasChanged();
-    }
-
-    private string GetEmptyStateMessage()
-    {
-        return selectedFilter switch
-        {
-            "active" => "No active consultations at the moment",
-            "pending" => "No pending consultations",
-            "completed" => "No completed consultations yet",
-            _ => "No consultations found"
-        };
-    }
-
-    private int GetAiChatroomsCount()
-    {
-        return conversations.Count(c => c.AiMessagesCount > 0);
-    }
-
-    private int GetAverageMessages()
-    {
-        if (conversations.Count == 0)
-            return 0;
-        return (int)conversations.Average(c => c.TotalMessages);
-    }
+    // Code-behind is in Consultation.razor.cs
 }
 
+
 <style>
-    .content-header {
+    .consultation-container {
+        display: grid;
+        grid-template-columns: 280px 1fr 320px;
+        height: 100vh;
+        background: #f5f7fa;
+        gap: 0;
+        margin: -2.5rem -3rem -2.5rem -3rem;
+        width: calc(100% + 6rem);
+        position: relative;
+    }
+
+    /* History Sidebar */
+    .history-sidebar {
+        background: white;
+        border-right: 1px solid #e5e7eb;
+        padding: 24px 16px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        height: 100vh;
+        position: relative;
+    }
+
+    .history-sidebar::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .history-sidebar::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+
+    .history-sidebar::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 4px;
+    }
+
+    .history-sidebar::-webkit-scrollbar-thumb:hover {
+        background: #a8a8a8;
+    }
+
+    .history-sidebar-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+    }
+
+    .history-sidebar h3 {
+        font-size: 12px;
+        font-weight: 600;
+        color: #6b7280;
+        letter-spacing: 0.5px;
+    }
+
+    .history-item {
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 8px;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    .history-item:hover {
+        background: #f9fafb;
+    }
+
+    .history-item.active {
+        background: #e0f2fe;
+        border-left: 3px solid #0ea5e9;
+    }
+
+    .history-header {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
-        margin-bottom: 2rem;
+        margin-bottom: 4px;
     }
 
-    .header-left h1 {
-        font-size: 2rem;
-        font-weight: 700;
-        color: #191c1e;
-        margin: 0.5rem;
-        font-family: 'Manrope', sans-serif;
+    .history-title {
+        font-size: 14px;
+        font-weight: 500;
+        color: #111827;
     }
 
-    .header-left p {
-        color: #434654;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .status-indicator {
-        font-size: 0.75rem;
-    }
-
-    .status-indicator.status-available {
-        color: #10b981;
-    }
-
-    .status-indicator.status-busy {
-        color: #f59e0b;
-    }
-
-    .status-indicator.status-away {
-        color: #f97316;
-    }
-
-    .status-indicator.status-offline {
+    .history-meta {
+        font-size: 12px;
         color: #6b7280;
     }
 
-    .header-right {
-        display: flex;
-        gap: 1rem;
-        align-items: center;
-    }
-
-    .availability-selector {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.75rem 1rem;
-        background: white;
-        border-radius: 8px;
-        border: 1px solid #e6e8ea;
-    }
-
-    .availability-selector label {
-        color: #434654;
-        font-weight: 500;
-    }
-
-    .availability-dropdown {
-        padding: 0.5rem 1rem;
-        border: 1px solid #e6e8ea;
-        border-radius: 6px;
-        font-size: 0.875rem;
-        font-weight: 600;
-        cursor: pointer;
-        background: white;
-        transition: all 0.2s;
-    }
-
-    .availability-dropdown:focus {
-        outline: none;
-        border-color: #1e40af;
-    }
-
-    .filter-tabs {
-        display: flex;
-        gap: 1rem;
-        margin-bottom: 2rem;
-        overflow-x: auto;
-        padding-bottom: 0.5rem;
-    }
-
-    .tab-btn {
-        padding: 0.75rem 1.5rem;
-        background: white;
-        border: 1px solid #e6e8ea;
-        border-radius: 8px;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.2s;
-        white-space: nowrap;
-        font-size: 0.875rem;
-    }
-
-    .tab-btn:hover {
-        background: #f7f9fb;
-    }
-
-    .tab-btn.active {
-        background: #1e40af;
+    .unread-badge {
+        background: #ef4444;
         color: white;
-        border-color: #1e40af;
+        font-size: 10px;
+        font-weight: 600;
+        padding: 2px 6px;
+        border-radius: 10px;
     }
 
-    .content-grid {
-        display: grid;
-        grid-template-columns: 2fr 1fr;
-        gap: 2rem;
+    .ai-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 11px;
+        color: #10b981;
+        margin-top: 4px;
+        font-weight: 500;
     }
 
-    .chatrooms-section {
-        grid-column: span 1;
+    /* Chat Area */
+    .chat-area {
+        display: flex;
+        flex-direction: column;
         background: white;
-        padding: 2rem;
-        border-radius: 16px;
+        position: relative;
+        height: 100vh;
+        overflow: hidden;
+        z-index: 1;
     }
 
-    .section-header {
+    .chat-header {
+        border-bottom: 1px solid #e5e7eb;
+        background: white;
+        flex-shrink: 0;
+        padding: 16px 24px;
+    }
+
+    .chat-header-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #111827;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 28px;
+    }
+
+    /* Messages */
+    .messages-container {
+        flex: 1;
+        overflow-y: auto;
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        min-height: 0;
+    }
+
+    .messages-container::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .messages-container::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+
+    .messages-container::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 4px;
+    }
+
+    .messages-container::-webkit-scrollbar-thumb:hover {
+        background: #a8a8a8;
+    }
+
+    .message {
+        display: flex;
+        gap: 12px;
+        max-width: 80%;
+    }
+
+    .message.user-message {
+        align-self: flex-end;
+        flex-direction: row-reverse;
+    }
+
+    .message-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .user-message .message-avatar {
+        background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    }
+
+    .ai-message .message-avatar {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+
+    .patient-message .message-avatar {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    }
+
+    .message-content {
+        flex: 1;
+    }
+
+    .message-text {
+        padding: 14px 18px;
+        border-radius: 16px;
+        font-size: 14px;
+        line-height: 1.6;
+        white-space: pre-wrap;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    }
+
+    .user-message .message-text {
+        background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+        color: white;
+    }
+
+    .ai-message .message-text {
+        background: #f9fafb;
+        color: #111827;
+        border: 1px solid #e5e7eb;
+    }
+
+    .patient-message .message-text {
+        background: #f0f9ff;
+        color: #0c4a6e;
+        border: 1px solid #bae6fd;
+    }
+
+    .message-time {
+        font-size: 11px;
+        color: #9ca3af;
+        margin-top: 6px;
+        opacity: 0.8;
+    }
+
+    .user-message .message-time {
+        color: rgba(255, 255, 255, 0.9);
+    }
+
+    .typing-indicator {
+        display: flex;
+        gap: 6px;
+        padding: 14px 18px;
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 16px;
+        width: fit-content;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    }
+
+    .typing-indicator span {
+        width: 8px;
+        height: 8px;
+        background: #6b7280;
+        border-radius: 50%;
+        animation: typing 1.4s infinite;
+    }
+
+    .typing-indicator span:nth-child(2) {
+        animation-delay: 0.2s;
+    }
+
+    .typing-indicator span:nth-child(3) {
+        animation-delay: 0.4s;
+    }
+
+    @@keyframes typing {
+        0%, 60%, 100% {
+            transform: translateY(0);
+        }
+
+        30% {
+            transform: translateY(-10px);
+        }
+    }
+
+    /* Input Area */
+    .input-area {
+        padding: 20px 24px;
+        border-top: 1px solid #e5e7eb;
+        background: white;
+        flex-shrink: 0;
+    }
+
+    .input-features {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 1.75rem;
+        margin-bottom: 14px;
     }
 
-    .section-header h2 {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: #191c1e;
-    }
-
-    .search-box {
+    .feature-badge {
+        font-size: 12px;
+        color: #8b5cf6;
         display: flex;
         align-items: center;
-        gap: 0.75rem;
-        padding: 0.75rem 1rem;
-        background: #f7f9fb;
-        border-radius: 8px;
-        min-width: 300px;
+        gap: 6px;
+        font-weight: 500;
     }
 
-    .search-box input {
+    .input-box {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        padding: 14px 16px;
+        border: 2px solid #e5e7eb;
+        border-radius: 16px;
+        background: white;
+        transition: all 0.2s;
+    }
+
+    .input-box:focus-within {
+        border-color: #8b5cf6;
+        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+    }
+
+    .icon-btn {
+        background: transparent;
+        border: none;
+        color: #6b7280;
+        cursor: pointer;
+        padding: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+        transition: all 0.2s;
+    }
+
+    .icon-btn:hover {
+        background: #f3f4f6;
+        color: #374151;
+    }
+
+    .input-box input {
+        flex: 1;
         border: none;
         background: transparent;
+        font-size: 14px;
         outline: none;
-        font-size: 0.875rem;
-        width: 100%;
+        color: #111827;
     }
 
-    .loading-state,
+    .input-box input::placeholder {
+        color: #9ca3af;
+    }
+
+    .send-btn {
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        box-shadow: 0 2px 4px rgba(139, 92, 246, 0.2);
+    }
+
+    .send-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(139, 92, 246, 0.3);
+    }
+
+    .send-btn.disabled {
+        background: #e5e7eb;
+        cursor: not-allowed;
+        box-shadow: none;
+    }
+
+    .send-btn.disabled:hover {
+        transform: none;
+    }
+
+    /* Context Sidebar */
+    .context-sidebar {
+        background: white;
+        border-left: 1px solid #e5e7eb;
+        padding: 24px 16px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        height: 100vh;
+        position: relative;
+    }
+
+    .context-sidebar::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .context-sidebar::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+
+    .context-sidebar::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 4px;
+    }
+
+    .context-sidebar::-webkit-scrollbar-thumb:hover {
+        background: #a8a8a8;
+    }
+
+    .context-sidebar h3 {
+        font-size: 16px;
+        font-weight: 600;
+        color: #111827;
+        margin-bottom: 8px;
+    }
+
+    .context-description {
+        font-size: 13px;
+        color: #6b7280;
+        margin-bottom: 20px;
+        line-height: 1.5;
+    }
+
     .empty-state {
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        padding: 4rem 2rem;
-        text-align: center;
-        color: #434654;
+        height: 100%;
+        color: #6b7280;
     }
 
-    .loading-state i,
-    .empty-state i {
-        font-size: 3rem;
-        margin-bottom: 1rem;
-        color: #9ca3af;
+    .empty-state-icon {
+        font-size: 64px;
+        margin-bottom: 16px;
     }
 
-    .empty-state h3 {
-        font-size: 1.25rem;
-        font-weight: 600;
-        color: #191c1e;
-        margin-bottom: 0.5rem;
-    }
-
-    .chatrooms-list {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-    }
-
-    .chatroom-item {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        padding: 1.25rem;
-        background: #f7f9fb;
-        border-radius: 12px;
-        border-left: 4px solid #e6e8ea;
-        transition: all 0.2s;
-        cursor: pointer;
-    }
-
-    .chatroom-item:hover {
-        background: #eceef0;
-        transform: translateX(4px);
-    }
-
-    .chatroom-item.urgent {
-        border-left-color: #ef4444;
-        background: #fef2f2;
-    }
-
-    .chatroom-item.active {
-        border-left-color: #10b981;
-        background: #f0fdf4;
-    }
-
-    .chatroom-avatar {
-        width: 56px;
-        height: 56px;
-        min-width: 56px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, #1e40af, #1e3a8a);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-weight: 600;
-        font-size: 1.125rem;
-    }
-
-    .chatroom-info {
-        flex: 1;
-    }
-
-    .chatroom-info h4 {
-        font-size: 1rem;
-        font-weight: 600;
-        color: #191c1e;
-        margin-bottom: 0.25rem;
-    }
-
-    .chatroom-info p {
-        font-size: 0.8125rem;
-        color: #434654;
-        margin-bottom: 0.125rem;
-    }
-
-    .ai-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.25rem;
-        padding: 0.125rem 0.5rem;
-        background: #f3e8ff;
-        border-radius: 4px;
-        color: #7c3aed;
-        font-size: 0.75rem;
-        font-weight: 600;
-        margin-left: 0.5rem;
-    }
-
-    .chatroom-meta {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-end;
-        gap: 0.5rem;
-    }
-
-    .badge {
-        padding: 0.375rem 0.75rem;
-        border-radius: 6px;
-        font-size: 0.625rem;
-        font-weight: 700;
-        letter-spacing: 0.05em;
-        white-space: nowrap;
-    }
-
-    .badge-urgent {
-        background: #fee2e2;
-        color: #991b1b;
-    }
-
-    .badge-active {
-        background: #d1fae5;
-        color: #065f46;
-    }
-
-    .badge-pending {
-        background: #fef3c7;
-        color: #92400e;
-    }
-
-    .badge-completed {
-        background: #e0e7ff;
-        color: #3730a3;
-    }
-
-    .badge-default {
-        background: #f3f4f6;
-        color: #4b5563;
-    }
-
-    .time-badge {
-        font-size: 0.75rem;
-        color: #434654;
+    .empty-state-text {
+        font-size: 18px;
         font-weight: 500;
-    }
-
-    .specialization-tag {
-        font-size: 0.75rem;
-        padding: 0.25rem 0.5rem;
-        background: #dbeafe;
-        color: #1e40af;
-        border-radius: 4px;
-        font-weight: 500;
-    }
-
-    .chatroom-actions {
-        display: flex;
-        gap: 0.5rem;
-    }
-
-    .btn-primary-sm {
-        padding: 0.5rem 1rem;
-        background: #1e40af;
-        color: white;
-        border: none;
-        border-radius: 8px;
-        font-size: 0.8125rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .btn-primary-sm:hover {
-        background: #1e3a8a;
-    }
-
-    .stats-sidebar {
-        grid-column: span 1;
-        background: white;
-        padding: 2rem;
-        border-radius: 16px;
-        height: fit-content;
-    }
-
-    .stats-sidebar h3 {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: #191c1e;
-        margin-bottom: 1.5rem;
-    }
-
-    .availability-card {
-        padding: 1.5rem;
-        background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
-        border-radius: 12px;
-        margin-bottom: 1.5rem;
-    }
-
-    .availability-header {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        margin-bottom: 1rem;
-        color: #1e40af;
-    }
-
-    .availability-header h4 {
-        font-size: 1rem;
-        font-weight: 600;
-    }
-
-    .availability-display {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        margin-bottom: 0.5rem;
-    }
-
-    .status-dot {
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-    }
-
-    .status-dot.status-available {
-        background: #10b981;
-    }
-
-    .status-dot.status-busy {
-        background: #f59e0b;
-    }
-
-    .status-dot.status-away {
-        background: #f97316;
-    }
-
-    .status-dot.status-offline {
-        background: #6b7280;
-    }
-
-    .status-text {
-        font-size: 1.125rem;
-        font-weight: 600;
-        color: #191c1e;
-    }
-
-    .status-message {
-        font-size: 0.8125rem;
-        color: #059669;
-        font-weight: 500;
-        margin-top: 0.5rem;
-    }
-
-    .stats-list {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-        margin-bottom: 2rem;
-    }
-
-    .stat-item {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        padding: 1rem;
-        background: #f7f9fb;
-        border-radius: 12px;
-    }
-
-    .stat-icon {
-        width: 48px;
-        height: 48px;
-        min-width: 48px;
-        background: #1e40af;
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.5rem;
-        color: white;
-    }
-
-    .stat-icon.active {
-        background: #10b981;
-    }
-
-    .stat-icon.success {
-        background: #10b981;
-    }
-
-    .stat-info h4 {
-        font-size: 1.75rem;
-        font-weight: 700;
-        color: #191c1e;
-        margin-bottom: 0.25rem;
-    }
-
-    .stat-info p {
-        color: #434654;
-        font-size: 0.875rem;
-    }
-
-    .ai-summary {
-        padding: 1.5rem;
-        background: linear-gradient(135deg, #f3e8ff, #e9d5ff);
-        border-radius: 12px;
-    }
-
-    .ai-header {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        margin-bottom: 1rem;
-        color: #7c3aed;
-    }
-
-    .ai-header h4 {
-        font-size: 1rem;
-        font-weight: 600;
-    }
-
-    .ai-summary p {
-        color: #6b21a8;
-        margin-bottom: 0;
-        line-height: 1.5;
-        font-size: 0.875rem;
-    }
-
-    .btn {
-        padding: 0.75rem 1.5rem;
-        border-radius: 8px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s;
-        border: none;
-        font-size: 0.875rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .btn-primary {
-        background: #1e40af;
-        color: white;
-    }
-
-    .btn-primary:hover {
-        background: #1e3a8a;
-        transform: translateY(-1px);
-    }
-
-    .btn-secondary {
-        background: #e6e8ea;
-        color: #191c1e;
-    }
-
-    .btn-secondary:hover {
-        background: #d8dadc;
-    }
-
-    @@media (max-width: 1024px) {
-        .content-grid {
-            grid-template-columns: 1fr;
-        }
-
-        .chatrooms-section,
-        .stats-sidebar {
-            grid-column: span 1;
-        }
-
-        .search-box {
-            min-width: 200px;
-        }
-    }
-
-    @@media (max-width: 768px) {
-        .chatroom-item {
-            flex-wrap: wrap;
-        }
-
-        .chatroom-actions {
-            width: 100%;
-            justify-content: flex-end;
-        }
-
-        .header-right {
-            flex-direction: column;
-            align-items: stretch;
-        }
-
-        .availability-selector {
-            width: 100%;
-        }
     }
 </style>

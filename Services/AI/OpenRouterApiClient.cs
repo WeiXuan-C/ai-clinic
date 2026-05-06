@@ -96,7 +96,8 @@ namespace ai_clinic.Services.AI
                 if (result.Choices != null && result.Choices.Length > 0)
                 {
                     var firstChoice = result.Choices[0];
-                    Console.WriteLine($"[API] First Choice Content Length: {firstChoice.Message?.Content?.Length ?? 0} chars");
+                    var contentLength = firstChoice.Message?.Content is string str ? str.Length : 0;
+                    Console.WriteLine($"[API] First Choice Content Length: {contentLength} chars");
                 }
                 Console.WriteLine("=== [OPENROUTER API DEBUG] CallApiAsync Completed ===\n");
                 
@@ -254,7 +255,34 @@ namespace ai_clinic.Services.AI
         public string Role { get; set; } = string.Empty;
 
         [JsonPropertyName("content")]
-        public string Content { get; set; } = string.Empty;
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public object? Content { get; set; } // Can be string or ContentPart[]
+    }
+
+    /// <summary>
+    /// Content part for multimodal messages (text + images)
+    /// </summary>
+    public class ContentPart
+    {
+        [JsonPropertyName("type")]
+        public string Type { get; set; } = string.Empty; // "text" or "image_url"
+
+        [JsonPropertyName("text")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? Text { get; set; }
+
+        [JsonPropertyName("image_url")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public ImageUrl? ImageUrl { get; set; }
+    }
+
+    /// <summary>
+    /// Image URL for multimodal messages
+    /// </summary>
+    public class ImageUrl
+    {
+        [JsonPropertyName("url")]
+        public string Url { get; set; } = string.Empty; // Can be URL or data:image/jpeg;base64,...
     }
 
     public class OpenRouterResponse

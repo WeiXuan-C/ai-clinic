@@ -16,7 +16,7 @@ public class PatientFacade
     private readonly ConsultationService _consultationService;
     private readonly ActivityLogService _activityLogService;
     private readonly DocumentService _documentService;
-    private readonly PatientConsultationWorkflowService _workflowService;
+    // private readonly PatientConsultationWorkflowService _workflowService;
     private readonly MedicalRecordExportService _exportService;
 
     public PatientFacade(
@@ -27,7 +27,7 @@ public class PatientFacade
         ConsultationService consultationService,
         ActivityLogService activityLogService,
         DocumentService documentService,
-        PatientConsultationWorkflowService workflowService,
+        // PatientConsultationWorkflowService workflowService,
         MedicalRecordExportService exportService)
     {
         _patientProfileService = patientProfileService;
@@ -37,7 +37,7 @@ public class PatientFacade
         _consultationService = consultationService;
         _activityLogService = activityLogService;
         _documentService = documentService;
-        _workflowService = workflowService;
+        // _workflowService = workflowService;
         _exportService = exportService;
     }
 
@@ -375,6 +375,9 @@ public class PatientFacade
     }
 
     #endregion
+    
+    /*
+    // TODO: Implement PatientConsultationWorkflowService and related types
     /// <summary>
     /// 发送患者消息并获取AI分析和医生推荐
     /// 完整的工作流：消息 -> AI分析 -> 症状提取 -> 医疗记录 -> 医生推荐
@@ -442,6 +445,7 @@ public class PatientFacade
     {
         return await _workflowService.GetRecommendedDoctorsAsync(analysis);
     }
+    */
 
     /// <summary>
     /// Get patient settings

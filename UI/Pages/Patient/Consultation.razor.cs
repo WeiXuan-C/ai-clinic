@@ -1,23 +1,26 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
+using Microsoft.AspNetCore.Components.Forms;
 using ai_clinic.Models;
 using ai_clinic.Services;
 using ai_clinic.Services.Facades;
 using ConversationListItem = ai_clinic.Services.ConversationListItem;
 using DoctorListItem = ai_clinic.Services.DoctorListItem;
-using static ai_clinic.Services.Facades.ConsultationFacade;
 
 namespace ai_clinic.UI.Pages.Patient;
 
 /// <summary>
 /// Patient consultation page - Uses Facade Pattern to simplify complex interactions
 /// </summary>
-public partial class Consultation : ComponentBase
+public partial class Consultation : ComponentBase, IAsyncDisposable
 {
     [Inject] private NavigationManager Navigation { get; set; } = null!;
     [Inject] private AuthFacade AuthFacade { get; set; } = null!;
     [Inject] private ConsultationFacade ConsultationFacade { get; set; } = null!;
     [Inject] private IJSRuntime JS { get; set; } = null!;
+    [Inject] private DocumentService DocumentService { get; set; } = null!;
+    [Inject] private NavigationManager NavigationManager { get; set; } = null!;
+    [Inject] private SignalRConsultationService SignalRService { get; set; } = null!;
 
     private List<ConversationListItem> conversationList = [];
     private List<Message> messages = [];
@@ -41,6 +44,11 @@ public partial class Consultation : ComponentBase
     private Guid? selectedRecommendedDoctorId = null;
     private bool _iconsInitialized = false;
     private string? patientPhotoUrl = null;
+    private List<AttachmentFile> attachments = new();
+    private bool isUploadingFile = false;
+    private Dictionary<Guid, List<Document>> messageDocuments = new();
+    private Guid currentPatientId;
+    private bool _signalRInitialized = false;
     
     private string DoctorSearchQuery
     {
@@ -60,13 +68,160 @@ public partial class Consultation : ComponentBase
             return;
         }
 
+        currentPatientId = AuthFacade.CurrentUser.Id;
+
         // Load patient photo
         await LoadPatientPhoto();
+
+        // Initialize SignalR
+        await InitializeSignalR();
 
         // Load available AI models
         LoadAvailableModels();
         
         await LoadConversations();
+    }
+
+    /// <summary>
+    /// Initialize SignalR connection and event handlers
+    /// </summary>
+    private async Task InitializeSignalR()
+    {
+        if (_signalRInitialized)
+            return;
+
+        try
+        {
+            var baseUrl = Navigation.BaseUri.TrimEnd('/');
+            var hubUrl = $"{baseUrl}/consultationHub";
+
+            Console.WriteLine($"[SignalR Patient] Initializing connection to: {hubUrl}");
+
+            // Initialize connection
+            await SignalRService.InitializeAsync(hubUrl);
+
+            // Register user
+            await SignalRService.RegisterUserAsync(currentPatientId);
+
+            // Subscribe to events
+            SignalRService.OnMessageReceived += HandleMessageReceived;
+            SignalRService.OnUserTyping += HandleUserTyping;
+            SignalRService.OnUserStoppedTyping += HandleUserStoppedTyping;
+            SignalRService.OnConnected += HandleConnected;
+            SignalRService.OnDisconnected += HandleDisconnected;
+            SignalRService.OnReconnected += HandleReconnected;
+
+            _signalRInitialized = true;
+            Console.WriteLine("[SignalR Patient] Initialization complete");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[SignalR Patient] Initialization failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Handle incoming real-time messages
+    /// </summary>
+    private void HandleMessageReceived(MessageReceivedEventArgs args)
+    {
+        Console.WriteLine($"[SignalR Patient] Message received: {args.MessageId} in conversation {args.ConversationId}");
+
+        // Only process if it's for the current conversation
+        if (currentConversation?.Id != args.ConversationId)
+            return;
+
+        // Don't add if it's our own message
+        if (args.SenderId == currentPatientId)
+            return;
+
+        // Check if message already exists
+        if (messages.Any(m => m.Id == args.MessageId))
+            return;
+
+        // Add new message
+        var message = new Message
+        {
+            Id = args.MessageId,
+            ConversationId = args.ConversationId,
+            SenderId = args.SenderId,
+            SenderType = Enum.Parse<MessageSenderType>(args.SenderType),
+            Content = args.Content,
+            CreatedAt = args.CreatedAt,
+            IsRead = args.IsRead
+        };
+
+        messages.Add(message);
+        InvokeAsync(async () =>
+        {
+            StateHasChanged();
+            await ScrollToBottom();
+        });
+    }
+
+    /// <summary>
+    /// Handle user typing notification
+    /// </summary>
+    private void HandleUserTyping(TypingEventArgs args)
+    {
+        if (currentConversation?.Id != args.ConversationId)
+            return;
+
+        // Don't show typing indicator for patient's own typing
+        if (args.UserRole == "Patient")
+            return;
+
+        isTyping = true;
+        InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>
+    /// Handle user stopped typing notification
+    /// </summary>
+    private void HandleUserStoppedTyping(TypingEventArgs args)
+    {
+        if (currentConversation?.Id != args.ConversationId)
+            return;
+
+        isTyping = false;
+        InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>
+    /// Handle SignalR connected event
+    /// </summary>
+    private void HandleConnected()
+    {
+        Console.WriteLine("[SignalR Patient] Connected");
+        InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>
+    /// Handle SignalR disconnected event
+    /// </summary>
+    private void HandleDisconnected(Exception? ex)
+    {
+        Console.WriteLine($"[SignalR Patient] Disconnected: {ex?.Message}");
+        InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>
+    /// Handle SignalR reconnected event
+    /// </summary>
+    private void HandleReconnected()
+    {
+        Console.WriteLine("[SignalR Patient] Reconnected");
+        
+        // Re-register user and rejoin conversation
+        InvokeAsync(async () =>
+        {
+            await SignalRService.RegisterUserAsync(currentPatientId);
+            if (currentConversation != null)
+            {
+                await SignalRService.JoinConversationAsync(currentConversation.Id);
+            }
+            StateHasChanged();
+        });
     }
 
     /// <summary>
@@ -161,6 +316,12 @@ public partial class Consultation : ComponentBase
     {
         try
         {
+            // Leave previous conversation
+            if (currentConversation != null && _signalRInitialized)
+            {
+                await SignalRService.LeaveConversationAsync(currentConversation.Id);
+            }
+
             // Clear current state first to prevent overlapping
             currentConversation = null;
             messages = [];
@@ -183,6 +344,16 @@ public partial class Consultation : ComponentBase
             currentConversation = session.Conversation;
             messages = session.Messages;
             isAiMode = session.IsAiConsultation;
+
+            // Join new conversation via SignalR
+            if (_signalRInitialized)
+            {
+                await SignalRService.JoinConversationAsync(conversationId);
+                Console.WriteLine($"[SignalR Patient] Joined conversation: {conversationId}");
+            }
+            
+            // Load attachments for all messages
+            await LoadMessageAttachments();
             
             await InvokeAsync(StateHasChanged);
             
@@ -307,39 +478,78 @@ public partial class Consultation : ComponentBase
     /// </summary>
     private async Task SendMessage()
     {
-        if (string.IsNullOrWhiteSpace(newMessage) || currentConversation == null)
+        if ((string.IsNullOrWhiteSpace(newMessage) && attachments.Count == 0) || currentConversation == null)
             return;
 
         var messageContent = newMessage;
+        var messageAttachments = new List<AttachmentFile>(attachments);
         newMessage = "";
+        attachments.Clear();
         StateHasChanged(); // Clear input immediately
 
         Console.WriteLine("=== [DEBUG] SendMessage Started ===");
         Console.WriteLine($"[DEBUG] Message: {messageContent}");
+        Console.WriteLine($"[DEBUG] Attachments: {messageAttachments.Count}");
         Console.WriteLine($"[DEBUG] Is AI Conversation: {currentConversation.AssignedDoctorId == null}");
 
         try
         {
-            // 1. 如果是AI对话，创建空的AI消息用于流式输出（先不显示用户消息）
+            // 1. Upload attachments first if any
+            List<Guid> documentIds = new();
+            if (messageAttachments.Count > 0)
+            {
+                foreach (var attachment in messageAttachments)
+                {
+                    try
+                    {
+                        var document = new Document
+                        {
+                            ConversationId = currentConversation.Id,
+                            UploadedByUserId = AuthFacade.CurrentUser!.Id,
+                            FileName = attachment.FileName,
+                            FileType = DetermineDocumentType(attachment.ContentType),
+                            FileSizeBytes = attachment.FileSize,
+                            FileUrl = $"/uploads/{Guid.NewGuid()}_{attachment.FileName}",
+                            MimeType = attachment.ContentType,
+                            FileData = attachment.FileData,
+                            PatientId = AuthFacade.CurrentUser!.Id
+                        };
+
+                        var savedDoc = await DocumentService.CreateAsync(document);
+                        documentIds.Add(savedDoc.Id);
+                        Console.WriteLine($"[DEBUG] Uploaded document: {savedDoc.FileName} (ID: {savedDoc.Id})");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[ERROR] Failed to upload attachment {attachment.FileName}: {ex.Message}");
+                    }
+                }
+            }
+
+            // 2. If is AI conversation, create empty AI message for streaming
             Message? aiMessage = null;
             Message? userMessage = null;
             
             if (currentConversation.AssignedDoctorId == null)
             {
-                // 显示typing indicator，但不显示空的AI消息框
+                // Show typing indicator
                 isTyping = true;
-                StateHasChanged();
+                await InvokeAsync(() =>
+                {
+                    StateHasChanged();
+                });
                 Console.WriteLine("[DEBUG] Showing typing indicator, waiting for stream...");
             }
 
-            // 2. 发送消息到后端并获取流式响应
+            // 3. Send message with attachments
             Console.WriteLine("[DEBUG] Calling ConsultationFacade.SendPatientMessageWithStreamingAsync...");
             
             var chunkCount = 0;
-            await foreach (var chunk in ConsultationFacade.SendPatientMessageWithStreamingAsync(
+            await foreach (var chunk in ConsultationFacade.SendPatientMessageWithAttachmentsAsync(
                 currentConversation.Id,
                 AuthFacade.CurrentUser!.Id,
-                messageContent))
+                messageContent,
+                documentIds))
             {
                 chunkCount++;
                 Console.WriteLine($"[DEBUG] Received chunk #{chunkCount}: IsUserMessage={chunk.IsUserMessage}, IsAiChunk={chunk.IsAiChunk}, IsComplete={chunk.IsComplete}");
@@ -347,24 +557,26 @@ public partial class Consultation : ComponentBase
                 if (chunk.IsUserMessage)
                 {
                     Console.WriteLine($"[DEBUG] Processing user message chunk");
-                    // 第一次收到用户消息时才显示
                     if (userMessage == null && chunk.Message != null)
                     {
                         userMessage = chunk.Message;
                         messages.Add(userMessage);
-                        StateHasChanged();
-                        await ScrollToBottom();
+                        await InvokeAsync(() =>
+                        {
+                            StateHasChanged();
+                        });
+                        _ = ScrollToBottom();
                         Console.WriteLine($"[DEBUG] Added user message with ID: {chunk.Message.Id}");
                     }
                 }
                 else if (chunk.IsAiChunk)
                 {
-                    // 第一个AI chunk到达时，创建AI消息框
+                    // First AI chunk - create AI message box
                     if (aiMessage == null)
                     {
                         aiMessage = new Message
                         {
-                            Id = Guid.NewGuid(), // Temporary ID
+                            Id = Guid.NewGuid(),
                             ConversationId = currentConversation.Id,
                             SenderId = null,
                             SenderType = MessageSenderType.AI,
@@ -378,26 +590,32 @@ public partial class Consultation : ComponentBase
                     }
                     else
                     {
-                        // 后续chunk追加内容
+                        // Append content
                         aiMessage.Content += chunk.Content;
                         Console.WriteLine($"[DEBUG] AI content updated, length: {aiMessage.Content.Length}");
                     }
                     
-                    // Force immediate UI update for streaming effect
-                    await InvokeAsync(StateHasChanged);
-                    await Task.Delay(1); // Tiny delay to ensure UI renders
-                    await ScrollToBottom();
+                    // Critical: Use InvokeAsync to marshal UI updates to the component's sync context
+                    await InvokeAsync(() =>
+                    {
+                        StateHasChanged();
+                    });
+                    
+                    // Scroll to bottom without blocking
+                    _ = ScrollToBottom();
                 }
                 else if (chunk.IsComplete && chunk.Message != null)
                 {
                     Console.WriteLine($"[DEBUG] AI message complete, final length: {chunk.Message.Content.Length}");
-                    // AI消息完成，更新为最终版本
                     if (aiMessage != null)
                     {
                         messages.Remove(aiMessage);
                         messages.Add(chunk.Message);
                         Console.WriteLine($"[DEBUG] Replaced temporary AI message with final version, ID: {chunk.Message.Id}");
-                        StateHasChanged();
+                        await InvokeAsync(() =>
+                        {
+                            StateHasChanged();
+                        });
                     }
                 }
             }
@@ -405,7 +623,10 @@ public partial class Consultation : ComponentBase
             Console.WriteLine($"[DEBUG] Streaming completed, total chunks: {chunkCount}");
             
             isTyping = false;
-            StateHasChanged();
+            await InvokeAsync(() =>
+            {
+                StateHasChanged();
+            });
             await ScrollToBottom();
 
             Console.WriteLine("=== [DEBUG] SendMessage Completed Successfully ===\n");
@@ -424,8 +645,26 @@ public partial class Consultation : ComponentBase
             Console.WriteLine("[ERROR] Message failed to send");
             
             isTyping = false;
-            StateHasChanged();
+            await InvokeAsync(() =>
+            {
+                StateHasChanged();
+            });
         }
+    }
+
+    /// <summary>
+    /// Determines document type from MIME type
+    /// </summary>
+    private static DocumentType DetermineDocumentType(string mimeType)
+    {
+        if (mimeType.StartsWith("image/"))
+            return DocumentType.Image;
+        else if (mimeType == "application/pdf")
+            return DocumentType.MedicalRecord;
+        else if (mimeType.Contains("word") || mimeType.Contains("document"))
+            return DocumentType.MedicalRecord;
+        else
+            return DocumentType.Other;
     }
 
     private async Task HandleKeyPress(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)
@@ -631,6 +870,228 @@ public partial class Consultation : ComponentBase
         {
             Console.WriteLine($"[UI] Error starting consultation with doctor: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Loads attachments for all messages in current conversation
+    /// </summary>
+    private async Task LoadMessageAttachments()
+    {
+        messageDocuments.Clear();
+        
+        foreach (var message in messages)
+        {
+            if (!string.IsNullOrEmpty(message.DocumentReferences))
+            {
+                try
+                {
+                    var docIds = message.DocumentReferences
+                        .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                        .Select(id => Guid.Parse(id.Trim()))
+                        .ToList();
+
+                    var docs = new List<Document>();
+                    foreach (var docId in docIds)
+                    {
+                        var doc = await DocumentService.GetByIdAsync(docId);
+                        if (doc != null)
+                        {
+                            docs.Add(doc);
+                        }
+                    }
+
+                    if (docs.Any())
+                    {
+                        messageDocuments[message.Id] = docs;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[ERROR] Failed to load attachments for message {message.Id}: {ex.Message}");
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets documents for a specific message
+    /// </summary>
+    private List<Document> GetMessageDocuments(Guid messageId)
+    {
+        return messageDocuments.TryGetValue(messageId, out var docs) ? docs : new List<Document>();
+    }
+
+    /// <summary>
+    /// Checks if a document is an image
+    /// </summary>
+    private static bool IsImageDocument(Document doc)
+    {
+        return doc.MimeType?.StartsWith("image/") == true;
+    }
+
+    /// <summary>
+    /// Gets base64 data URL for image display
+    /// </summary>
+    private static string GetImageDataUrl(Document doc)
+    {
+        if (doc.FileData != null && doc.FileData.Length > 0)
+        {
+            var base64 = Convert.ToBase64String(doc.FileData);
+            return $"data:{doc.MimeType};base64,{base64}";
+        }
+        return string.Empty;
+    }
+
+    /// <summary>
+    /// Downloads a document
+    /// </summary>
+    private async Task DownloadDocument(Document doc)
+    {
+        try
+        {
+            if (doc.FileData != null && doc.FileData.Length > 0)
+            {
+                var base64 = Convert.ToBase64String(doc.FileData);
+                var dataUrl = $"data:{doc.MimeType};base64,{base64}";
+                
+                await JS.InvokeVoidAsync("downloadFile", doc.FileName, dataUrl);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ERROR] Failed to download document: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Handles file selection for attachment
+    /// </summary>
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        const long maxFileSize = 10 * 1024 * 1024; // 10MB
+        const int maxAllowedFiles = 5;
+
+        if (attachments.Count >= maxAllowedFiles)
+        {
+            Console.WriteLine($"[UI] Maximum {maxAllowedFiles} files allowed");
+            return;
+        }
+
+        foreach (var file in e.GetMultipleFiles(maxAllowedFiles - attachments.Count))
+        {
+            if (file.Size > maxFileSize)
+            {
+                Console.WriteLine($"[UI] File {file.Name} exceeds maximum size of 10MB");
+                continue;
+            }
+
+            try
+            {
+                isUploadingFile = true;
+                StateHasChanged();
+
+                // Read file content
+                using var stream = file.OpenReadStream(maxFileSize);
+                using var memoryStream = new MemoryStream();
+                await stream.CopyToAsync(memoryStream);
+                var fileData = memoryStream.ToArray();
+
+                // Create attachment object
+                var attachment = new AttachmentFile
+                {
+                    FileName = file.Name,
+                    ContentType = file.ContentType,
+                    FileSize = file.Size,
+                    FileData = fileData,
+                    PreviewUrl = await GeneratePreviewUrl(file, fileData)
+                };
+
+                attachments.Add(attachment);
+                Console.WriteLine($"[UI] File {file.Name} added to attachments");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[UI] Error uploading file {file.Name}: {ex.Message}");
+            }
+            finally
+            {
+                isUploadingFile = false;
+                StateHasChanged();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Generates preview URL for image files
+    /// </summary>
+    private async Task<string?> GeneratePreviewUrl(IBrowserFile file, byte[] fileData)
+    {
+        if (file.ContentType.StartsWith("image/"))
+        {
+            var base64 = Convert.ToBase64String(fileData);
+            return $"data:{file.ContentType};base64,{base64}";
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Removes an attachment from the list
+    /// </summary>
+    private void RemoveAttachment(AttachmentFile attachment)
+    {
+        attachments.Remove(attachment);
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Formats file size for display
+    /// </summary>
+    private static string FormatFileSize(long bytes)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB" };
+        double len = bytes;
+        int order = 0;
+        while (len >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            len = len / 1024;
+        }
+        return $"{len:0.##} {sizes[order]}";
+    }
+
+    /// <summary>
+    /// Cleanup SignalR connections
+    /// </summary>
+    public async ValueTask DisposeAsync()
+    {
+        // Unsubscribe from SignalR events
+        if (_signalRInitialized)
+        {
+            SignalRService.OnMessageReceived -= HandleMessageReceived;
+            SignalRService.OnUserTyping -= HandleUserTyping;
+            SignalRService.OnUserStoppedTyping -= HandleUserStoppedTyping;
+            SignalRService.OnConnected -= HandleConnected;
+            SignalRService.OnDisconnected -= HandleDisconnected;
+            SignalRService.OnReconnected -= HandleReconnected;
+
+            // Leave current conversation
+            if (currentConversation != null)
+            {
+                await SignalRService.LeaveConversationAsync(currentConversation.Id);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Helper class for attachment files
+    /// </summary>
+    private class AttachmentFile
+    {
+        public string FileName { get; set; } = string.Empty;
+        public string ContentType { get; set; } = string.Empty;
+        public long FileSize { get; set; }
+        public byte[] FileData { get; set; } = Array.Empty<byte>();
+        public string? PreviewUrl { get; set; }
     }
 
 }

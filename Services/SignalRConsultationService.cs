@@ -195,16 +195,32 @@ public class SignalRConsultationService : IAsyncDisposable
             try
             {
                 var json = System.Text.Json.JsonSerializer.Serialize(data);
-                var message = System.Text.Json.JsonSerializer.Deserialize<MessageReceivedEventArgs>(json);
+                Console.WriteLine($"[SignalR Service] Raw received data: {json}");
+                
+                // Use JsonSerializerOptions with camelCase naming policy
+                var options = new System.Text.Json.JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+                
+                var message = System.Text.Json.JsonSerializer.Deserialize<MessageReceivedEventArgs>(json, options);
                 if (message != null)
                 {
                     _logger.LogInformation($"Received message: {message.MessageId}");
+                    Console.WriteLine($"[SignalR Service] Parsed MessageId: {message.MessageId}");
+                    Console.WriteLine($"[SignalR Service] Parsed ConversationId: {message.ConversationId}");
+                    Console.WriteLine($"[SignalR Service] Parsed Content: {message.Content}");
                     OnMessageReceived?.Invoke(message);
+                }
+                else
+                {
+                    Console.WriteLine($"[SignalR Service] Failed to deserialize message");
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error processing received message");
+                Console.WriteLine($"[SignalR Service] Error: {ex.Message}");
             }
         });
 
@@ -214,7 +230,11 @@ public class SignalRConsultationService : IAsyncDisposable
             try
             {
                 var json = System.Text.Json.JsonSerializer.Serialize(data);
-                var status = System.Text.Json.JsonSerializer.Deserialize<AiStatusEventArgs>(json);
+                var options = new System.Text.Json.JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+                var status = System.Text.Json.JsonSerializer.Deserialize<AiStatusEventArgs>(json, options);
                 if (status != null)
                 {
                     _logger.LogInformation($"AI status: {status.Status}");
@@ -233,7 +253,11 @@ public class SignalRConsultationService : IAsyncDisposable
             try
             {
                 var json = System.Text.Json.JsonSerializer.Serialize(data);
-                var typing = System.Text.Json.JsonSerializer.Deserialize<TypingEventArgs>(json);
+                var options = new System.Text.Json.JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+                var typing = System.Text.Json.JsonSerializer.Deserialize<TypingEventArgs>(json, options);
                 if (typing != null)
                 {
                     OnUserTyping?.Invoke(typing);
@@ -251,7 +275,11 @@ public class SignalRConsultationService : IAsyncDisposable
             try
             {
                 var json = System.Text.Json.JsonSerializer.Serialize(data);
-                var typing = System.Text.Json.JsonSerializer.Deserialize<TypingEventArgs>(json);
+                var options = new System.Text.Json.JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+                var typing = System.Text.Json.JsonSerializer.Deserialize<TypingEventArgs>(json, options);
                 if (typing != null)
                 {
                     OnUserStoppedTyping?.Invoke(typing);
@@ -269,7 +297,11 @@ public class SignalRConsultationService : IAsyncDisposable
             try
             {
                 var json = System.Text.Json.JsonSerializer.Serialize(data);
-                var status = System.Text.Json.JsonSerializer.Deserialize<ConversationStatusEventArgs>(json);
+                var options = new System.Text.Json.JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+                var status = System.Text.Json.JsonSerializer.Deserialize<ConversationStatusEventArgs>(json, options);
                 if (status != null)
                 {
                     _logger.LogInformation($"Conversation status changed: {status.Status}");
@@ -288,7 +320,11 @@ public class SignalRConsultationService : IAsyncDisposable
             try
             {
                 var json = System.Text.Json.JsonSerializer.Serialize(data);
-                var receipt = System.Text.Json.JsonSerializer.Deserialize<MessageReadEventArgs>(json);
+                var options = new System.Text.Json.JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+                var receipt = System.Text.Json.JsonSerializer.Deserialize<MessageReadEventArgs>(json, options);
                 if (receipt != null)
                 {
                     OnMessageRead?.Invoke(receipt);

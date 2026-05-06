@@ -271,6 +271,46 @@ public class ConversationService
                 ProfilePhotoUrl = d.ProfilePhotoUrl
             }).ToList();
     }
+
+    /// <summary>
+    /// Get all messages for a conversation
+    /// </summary>
+    public async Task<List<Message>> GetMessagesAsync(Guid conversationId)
+    {
+        using var db = DbClient.Instance.GetDb();
+        return await db.Messages
+            .Where(m => m.ConversationId == conversationId)
+            .OrderBy(m => m.CreatedAt)
+            .ToListAsync();
+    }
+
+    /// <summary>
+    /// Add a message to a conversation
+    /// </summary>
+    public async Task<Message> AddMessageAsync(Message message)
+    {
+        message.CreatedAt = DateTime.UtcNow;
+
+        using var db = DbClient.Instance.GetDb();
+        db.Messages.Add(message);
+        await db.SaveChangesAsync();
+        return message;
+    }
+
+    /// <summary>
+    /// Update conversation last message time
+    /// </summary>
+    public async Task UpdateLastMessageTimeAsync(Guid conversationId)
+    {
+        using var db = DbClient.Instance.GetDb();
+        var conversation = await db.Conversations.FindAsync(conversationId);
+        if (conversation != null)
+        {
+            conversation.LastMessageAt = DateTime.UtcNow;
+            conversation.UpdatedAt = DateTime.UtcNow;
+            await db.SaveChangesAsync();
+        }
+    }
 }
 
 /// <summary>

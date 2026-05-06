@@ -3,6 +3,7 @@ using ai_clinic.Data;
 using ai_clinic.Services.Hubs;
 using ai_clinic.Services.DoctorRecommendation;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 
 namespace ai_clinic.Services.Facades;
 
@@ -568,6 +569,201 @@ public class ConsultationFacade
     {
         public bool Success { get; set; }
         public string? Chunk { get; set; }
+    }
+
+    #endregion
+
+    #region Send Messages with Streaming and Attachments
+
+    /// <summary>
+    /// Sends patient message with attachments and streaming AI response
+    /// Returns an async enumerable that yields message chunks as they arrive
+    /// </summary>
+    public async IAsyncEnumerable<StreamingMessageChunk> SendPatientMessageWithAttachmentsAsync(
+        Guid conversationId,
+        Guid patientId,
+        string content,
+        List<Guid> documentIds)
+    {
+        _logger.LogInformation("=== [FACADE] SendPatientMessageWithAttachmentsAsync Started ===");
+        _logger.LogInformation($"[FACADE] Attachments: {documentIds.Count}");
+
+        // 1. Save patient message first
+        Message patientMessage;
+        Conversation conversation;
+        string? attachmentContext = null;
+        
+        using (var db = DbClient.Instance.GetDb())
+        {
+            var transaction = await db.Database.BeginTransactionAsync();
+
+            conversation = await db.Conversations.FindAsync(conversationId);
+            if (conversation == null)
+            {
+                await transaction.RollbackAsync();
+                throw new InvalidOperationException("Conversation not found");
+            }
+
+            // Store document references in message
+            var documentReferences = documentIds.Count > 0 
+                ? System.Text.Json.JsonSerializer.Serialize(documentIds) 
+                : null;
+
+            patientMessage = new Message
+            {
+                ConversationId = conversationId,
+                SenderId = patientId,
+                SenderType = MessageSenderType.Patient,
+                Content = content,
+                DocumentReferences = documentReferences,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            db.Messages.Add(patientMessage);
+            conversation.LastMessageAt = DateTime.UtcNow;
+            conversation.UpdatedAt = DateTime.UtcNow;
+            conversation.TotalMessages++;
+
+            await db.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            _logger.LogInformation($"[FACADE] Patient message created - ID: {patientMessage.Id}");
+            
+            // 🔔 REAL-TIME: Send patient message via SignalR
+            await _hubContext.SendMessageToConversation(conversationId, patientMessage);
+            _logger.LogInformation($"[FACADE] Patient message sent via SignalR");
+
+            // Extract text from attachments for AI context
+            if (documentIds.Count > 0)
+            {
+                var documents = await db.Documents
+                    .Where(d => documentIds.Contains(d.Id))
+                    .ToListAsync();
+                
+                var attachmentTexts = new List<string>();
+                var imageBase64List = new List<string>();
+                
+                foreach (var doc in documents)
+                {
+                    attachmentTexts.Add($"[Attachment: {doc.FileName}]");
+                    
+                    // If it's an image, add to image list for vision AI
+                    if (doc.FileType == DocumentType.Image && doc.FileData != null)
+                    {
+                        var base64 = Convert.ToBase64String(doc.FileData);
+                        imageBase64List.Add(base64);
+                        _logger.LogInformation($"[FACADE] Added image {doc.FileName} for vision analysis");
+                    }
+                    
+                    if (!string.IsNullOrEmpty(doc.ExtractedText))
+                    {
+                        attachmentTexts.Add(doc.ExtractedText);
+                    }
+                }
+                
+                if (attachmentTexts.Count > 0)
+                {
+                    attachmentContext = string.Join("\n", attachmentTexts);
+                }
+                
+                // Store image list in a way we can access it later
+                if (imageBase64List.Count > 0)
+                {
+                    _logger.LogInformation($"[FACADE] Total {imageBase64List.Count} images ready for vision AI");
+                    // Store in attachmentContext for now - we'll parse it later
+                    attachmentContext += $"\n[IMAGES:{imageBase64List.Count}]";
+                    foreach (var img in imageBase64List)
+                    {
+                        attachmentContext += $"\n[IMG_BASE64:{img.Substring(0, Math.Min(50, img.Length))}...]";
+                    }
+                }
+            }
+        }
+
+        // Yield user message
+        yield return new StreamingMessageChunk
+        {
+            IsUserMessage = true,
+            Message = patientMessage
+        };
+
+        // 2. Generate AI response if needed
+        if (conversation.AssignedDoctorId == null)
+        {
+            _logger.LogInformation("[FACADE] AI conversation detected, generating streaming response with attachments...");
+
+            var fullResponse = "";
+            var success = false;
+
+            // Combine message content with attachment context
+            var fullContext = content;
+            if (!string.IsNullOrEmpty(attachmentContext))
+            {
+                fullContext = $"{content}\n\n{attachmentContext}";
+            }
+
+            // Stream AI response chunks
+            await foreach (var chunk in GenerateAiResponseWithFallbackAsync(fullContext))
+            {
+                fullResponse += chunk;
+                success = true;
+                
+                yield return new StreamingMessageChunk
+                {
+                    IsAiChunk = true,
+                    Content = chunk
+                };
+            }
+
+            // Save AI response to database
+            if (!success || string.IsNullOrEmpty(fullResponse))
+            {
+                fullResponse = "I apologize, but I'm experiencing technical difficulties at the moment. Please try again in a few moments, or consider consulting with one of our human doctors for immediate assistance.";
+            }
+
+            using (var db2 = DbClient.Instance.GetDb())
+            {
+                var transaction2 = await db2.Database.BeginTransactionAsync();
+
+                var aiResponse = new Message
+                {
+                    ConversationId = conversationId,
+                    SenderId = null,
+                    SenderType = MessageSenderType.AI,
+                    Content = fullResponse,
+                    AiModelUsed = _aiAssistantService.CurrentModelName,
+                    AiConfidenceScore = success ? 0.85m : 0.0m,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                db2.Messages.Add(aiResponse);
+
+                var conv = await db2.Conversations.FindAsync(conversationId);
+                if (conv != null)
+                {
+                    conv.LastMessageAt = DateTime.UtcNow;
+                    conv.UpdatedAt = DateTime.UtcNow;
+                    conv.TotalMessages++;
+                    conv.AiMessagesCount++;
+                }
+
+                await db2.SaveChangesAsync();
+                await transaction2.CommitAsync();
+
+                _logger.LogInformation($"[FACADE] AI response saved - ID: {aiResponse.Id}");
+                
+                // 🔔 REAL-TIME: Send AI response via SignalR (for doctor to see)
+                await _hubContext.SendMessageToConversation(conversationId, aiResponse);
+                _logger.LogInformation($"[FACADE] AI response sent via SignalR");
+
+                // Yield complete message
+                yield return new StreamingMessageChunk
+                {
+                    IsComplete = true,
+                    Message = aiResponse
+                };
+            }
+        }
     }
 
     #endregion

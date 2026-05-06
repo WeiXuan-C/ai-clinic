@@ -6,11 +6,11 @@ window.scrollToBottom = function(elementId) {
     }
 };
 
-// Download file helper
-window.downloadFile = function(fileName, base64Data) {
+// Download file helper - supports data URLs
+window.downloadFile = function(fileName, dataUrl) {
     const link = document.createElement('a');
     link.download = fileName;
-    link.href = 'data:application/octet-stream;base64,' + base64Data;
+    link.href = dataUrl;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

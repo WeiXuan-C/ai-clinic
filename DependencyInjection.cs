@@ -66,7 +66,7 @@ public static class DependencyInjectionExtensions
         services.AddScoped<AiAssistantService>();
         
         // 🔄 Workflow Services - Orchestrate complex multi-step processes
-        services.AddScoped<PatientConsultationWorkflowService>(); // 患者咨询工作流
+        // services.AddScoped<PatientConsultationWorkflowService>(); // TODO: Implement this service
         
         // 🎭 AI Facade: Unified interface for AI model switching and generation
         // Coordinates: AiModelContext + AiAssistantService + ActivityLogService

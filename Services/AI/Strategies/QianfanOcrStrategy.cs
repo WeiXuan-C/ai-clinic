@@ -3,7 +3,7 @@ namespace ai_clinic.Services.AI.Strategies
     /// <summary>
     /// Concrete Strategy - Baidu Qianfan OCR Model
     /// 具体策略 - 百度千帆OCR模型
-    /// 
+    ///
     /// Specialized for optical character recognition and document processing
     /// 专门用于光学字符识别和文档处理
     /// </summary>
@@ -11,6 +11,7 @@ namespace ai_clinic.Services.AI.Strategies
     {
         public override string ModelId => "baidu/qianfan-ocr-fast:free";
         public override string ModelName => "Baidu Qianfan OCR (Free)";
+        public override bool SupportsVision => true; // OCR model supports image input
 
         public QianfanOcrStrategy(OpenRouterApiClient apiClient) : base(apiClient)
         {
@@ -23,8 +24,8 @@ namespace ai_clinic.Services.AI.Strategies
         protected override string PreprocessPrompt(string prompt)
         {
             // Add OCR-specific context if the prompt doesn't already mention it
-            if (!prompt.Contains("ocr", StringComparison.OrdinalIgnoreCase) && 
-                !prompt.Contains("extract", StringComparison.OrdinalIgnoreCase) && 
+            if (!prompt.Contains("ocr", StringComparison.OrdinalIgnoreCase) &&
+                !prompt.Contains("extract", StringComparison.OrdinalIgnoreCase) &&
                 !prompt.Contains("read", StringComparison.OrdinalIgnoreCase))
             {
                 return $"[OCR Task] {prompt}";

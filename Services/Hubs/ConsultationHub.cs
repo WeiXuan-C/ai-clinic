@@ -36,7 +36,8 @@ public class ConsultationHub : Hub
     /// </summary>
     public override async Task OnConnectedAsync()
     {
-        _logger.LogInformation($"Client connected: {Context.ConnectionId}");
+        _logger.LogInformation($"[SignalR Hub] 🔌 Client connected: {Context.ConnectionId}");
+        Console.WriteLine($"[SignalR Hub] 🔌 Client connected: {Context.ConnectionId}");
         await base.OnConnectedAsync();
     }
 
@@ -46,6 +47,8 @@ public class ConsultationHub : Hub
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
         var connectionId = Context.ConnectionId;
+        
+        Console.WriteLine($"[SignalR Hub] 🔌 Client disconnecting: {connectionId}");
         
         // Remove from online users
         if (_onlineUsers.TryRemove(connectionId, out var userId))
@@ -59,12 +62,14 @@ public class ConsultationHub : Hub
                 if (connections.Count == 0)
                 {
                     _userConnections.TryRemove(userId, out _);
-                    _logger.LogInformation($"User {userId} is now offline");
+                    _logger.LogInformation($"[SignalR Hub] User {userId} is now offline");
+                    Console.WriteLine($"[SignalR Hub] User {userId} is now offline");
                 }
             }
         }
 
-        _logger.LogInformation($"Client disconnected: {connectionId}");
+        _logger.LogInformation($"[SignalR Hub] Client disconnected: {connectionId}");
+        Console.WriteLine($"[SignalR Hub] ❌ Client disconnected: {connectionId}");
         await base.OnDisconnectedAsync(exception);
     }
 
@@ -75,7 +80,8 @@ public class ConsultationHub : Hub
     {
         if (!Guid.TryParse(userId, out var userGuid))
         {
-            _logger.LogWarning($"Invalid userId format: {userId}");
+            _logger.LogWarning($"[SignalR Hub] ⚠️ Invalid userId format: {userId}");
+            Console.WriteLine($"[SignalR Hub] ⚠️ Invalid userId format: {userId}");
             return;
         }
 
@@ -95,7 +101,9 @@ public class ConsultationHub : Hub
             }
         );
 
-        _logger.LogInformation($"User {userGuid} registered with connection {connectionId}");
+        _logger.LogInformation($"[SignalR Hub] ✅ User {userGuid} registered with connection {connectionId}");
+        Console.WriteLine($"[SignalR Hub] ✅ User {userGuid} registered with connection {connectionId}");
+        Console.WriteLine($"[SignalR Hub] Total connections for user {userGuid}: {_userConnections[userGuid].Count}");
         await Task.CompletedTask;
     }
 
@@ -110,14 +118,22 @@ public class ConsultationHub : Hub
     {
         if (!Guid.TryParse(conversationId, out var conversationGuid))
         {
-            _logger.LogWarning($"Invalid conversationId format: {conversationId}");
+            _logger.LogWarning($"[SignalR Hub] ⚠️ Invalid conversationId format: {conversationId}");
+            Console.WriteLine($"[SignalR Hub] ⚠️ Invalid conversationId format: {conversationId}");
             return;
         }
 
         var groupName = GetConversationGroupName(conversationGuid);
         await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
         
-        _logger.LogInformation($"Connection {Context.ConnectionId} joined conversation {conversationId}");
+        _logger.LogInformation($"[SignalR Hub] 👥 Connection {Context.ConnectionId} joined conversation {conversationId}");
+        Console.WriteLine($"[SignalR Hub] 👥 Connection {Context.ConnectionId} joined group: {groupName}");
+        
+        // Get user info if available
+        if (_onlineUsers.TryGetValue(Context.ConnectionId, out var userId))
+        {
+            Console.WriteLine($"[SignalR Hub] User {userId} is now in conversation {conversationId}");
+        }
     }
 
     /// <summary>
@@ -127,14 +143,16 @@ public class ConsultationHub : Hub
     {
         if (!Guid.TryParse(conversationId, out var conversationGuid))
         {
-            _logger.LogWarning($"Invalid conversationId format: {conversationId}");
+            _logger.LogWarning($"[SignalR Hub] ⚠️ Invalid conversationId format: {conversationId}");
+            Console.WriteLine($"[SignalR Hub] ⚠️ Invalid conversationId format: {conversationId}");
             return;
         }
 
         var groupName = GetConversationGroupName(conversationGuid);
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupName);
         
-        _logger.LogInformation($"Connection {Context.ConnectionId} left conversation {conversationId}");
+        _logger.LogInformation($"[SignalR Hub] 👋 Connection {Context.ConnectionId} left conversation {conversationId}");
+        Console.WriteLine($"[SignalR Hub] 👋 Connection {Context.ConnectionId} left group: {groupName}");
     }
 
     #endregion
@@ -148,11 +166,14 @@ public class ConsultationHub : Hub
     {
         if (!Guid.TryParse(conversationId, out var conversationGuid))
         {
-            _logger.LogWarning($"Invalid conversationId format: {conversationId}");
+            _logger.LogWarning($"[SignalR Hub] ⚠️ Invalid conversationId format: {conversationId}");
+            Console.WriteLine($"[SignalR Hub] ⚠️ Invalid conversationId format: {conversationId}");
             return;
         }
 
         var groupName = GetConversationGroupName(conversationGuid);
+        
+        Console.WriteLine($"[SignalR Hub] ⌨️ {userName} ({userRole}) is typing in {conversationId}");
         
         // Send to all in group except sender
         await Clients.OthersInGroup(groupName).SendAsync("UserTyping", new
@@ -171,11 +192,14 @@ public class ConsultationHub : Hub
     {
         if (!Guid.TryParse(conversationId, out var conversationGuid))
         {
-            _logger.LogWarning($"Invalid conversationId format: {conversationId}");
+            _logger.LogWarning($"[SignalR Hub] ⚠️ Invalid conversationId format: {conversationId}");
+            Console.WriteLine($"[SignalR Hub] ⚠️ Invalid conversationId format: {conversationId}");
             return;
         }
 
         var groupName = GetConversationGroupName(conversationGuid);
+        
+        Console.WriteLine($"[SignalR Hub] ⌨️ {userName} stopped typing in {conversationId}");
         
         await Clients.OthersInGroup(groupName).SendAsync("UserStoppedTyping", new
         {
@@ -235,7 +259,7 @@ public static class ConsultationHubExtensions
     {
         var groupName = $"conversation_{conversationId}";
         
-        await hubContext.Clients.Group(groupName).SendAsync("ReceiveMessage", new
+        var messageData = new
         {
             MessageId = message.Id,
             ConversationId = message.ConversationId,
@@ -246,7 +270,16 @@ public static class ConsultationHubExtensions
             AiConfidenceScore = message.AiConfidenceScore,
             IsRead = message.IsRead,
             CreatedAt = message.CreatedAt
-        });
+        };
+        
+        Console.WriteLine($"[SignalR Hub] 📤 Sending message to group: {groupName}");
+        Console.WriteLine($"[SignalR Hub] Message ID: {message.Id}");
+        Console.WriteLine($"[SignalR Hub] Sender Type: {message.SenderType}");
+        Console.WriteLine($"[SignalR Hub] Content Length: {message.Content?.Length ?? 0}");
+        
+        await hubContext.Clients.Group(groupName).SendAsync("ReceiveMessage", messageData);
+        
+        Console.WriteLine($"[SignalR Hub] ✅ Message sent to group: {groupName}");
     }
 
     /// <summary>

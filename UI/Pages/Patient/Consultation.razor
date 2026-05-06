@@ -851,6 +851,52 @@
                                 {
                                     @message.Content
                                 }
+                                
+                                @* Display attachments if any *@
+                                @if (!string.IsNullOrEmpty(message.DocumentReferences))
+                                {
+                                    var docs = GetMessageDocuments(message.Id);
+                                    if (docs.Any())
+                                    {
+                                        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(0,0,0,0.1);">
+                                            @foreach (var doc in docs)
+                                            {
+                                                @if (IsImageDocument(doc))
+                                                {
+                                                    <!-- Image attachment - display inline -->
+                                                    <div style="margin-top: 8px;">
+                                                        <img src="@GetImageDataUrl(doc)" 
+                                                             alt="@doc.FileName" 
+                                                             style="max-width: 100%; max-height: 300px; border-radius: 8px; cursor: pointer;"
+                                                             @onclick="@(() => DownloadDocument(doc))"
+                                                             title="Click to download: @doc.FileName" />
+                                                        <div style="font-size: 11px; color: #6b7280; margin-top: 4px;">
+                                                            @doc.FileName (@FormatFileSize(doc.FileSizeBytes))
+                                                        </div>
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <!-- Non-image attachment - show download link -->
+                                                    <div style="margin-top: 8px; padding: 8px 12px; background: rgba(0,0,0,0.05); border-radius: 8px; display: flex; align-items: center; gap: 8px; cursor: pointer;"
+                                                         @onclick="@(() => DownloadDocument(doc))">
+                                                        <i data-lucide="file" style="width: 16px; height: 16px; color: #6b7280;"></i>
+                                                        <div style="flex: 1; min-width: 0;">
+                                                            <div style="font-size: 12px; font-weight: 500; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                                                @doc.FileName
+                                                            </div>
+                                                            <div style="font-size: 11px; color: #6b7280;">
+                                                                @FormatFileSize(doc.FileSizeBytes)
+                                                            </div>
+                                                        </div>
+                                                        <i data-lucide="download" style="width: 16px; height: 16px; color: #3b82f6;"></i>
+                                                    </div>
+                                                }
+                                            }
+                                        </div>
+                                    }
+                                }
+                                
                                 <div class="message-time">@message.CreatedAt.ToString("HH:mm")</div>
                             </div>
                         </div>
@@ -898,11 +944,59 @@
                         <div style="width: 140px;"></div>
                     }
                 </div>
+
+                @* Attachments Preview *@
+                @if (attachments.Any())
+                {
+                    <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
+                        @foreach (var attachment in attachments)
+                        {
+                            <div style="position: relative; padding: 8px 12px; background: #f3f4f6; border-radius: 8px; display: flex; align-items: center; gap: 8px; max-width: 200px;">
+                                @if (attachment.PreviewUrl != null)
+                                {
+                                    <img src="@attachment.PreviewUrl" alt="@attachment.FileName" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;" />
+                                }
+                                else
+                                {
+                                    <i data-lucide="file" style="width: 20px; height: 20px; color: #6b7280;"></i>
+                                }
+                                <div style="flex: 1; min-width: 0;">
+                                    <div style="font-size: 12px; font-weight: 500; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                        @attachment.FileName
+                                    </div>
+                                    <div style="font-size: 11px; color: #6b7280;">
+                                        @FormatFileSize(attachment.FileSize)
+                                    </div>
+                                </div>
+                                <button @onclick="@(() => RemoveAttachment(attachment))" 
+                                        style="background: transparent; border: none; color: #ef4444; cursor: pointer; padding: 4px; display: flex; align-items: center;">
+                                    <i data-lucide="x" style="width: 16px; height: 16px;"></i>
+                                </button>
+                            </div>
+                        }
+                    </div>
+                }
+
+                @if (isUploadingFile)
+                {
+                    <div style="margin-bottom: 12px; padding: 8px; background: #f0f9ff; border-radius: 8px; display: flex; align-items: center; gap: 8px;">
+                        <div class="typing-indicator" style="margin: 0;">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                        </div>
+                        <span style="font-size: 12px; color: #0ea5e9;">Uploading file...</span>
+                    </div>
+                }
                 
                 <div class="input-box">
                     <button class="icon-btn" title="Emoji">
                         <i data-lucide="smile" style="width: 20px; height: 20px;"></i>
                     </button>
+                    <InputFile OnChange="HandleFileSelected" multiple accept="image/*,.pdf,.doc,.docx" id="file-upload" style="display: none;" />
+                    <label for="file-upload" class="icon-btn" title="Attach file" style="cursor: pointer; margin: 0;">
+                        <i data-lucide="paperclip" style="width: 20px; height: 20px;"></i>
+                    </label>
                     <input type="text" 
                            placeholder="Describe your symptoms or ask a question..." 
                            @bind="newMessage"
@@ -911,9 +1005,9 @@
                     <button class="icon-btn" title="Voice input">
                         <i data-lucide="mic" style="width: 20px; height: 20px;"></i>
                     </button>
-                    <button class="send-btn @(string.IsNullOrWhiteSpace(newMessage) ? "disabled" : "")" 
+                    <button class="send-btn @(string.IsNullOrWhiteSpace(newMessage) && attachments.Count == 0 ? "disabled" : "")" 
                             @onclick="SendMessage"
-                            disabled="@string.IsNullOrWhiteSpace(newMessage)"
+                            disabled="@(string.IsNullOrWhiteSpace(newMessage) && attachments.Count == 0)"
                             title="Send message">
                         <i data-lucide="send" style="width: 20px; height: 20px;"></i>
                     </button>
