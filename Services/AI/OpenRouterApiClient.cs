@@ -129,6 +129,104 @@ namespace ai_clinic.Services.AI
             var result = await response.Content.ReadFromJsonAsync<ModelInfo>();
             return result ?? throw new InvalidOperationException("Failed to get model info");
         }
+
+        /// <summary>
+        /// Makes a streaming API call to OpenRouter
+        /// 向OpenRouter发起流式API调用
+        /// </summary>
+        public async IAsyncEnumerable<string> CallApiStreamingAsync(OpenRouterRequest request)
+        {
+            const string endpoint = "https://openrouter.ai/api/v1/chat/completions";
+            
+            Console.WriteLine("=== [OPENROUTER API] CallApiStreamingAsync Started ===");
+            Console.WriteLine($"[API] Model: {request.Model}");
+            
+            // Ensure streaming is enabled
+            request.Stream = true;
+
+            var response = await _httpClient.PostAsJsonAsync(endpoint, request);
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"[API ERROR] {response.StatusCode}: {errorContent}");
+                throw new HttpRequestException($"OpenRouter API returned {response.StatusCode}");
+            }
+
+            // Read the stream
+            using var stream = await response.Content.ReadAsStreamAsync();
+            using var reader = new System.IO.StreamReader(stream);
+
+            while (!reader.EndOfStream)
+            {
+                var line = await reader.ReadLineAsync();
+                
+                if (string.IsNullOrWhiteSpace(line) || !line.StartsWith("data: "))
+                    continue;
+
+                var data = line.Substring(6); // Remove "data: " prefix
+                
+                if (data == "[DONE]")
+                    break;
+
+                // Parse chunk outside of try-catch to allow yield
+                StreamingChunk? chunk = null;
+                bool parseSuccess = false;
+                
+                try
+                {
+                    chunk = JsonSerializer.Deserialize<StreamingChunk>(data);
+                    parseSuccess = true;
+                }
+                catch (JsonException ex)
+                {
+                    Console.WriteLine($"[API WARN] Failed to parse chunk: {ex.Message}");
+                }
+                
+                if (parseSuccess && chunk != null)
+                {
+                    var content = chunk.Choices?[0]?.Delta?.Content;
+                    
+                    if (!string.IsNullOrEmpty(content))
+                    {
+                        yield return content;
+                    }
+                }
+            }
+
+            Console.WriteLine("=== [OPENROUTER API] CallApiStreamingAsync Completed ===\n");
+        }
+    }
+
+    // Streaming response DTOs
+    public class StreamingChunk
+    {
+        [JsonPropertyName("id")]
+        public string Id { get; set; } = string.Empty;
+
+        [JsonPropertyName("choices")]
+        public StreamingChoice[]? Choices { get; set; }
+    }
+
+    public class StreamingChoice
+    {
+        [JsonPropertyName("index")]
+        public int Index { get; set; }
+
+        [JsonPropertyName("delta")]
+        public Delta? Delta { get; set; }
+
+        [JsonPropertyName("finish_reason")]
+        public string? FinishReason { get; set; }
+    }
+
+    public class Delta
+    {
+        [JsonPropertyName("role")]
+        public string? Role { get; set; }
+
+        [JsonPropertyName("content")]
+        public string? Content { get; set; }
     }
 
     // OpenRouter API Request/Response DTOs

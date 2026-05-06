@@ -17,6 +17,7 @@ public class PatientFacade
     private readonly ActivityLogService _activityLogService;
     private readonly DocumentService _documentService;
     private readonly PatientConsultationWorkflowService _workflowService;
+    private readonly MedicalRecordExportService _exportService;
 
     public PatientFacade(
         PatientProfileService patientProfileService,
@@ -26,7 +27,8 @@ public class PatientFacade
         ConsultationService consultationService,
         ActivityLogService activityLogService,
         DocumentService documentService,
-        PatientConsultationWorkflowService workflowService)
+        PatientConsultationWorkflowService workflowService,
+        MedicalRecordExportService exportService)
     {
         _patientProfileService = patientProfileService;
         _conversationService = conversationService;
@@ -36,6 +38,7 @@ public class PatientFacade
         _activityLogService = activityLogService;
         _documentService = documentService;
         _workflowService = workflowService;
+        _exportService = exportService;
     }
 
     /// <summary>
@@ -479,6 +482,25 @@ public class PatientFacade
             // Note: You may need to add an UpdateUser method to UserService
             await _activityLogService.LogActivityAsync(userId, "UpdatePatientSettings");
         }
+    }
+
+    /// <summary>
+    /// Export patient's medical records to PDF
+    /// Coordinates export service and activity logging
+    /// </summary>
+    public async Task<byte[]> ExportMedicalRecordsToPdfAsync(
+        Guid patientId,
+        DateTime? startDate = null,
+        DateTime? endDate = null)
+    {
+        var pdfBytes = await _exportService.ExportMedicalRecordsToPdfAsync(patientId, startDate, endDate);
+
+        await _activityLogService.LogActivityAsync(
+            patientId,
+            "ExportMedicalRecords",
+            $"{{\"start_date\": \"{startDate?.ToString("yyyy-MM-dd") ?? "all"}\", \"end_date\": \"{endDate?.ToString("yyyy-MM-dd") ?? "all"}\", \"size_bytes\": {pdfBytes.Length}}}");
+
+        return pdfBytes;
     }
 }
 

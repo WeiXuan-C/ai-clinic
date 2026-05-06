@@ -1,0 +1,592 @@
+@page "/admin/suspensions"
+@layout Components.Layout.SidebarLayout
+
+<PageTitle>User Suspensions - AI Medical Clinic Admin</PageTitle>
+
+<link rel="stylesheet" href="/css/stitch-design-system.css" />
+
+<!-- Header -->
+<header class="content-header">
+    <div class="header-left">
+        <h1>User Suspensions</h1>
+        <p class="body-md" style="margin: 0.5rem;">
+            <span class="status-indicator">●</span>
+            Manage suspended user accounts
+        </p>
+    </div>
+</header>
+
+@if (isLoading)
+{
+    <div class="loading-state">
+        <div class="spinner"></div>
+        <p>Loading suspensions...</p>
+    </div>
+}
+else if (errorMessage != null)
+{
+    <div class="alert alert-error">
+        <i data-lucide="alert-circle"></i>
+        <span>@errorMessage</span>
+    </div>
+}
+else
+{
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon suspended">
+                <i data-lucide="user-x"></i>
+            </div>
+            <div class="stat-info">
+                <h3>@activeSuspensions.Count</h3>
+                <p>Active Suspensions</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon temporary">
+                <i data-lucide="clock"></i>
+            </div>
+            <div class="stat-info">
+                <h3>@activeSuspensions.Count(s => s.SuspensionEnd.HasValue)</h3>
+                <p>Temporary Suspensions</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon permanent">
+                <i data-lucide="ban"></i>
+            </div>
+            <div class="stat-info">
+                <h3>@activeSuspensions.Count(s => !s.SuspensionEnd.HasValue)</h3>
+                <p>Indefinite Suspensions</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Suspensions List -->
+    <section class="suspensions-section">
+        <div class="section-header">
+            <h2 class="headline-md">Active Suspensions</h2>
+        </div>
+
+        @if (activeSuspensions.Any())
+        {
+            <div class="suspensions-list">
+                @foreach (var suspension in activeSuspensions)
+                {
+                    <div class="suspension-item">
+                        <div class="suspension-user">
+                            <div class="user-avatar">
+                                <i data-lucide="user"></i>
+                            </div>
+                            <div class="user-info">
+                                <h4>@suspension.User.Email</h4>
+                                <p class="body-sm">Role: @suspension.User.Role</p>
+                                <p class="body-sm text-muted">User ID: @suspension.UserId.ToString().Substring(0, 8)...</p>
+                            </div>
+                        </div>
+
+                        <div class="suspension-details">
+                            <div class="detail-item">
+                                <span class="label">Suspended By:</span>
+                                <span class="value">@suspension.SuspendedByAdmin.Email</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="label">Start Date:</span>
+                                <span class="value">@suspension.SuspensionStart.ToString("yyyy-MM-dd HH:mm")</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="label">End Date:</span>
+                                <span class="value">
+                                    @if (suspension.SuspensionEnd.HasValue)
+                                    {
+                                        @suspension.SuspensionEnd.Value.ToString("yyyy-MM-dd HH:mm")
+                                    }
+                                    else
+                                    {
+                                        <span class="badge badge-permanent">Indefinite</span>
+                                    }
+                                </span>
+                            </div>
+                            <div class="detail-item full-width">
+                                <span class="label">Reason:</span>
+                                <span class="value">@suspension.Reason</span>
+                            </div>
+                        </div>
+
+                        <div class="suspension-actions">
+                            <button class="btn btn-warning" @onclick="() => ShowExtendDialog(suspension)">
+                                <i data-lucide="calendar-plus"></i>
+                                Extend
+                            </button>
+                            <button class="btn btn-success" @onclick="() => LiftSuspension(suspension.UserId)">
+                                <i data-lucide="user-check"></i>
+                                Lift Suspension
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="empty-state">
+                <i data-lucide="check-circle"></i>
+                <h3>No Active Suspensions</h3>
+                <p>There are currently no suspended users.</p>
+            </div>
+        }
+    </section>
+}
+
+<!-- Extend Suspension Modal -->
+@if (showExtendDialog && selectedSuspension != null)
+{
+    <div class="modal-overlay" @onclick="CloseExtendDialog">
+        <div class="modal-content" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3>Extend Suspension</h3>
+                <button class="icon-btn" @onclick="CloseExtendDialog">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>User</label>
+                    <input type="text" class="form-input" value="@selectedSuspension.User.Email" disabled />
+                </div>
+                <div class="form-group">
+                    <label>Current End Date</label>
+                    <input type="text" class="form-input" 
+                           value="@(selectedSuspension.SuspensionEnd?.ToString("yyyy-MM-dd") ?? "Indefinite")" 
+                           disabled />
+                </div>
+                <div class="form-group">
+                    <label>New End Date *</label>
+                    <input type="date" class="form-input" @bind="newEndDate" min="@DateTime.Now.ToString("yyyy-MM-dd")" />
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" @onclick="CloseExtendDialog">Cancel</button>
+                <button class="btn btn-primary" @onclick="ExtendSuspension" disabled="@isProcessing">
+                    @if (isProcessing)
+                    {
+                        <div class="spinner-sm"></div>
+                    }
+                    else
+                    {
+                        <span>Extend Suspension</span>
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .content-header {
+        margin-bottom: 2rem;
+    }
+
+    .header-left h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #191c1e;
+        margin: 0.5rem;
+    }
+
+    .status-indicator {
+        color: #76f3ea;
+        font-size: 0.75rem;
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .stat-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.75rem;
+    }
+
+    .stat-icon.suspended {
+        background: #ffebee;
+        color: #c62828;
+    }
+
+    .stat-icon.temporary {
+        background: #fff3e0;
+        color: #f57c00;
+    }
+
+    .stat-icon.permanent {
+        background: #f3e5f5;
+        color: #7b1fa2;
+    }
+
+    .stat-info h3 {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #191c1e;
+        margin-bottom: 0.25rem;
+    }
+
+    .stat-info p {
+        color: #434654;
+        font-size: 0.875rem;
+    }
+
+    /* Suspensions Section */
+    .suspensions-section {
+        background: white;
+        padding: 2rem;
+        border-radius: 16px;
+    }
+
+    .section-header {
+        margin-bottom: 1.5rem;
+    }
+
+    .section-header h2 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #191c1e;
+    }
+
+    .suspensions-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .suspension-item {
+        padding: 1.5rem;
+        background: #f7f9fb;
+        border-radius: 12px;
+        display: grid;
+        grid-template-columns: 1fr 2fr auto;
+        gap: 1.5rem;
+        align-items: start;
+    }
+
+    .suspension-user {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .user-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: #e6e8ea;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: #434654;
+    }
+
+    .user-info h4 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #191c1e;
+        margin-bottom: 0.25rem;
+    }
+
+    .user-info p {
+        font-size: 0.75rem;
+        color: #434654;
+        margin-bottom: 0.125rem;
+    }
+
+    .suspension-details {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+    }
+
+    .detail-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .detail-item.full-width {
+        grid-column: span 2;
+    }
+
+    .detail-item .label {
+        font-size: 0.75rem;
+        color: #434654;
+        font-weight: 500;
+    }
+
+    .detail-item .value {
+        font-size: 0.875rem;
+        color: #191c1e;
+    }
+
+    .suspension-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: none;
+        font-size: 0.875rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        white-space: nowrap;
+    }
+
+    .btn-success {
+        background: #4caf50;
+        color: white;
+    }
+
+    .btn-success:hover {
+        background: #388e3c;
+    }
+
+    .btn-warning {
+        background: #ff9800;
+        color: white;
+    }
+
+    .btn-warning:hover {
+        background: #f57c00;
+    }
+
+    .btn-primary {
+        background: #0052cc;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #003d9b;
+    }
+
+    .btn-secondary {
+        background: #e6e8ea;
+        color: #191c1e;
+    }
+
+    .btn-secondary:hover {
+        background: #d8dadc;
+    }
+
+    .badge {
+        padding: 0.375rem 0.75rem;
+        border-radius: 6px;
+        font-size: 0.625rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+    }
+
+    .badge-permanent {
+        background: #f3e5f5;
+        color: #7b1fa2;
+    }
+
+    /* Modal */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+
+    .modal-content {
+        background: white;
+        border-radius: 16px;
+        width: 90%;
+        max-width: 500px;
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.5rem 2rem;
+        border-bottom: 1px solid #e6e8ea;
+    }
+
+    .modal-header h3 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #191c1e;
+    }
+
+    .icon-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .icon-btn:hover {
+        background: #f7f9fb;
+    }
+
+    .modal-body {
+        padding: 2rem;
+    }
+
+    .modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 1rem;
+        padding: 1.5rem 2rem;
+        border-top: 1px solid #e6e8ea;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+        display: block;
+        color: #434654;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+        font-size: 0.875rem;
+    }
+
+    .form-input {
+        width: 100%;
+        padding: 0.875rem 1rem;
+        border: 1px solid #e6e8ea;
+        border-radius: 8px;
+        font-size: 0.9375rem;
+        transition: all 0.2s;
+    }
+
+    .form-input:focus {
+        outline: none;
+        border-color: #0052cc;
+        box-shadow: 0 0 0 3px rgba(0, 82, 204, 0.1);
+    }
+
+    .form-input:disabled {
+        background: #f7f9fb;
+        cursor: not-allowed;
+    }
+
+    .spinner-sm {
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @@keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .loading-state,
+    .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 4rem 2rem;
+        text-align: center;
+    }
+
+    .loading-state .spinner {
+        width: 48px;
+        height: 48px;
+        border: 4px solid #f7f9fb;
+        border-top-color: #0052cc;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 1rem;
+    }
+
+    .empty-state i {
+        font-size: 3rem;
+        color: #4caf50;
+        margin-bottom: 1rem;
+    }
+
+    .empty-state h3 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #191c1e;
+        margin-bottom: 0.5rem;
+    }
+
+    .empty-state p {
+        color: #434654;
+    }
+
+    .alert {
+        padding: 1rem;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+
+    .alert-error {
+        background: #ffebee;
+        color: #c62828;
+        border: 1px solid #ef5350;
+    }
+
+    .text-muted {
+        color: #434654 !important;
+    }
+
+    /* Responsive */
+    @@media (max-width: 1024px) {
+        .suspension-item {
+            grid-template-columns: 1fr;
+        }
+
+        .suspension-actions {
+            flex-direction: row;
+        }
+    }
+</style>

@@ -39,6 +39,9 @@ public partial class Consultation : ComponentBase
     private bool isLoadingRecommendations = false;
     private bool showAllRecommendedDoctorsModal = false;
     private Guid? selectedRecommendedDoctorId = null;
+    private bool _iconsInitialized = false;
+    private string? patientPhotoUrl = null;
+    
     private string DoctorSearchQuery
     {
         get => _doctorSearchQuery;
@@ -57,10 +60,56 @@ public partial class Consultation : ComponentBase
             return;
         }
 
+        // Load patient photo
+        await LoadPatientPhoto();
+
         // Load available AI models
         LoadAvailableModels();
         
         await LoadConversations();
+    }
+
+    /// <summary>
+    /// Loads patient profile photo
+    /// </summary>
+    private async Task LoadPatientPhoto()
+    {
+        try
+        {
+            var patientProfile = AuthFacade.CurrentPatientProfile;
+            if (patientProfile?.ProfilePhoto != null && patientProfile.ProfilePhoto.Length > 0)
+            {
+                // Convert byte array to base64 data URL
+                var base64 = Convert.ToBase64String(patientProfile.ProfilePhoto);
+                patientPhotoUrl = $"data:image/jpeg;base64,{base64}";
+            }
+            
+            await Task.CompletedTask; // Make it async for consistency
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DEBUG] Failed to load patient photo: {ex.Message}");
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _iconsInitialized = true;
+            try
+            {
+                // Initialize Lucide icons using the global helper function
+                await JS.InvokeVoidAsync("initializeLucide");
+            }
+            catch (Exception ex)
+            {
+                // Ignore if lucide is not available
+                Console.WriteLine($"[DEBUG] Lucide initialization warning: {ex.Message}");
+            }
+        }
+        // Don't re-initialize icons on every render during streaming
+        // This causes DOM manipulation conflicts
     }
 
     /// <summary>
@@ -112,6 +161,19 @@ public partial class Consultation : ComponentBase
     {
         try
         {
+            // Clear current state first to prevent overlapping
+            currentConversation = null;
+            messages = [];
+            isTyping = false;
+            showRecommendedDoctors = false;
+            recommendedDoctors = [];
+            
+            // Force UI update to clear old content
+            await InvokeAsync(StateHasChanged);
+            
+            // Small delay to let DOM fully update before loading new content
+            await Task.Delay(50);
+            
             var session = await ConsultationFacade.GetConsultationSessionAsync(
                 conversationId, 
                 AuthFacade.CurrentUser!.Id,
@@ -122,11 +184,19 @@ public partial class Consultation : ComponentBase
             messages = session.Messages;
             isAiMode = session.IsAiConsultation;
             
-            // Reset recommendations when switching conversations
-            showRecommendedDoctors = false;
-            recommendedDoctors = new();
+            await InvokeAsync(StateHasChanged);
             
-            StateHasChanged();
+            // Re-initialize Lucide icons after content loads
+            await Task.Delay(100);
+            try
+            {
+                await JS.InvokeVoidAsync("initializeLucide");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DEBUG] Lucide re-initialization warning: {ex.Message}");
+            }
+            
             await ScrollToBottom();
         }
         catch (Exception ex)
@@ -232,7 +302,7 @@ public partial class Consultation : ComponentBase
     }
 
     /// <summary>
-    /// Sends message
+    /// Sends message with streaming AI response
     /// Uses Facade to handle message sending and AI response
     /// </summary>
     private async Task SendMessage()
@@ -242,56 +312,101 @@ public partial class Consultation : ComponentBase
 
         var messageContent = newMessage;
         newMessage = "";
-        StateHasChanged();
+        StateHasChanged(); // Clear input immediately
 
         Console.WriteLine("=== [DEBUG] SendMessage Started ===");
-        Console.WriteLine($"[DEBUG] Conversation ID: {currentConversation.Id}");
-        Console.WriteLine($"[DEBUG] Patient ID: {AuthFacade.CurrentUser!.Id}");
-        Console.WriteLine($"[DEBUG] Message Content: {messageContent}");
-        Console.WriteLine($"[DEBUG] Is AI Mode: {isAiMode}");
+        Console.WriteLine($"[DEBUG] Message: {messageContent}");
+        Console.WriteLine($"[DEBUG] Is AI Conversation: {currentConversation.AssignedDoctorId == null}");
 
         try
         {
-            // 使用 Facade 发送消息（自动处理 AI 响应）
-            isTyping = true;
-            Console.WriteLine("[DEBUG] Calling ConsultationFacade.SendPatientMessageAsync...");
+            // 1. 如果是AI对话，创建空的AI消息用于流式输出（先不显示用户消息）
+            Message? aiMessage = null;
+            Message? userMessage = null;
             
-            var result = await ConsultationFacade.SendPatientMessageAsync(
+            if (currentConversation.AssignedDoctorId == null)
+            {
+                // 显示typing indicator，但不显示空的AI消息框
+                isTyping = true;
+                StateHasChanged();
+                Console.WriteLine("[DEBUG] Showing typing indicator, waiting for stream...");
+            }
+
+            // 2. 发送消息到后端并获取流式响应
+            Console.WriteLine("[DEBUG] Calling ConsultationFacade.SendPatientMessageWithStreamingAsync...");
+            
+            var chunkCount = 0;
+            await foreach (var chunk in ConsultationFacade.SendPatientMessageWithStreamingAsync(
                 currentConversation.Id,
                 AuthFacade.CurrentUser!.Id,
-                messageContent
-            );
+                messageContent))
+            {
+                chunkCount++;
+                Console.WriteLine($"[DEBUG] Received chunk #{chunkCount}: IsUserMessage={chunk.IsUserMessage}, IsAiChunk={chunk.IsAiChunk}, IsComplete={chunk.IsComplete}");
+                
+                if (chunk.IsUserMessage)
+                {
+                    Console.WriteLine($"[DEBUG] Processing user message chunk");
+                    // 第一次收到用户消息时才显示
+                    if (userMessage == null && chunk.Message != null)
+                    {
+                        userMessage = chunk.Message;
+                        messages.Add(userMessage);
+                        StateHasChanged();
+                        await ScrollToBottom();
+                        Console.WriteLine($"[DEBUG] Added user message with ID: {chunk.Message.Id}");
+                    }
+                }
+                else if (chunk.IsAiChunk)
+                {
+                    // 第一个AI chunk到达时，创建AI消息框
+                    if (aiMessage == null)
+                    {
+                        aiMessage = new Message
+                        {
+                            Id = Guid.NewGuid(), // Temporary ID
+                            ConversationId = currentConversation.Id,
+                            SenderId = null,
+                            SenderType = MessageSenderType.AI,
+                            Content = chunk.Content,
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        
+                        messages.Add(aiMessage);
+                        isTyping = false;
+                        Console.WriteLine("[DEBUG] First AI chunk received, created AI message box");
+                    }
+                    else
+                    {
+                        // 后续chunk追加内容
+                        aiMessage.Content += chunk.Content;
+                        Console.WriteLine($"[DEBUG] AI content updated, length: {aiMessage.Content.Length}");
+                    }
+                    
+                    // Force immediate UI update for streaming effect
+                    await InvokeAsync(StateHasChanged);
+                    await Task.Delay(1); // Tiny delay to ensure UI renders
+                    await ScrollToBottom();
+                }
+                else if (chunk.IsComplete && chunk.Message != null)
+                {
+                    Console.WriteLine($"[DEBUG] AI message complete, final length: {chunk.Message.Content.Length}");
+                    // AI消息完成，更新为最终版本
+                    if (aiMessage != null)
+                    {
+                        messages.Remove(aiMessage);
+                        messages.Add(chunk.Message);
+                        Console.WriteLine($"[DEBUG] Replaced temporary AI message with final version, ID: {chunk.Message.Id}");
+                        StateHasChanged();
+                    }
+                }
+            }
 
-            Console.WriteLine("[DEBUG] Message sent successfully");
-            Console.WriteLine($"[DEBUG] Patient Message ID: {result.PatientMessage.Id}");
-            Console.WriteLine($"[DEBUG] Is AI Conversation: {result.IsAiConversation}");
-            Console.WriteLine($"[DEBUG] AI Response Received: {result.AiResponse != null}");
-
-            // 添加患者消息到界面
-            messages.Add(result.PatientMessage);
+            Console.WriteLine($"[DEBUG] Streaming completed, total chunks: {chunkCount}");
+            
+            isTyping = false;
             StateHasChanged();
             await ScrollToBottom();
-
-            // 如果有 AI 响应，添加到界面
-            if (result.AiResponse != null)
-            {
-                Console.WriteLine($"[DEBUG] AI Response ID: {result.AiResponse.Id}");
-                Console.WriteLine($"[DEBUG] AI Response Content Length: {result.AiResponse.Content.Length} chars");
-                Console.WriteLine($"[DEBUG] AI Response Preview: {result.AiResponse.Content[..Math.Min(100, result.AiResponse.Content.Length)]}...");
-
-                await Task.Delay(500); // 短暂延迟，让用户看到 typing indicator
-                messages.Add(result.AiResponse);
-                isTyping = false;
-                StateHasChanged();
-                await ScrollToBottom();
-
-                Console.WriteLine("[DEBUG] AI response added to UI");
-            }
-            else
-            {
-                Console.WriteLine("[DEBUG] No AI response (likely doctor conversation)");
-                isTyping = false;
-            }
 
             Console.WriteLine("=== [DEBUG] SendMessage Completed Successfully ===\n");
         }
@@ -305,7 +420,8 @@ public partial class Consultation : ComponentBase
             {
                 Console.WriteLine($"[ERROR] Inner Exception: {ex.InnerException.Message}");
             }
-            Console.WriteLine("=== [DEBUG] SendMessage Failed ===\n");
+            
+            Console.WriteLine("[ERROR] Message failed to send");
             
             isTyping = false;
             StateHasChanged();

@@ -16,6 +16,19 @@ window.downloadFile = function(fileName, base64Data) {
     document.body.removeChild(link);
 };
 
+// Download file from byte array
+window.downloadFileFromBytes = function(fileName, contentType, byteArray) {
+    const blob = new Blob([new Uint8Array(byteArray)], { type: contentType });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+};
+
 // Initialize Lucide icons
 window.initializeLucideIcons = function() {
     if (typeof lucide !== 'undefined' && lucide.createIcons) {

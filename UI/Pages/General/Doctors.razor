@@ -54,7 +54,7 @@
             </div>
         </div>
 
-        <!-- Loading State -->
+        @* Loading State *@
         @if (isLoading)
         {
             <div class="loading-state">
@@ -62,7 +62,7 @@
                 <p>Loading doctors...</p>
             </div>
         }
-        <!-- Empty State -->
+        @* Empty State *@
         else if (!filteredDoctors.Any())
         {
             <div class="empty-state">
@@ -71,20 +71,20 @@
                 <p class="empty-message">Try adjusting your search or filters</p>
             </div>
         }
-        <!-- Doctors Grid -->
+        @* Doctors Grid *@
         else
         {
             <div class="doctors-grid">
                 @foreach (var doctor in filteredDoctors)
                 {
                     <div class="doctor-card">
-                        <!-- Availability Badge -->
+                        @* Availability Badge *@
                         <div class="availability-badge @GetAvailabilityClass(doctor.AvailabilityStatus)">
                             <span class="status-dot"></span>
                             @GetAvailabilityText(doctor.AvailabilityStatus)
                         </div>
 
-                        <!-- Doctor Photo -->
+                        @* Doctor Photo *@
                         <div class="doctor-photo">
                             @if (!string.IsNullOrEmpty(doctor.ProfilePhotoUrl))
                             {

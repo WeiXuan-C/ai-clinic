@@ -167,4 +167,50 @@ public static class DatabaseMigrationHelper
         await indexCommand.ExecuteNonQueryAsync();
         Console.WriteLine("✅ Created index on documents.patient_id");
     }
+
+    /// <summary>
+    /// Add doctor settings columns to doctor_profiles table if they don't exist
+    /// </summary>
+    public static async Task AddDoctorSettingsColumnsAsync(string connectionString)
+    {
+        using var connection = new SqliteConnection(connectionString);
+        await connection.OpenAsync();
+
+        var columnsToAdd = new Dictionary<string, string>
+        {
+            { "auto_accept_appointments", "INTEGER DEFAULT 0" },
+            { "max_daily_patients", "INTEGER DEFAULT 30" },
+            { "notify_urgent_consultations", "INTEGER DEFAULT 1" },
+            { "notify_new_appointments", "INTEGER DEFAULT 1" },
+            { "notify_ai_assessments", "INTEGER DEFAULT 1" },
+            { "notify_email_summaries", "INTEGER DEFAULT 0" },
+            { "session_timeout_minutes", "INTEGER DEFAULT 30" }
+        };
+
+        foreach (var column in columnsToAdd)
+        {
+            var checkCommand = connection.CreateCommand();
+            checkCommand.CommandText = $@"
+                SELECT COUNT(*) 
+                FROM pragma_table_info('doctor_profiles') 
+                WHERE name='{column.Key}'";
+            
+            var exists = Convert.ToInt32(await checkCommand.ExecuteScalarAsync()) > 0;
+
+            if (!exists)
+            {
+                var alterCommand = connection.CreateCommand();
+                alterCommand.CommandText = $@"
+                    ALTER TABLE doctor_profiles 
+                    ADD COLUMN {column.Key} {column.Value}";
+                
+                await alterCommand.ExecuteNonQueryAsync();
+                Console.WriteLine($"✅ Added {column.Key} column to doctor_profiles table");
+            }
+            else
+            {
+                Console.WriteLine($"ℹ️ {column.Key} column already exists in doctor_profiles");
+            }
+        }
+    }
 }

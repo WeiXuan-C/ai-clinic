@@ -71,4 +71,23 @@ public class MedicalRecordService
         }
         return false;
     }
+
+    /// <summary>
+    /// Update export statistics for a medical record
+    /// </summary>
+    public async Task UpdateExportStatisticsAsync(Guid recordId)
+    {
+        using var db = DbClient.Instance.GetDb();
+        var record = await db.MedicalRecords.FindAsync(recordId);
+        if (record != null)
+        {
+            record.IsExported = true;
+            record.ExportCount++;
+            record.LastExportedAt = DateTime.UtcNow;
+            record.UpdatedAt = DateTime.UtcNow;
+            
+            db.MedicalRecords.Update(record);
+            await db.SaveChangesAsync();
+        }
+    }
 }

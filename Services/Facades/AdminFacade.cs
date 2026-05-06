@@ -14,6 +14,7 @@ public class AdminFacade
     private readonly StatisticsService _statisticsService;
     private readonly SupportTicketService _supportTicketService;
     private readonly ActivityLogService _activityLogService;
+    private readonly UserSuspensionService _suspensionService;
 
     public AdminFacade(
         UserService userService,
@@ -21,7 +22,8 @@ public class AdminFacade
         PatientProfileService patientProfileService,
         StatisticsService statisticsService,
         SupportTicketService supportTicketService,
-        ActivityLogService activityLogService)
+        ActivityLogService activityLogService,
+        UserSuspensionService suspensionService)
     {
         _userService = userService;
         _doctorProfileService = doctorProfileService;
@@ -29,6 +31,7 @@ public class AdminFacade
         _statisticsService = statisticsService;
         _supportTicketService = supportTicketService;
         _activityLogService = activityLogService;
+        _suspensionService = suspensionService;
     }
 
     /// <summary>
@@ -337,6 +340,77 @@ public class AdminFacade
         
         return true;
     }
+
+    #region User Suspension Management
+
+    /// <summary>
+    /// Suspend a user account with detailed suspension record
+    /// Creates suspension record and deactivates user
+    /// </summary>
+    public async Task<UserSuspension> SuspendUserWithDetailsAsync(
+        Guid userId,
+        Guid adminId,
+        string reason,
+        DateTime? suspensionEnd = null)
+    {
+        return await _suspensionService.SuspendUserAsync(userId, adminId, reason, suspensionEnd);
+    }
+
+    /// <summary>
+    /// Lift (remove) a user suspension
+    /// Reactivates user and marks suspension as inactive
+    /// </summary>
+    public async Task<bool> LiftUserSuspensionAsync(Guid userId, Guid adminId)
+    {
+        return await _suspensionService.LiftSuspensionAsync(userId, adminId);
+    }
+
+    /// <summary>
+    /// Get active suspension for a user
+    /// Returns current suspension details if user is suspended
+    /// </summary>
+    public async Task<UserSuspension?> GetActiveSuspensionAsync(Guid userId)
+    {
+        return await _suspensionService.GetActiveSuspensionAsync(userId);
+    }
+
+    /// <summary>
+    /// Get suspension history for a user
+    /// Returns all past and current suspensions
+    /// </summary>
+    public async Task<List<UserSuspension>> GetUserSuspensionHistoryAsync(Guid userId)
+    {
+        return await _suspensionService.GetUserSuspensionHistoryAsync(userId);
+    }
+
+    /// <summary>
+    /// Check if a user is currently suspended
+    /// Auto-lifts expired suspensions
+    /// </summary>
+    public async Task<bool> IsUserSuspendedAsync(Guid userId)
+    {
+        return await _suspensionService.IsUserSuspendedAsync(userId);
+    }
+
+    /// <summary>
+    /// Get all currently suspended users
+    /// For admin dashboard monitoring
+    /// </summary>
+    public async Task<List<UserSuspension>> GetAllActiveSuspensionsAsync()
+    {
+        return await _suspensionService.GetAllActiveSuspensionsAsync();
+    }
+
+    /// <summary>
+    /// Extend an existing suspension
+    /// Updates suspension end date
+    /// </summary>
+    public async Task<bool> ExtendSuspensionAsync(Guid userId, DateTime newEndDate, Guid adminId)
+    {
+        return await _suspensionService.ExtendSuspensionAsync(userId, newEndDate, adminId);
+    }
+
+    #endregion
 }
 
 // DTOs for Facade responses
