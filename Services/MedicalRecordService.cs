@@ -17,6 +17,17 @@ public class MedicalRecordService
             .ToListAsync();
     }
 
+    public async Task<List<MedicalRecord>> GetByDoctorIdAsync(Guid doctorId)
+    {
+        using var db = DbClient.Instance.GetDb();
+        return await db.MedicalRecords
+            .Include(mr => mr.Patient)
+            .Include(mr => mr.Conversation)
+            .Where(mr => mr.CreatedByDoctorId == doctorId)
+            .OrderByDescending(mr => mr.CreatedAt)
+            .ToListAsync();
+    }
+
     public async Task<MedicalRecord?> GetByIdAsync(Guid recordId)
     {
         using var db = DbClient.Instance.GetDb();

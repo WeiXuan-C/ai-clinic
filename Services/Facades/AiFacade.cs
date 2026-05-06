@@ -27,15 +27,18 @@ public class AiFacade
     private readonly AiAssistantService _aiAssistantService;
     private readonly AiModelContext _modelContext;
     private readonly ActivityLogService _activityLogService;
+    private readonly AnonymousConsultationService _anonymousConsultationService;
 
     public AiFacade(
         AiAssistantService aiAssistantService,
         AiModelContext modelContext,
-        ActivityLogService activityLogService)
+        ActivityLogService activityLogService,
+        AnonymousConsultationService anonymousConsultationService)
     {
         _aiAssistantService = aiAssistantService;
         _modelContext = modelContext;
         _activityLogService = activityLogService;
+        _anonymousConsultationService = anonymousConsultationService;
     }
 
     #region Model Management
@@ -411,6 +414,28 @@ public class AiFacade
             FailedTasks = results.Count(r => !r.Success),
             Results = results
         };
+    }
+
+    #endregion
+
+    #region Anonymous Consultation
+
+    /// <summary>
+    /// Gets remaining queries for anonymous user
+    /// Facade method to expose anonymous consultation limits
+    /// </summary>
+    public int GetAnonymousRemainingQueries(string sessionId)
+    {
+        return _anonymousConsultationService.GetRemainingQueries(sessionId);
+    }
+
+    /// <summary>
+    /// Sends anonymous query to AI
+    /// Facade method to handle anonymous user consultations
+    /// </summary>
+    public async Task<AnonymousQueryResult> SendAnonymousQueryAsync(string sessionId, string message)
+    {
+        return await _anonymousConsultationService.SendQueryAsync(sessionId, message);
     }
 
     #endregion

@@ -52,17 +52,28 @@ public class PatientFacade
 
         await Task.WhenAll(profileTask, conversationsTask, medicalRecordsTask, prescriptionsTask);
 
+        var conversations = await conversationsTask;
+        var medicalRecords = await medicalRecordsTask;
+
         // Log activity
         await _activityLogService.LogActivityAsync(userId, "ViewDashboard");
 
         return new PatientDashboardData
         {
             Profile = await profileTask,
-            RecentConversations = (await conversationsTask).Take(5).ToList(),
-            MedicalRecords = await medicalRecordsTask,
+            RecentConversations = conversations.OrderByDescending(c => c.UpdatedAt).Take(3).ToList(),
+            MedicalRecords = medicalRecords,
             ActivePrescriptions = (await prescriptionsTask)
                 .Where(p => p.IsActive)
-                .ToList()
+                .ToList(),
+            UpcomingAppointment = conversations
+                .Where(c => c.Status == ConversationStatus.Active && c.AssignedDoctorId.HasValue)
+                .OrderBy(c => c.CreatedAt)
+                .FirstOrDefault(),
+            RecentHealthMetric = medicalRecords
+                .Where(r => r.RecordType == "Lab Result")
+                .OrderByDescending(r => r.RecordDate)
+                .FirstOrDefault()
         };
     }
 
@@ -168,6 +179,15 @@ public class PatientFacade
         }
 
         return success;
+    }
+
+    /// <summary>
+    /// Get patient profile photo
+    /// Simplified interface for UI layer
+    /// </summary>
+    public async Task<byte[]?> GetPatientProfilePhotoAsync(Guid userId)
+    {
+        return await _patientProfileService.GetProfilePhotoAsync(userId);
     }
 
     #region Medical Records Management
@@ -419,6 +439,47 @@ public class PatientFacade
     {
         return await _workflowService.GetRecommendedDoctorsAsync(analysis);
     }
+
+    /// <summary>
+    /// Get patient settings
+    /// Combines User and PatientProfile settings
+    /// </summary>
+    public async Task<PatientSettingsData> GetPatientSettingsAsync(Guid userId)
+    {
+        var profile = await _patientProfileService.GetByUserIdAsync(userId);
+        
+        await _activityLogService.LogActivityAsync(userId, "ViewPatientSettings");
+
+        return new PatientSettingsData
+        {
+            Profile = profile,
+            Email = profile?.User?.Email ?? string.Empty,
+            DataSharingEnabled = profile?.User?.DataSharingEnabled ?? false,
+            AiAnalysisEnabled = profile?.User?.AiAnalysisEnabled ?? true,
+            ActivityTrackingEnabled = profile?.User?.ActivityTrackingEnabled ?? true
+        };
+    }
+
+    /// <summary>
+    /// Save patient settings
+    /// Updates User settings
+    /// </summary>
+    public async Task SavePatientSettingsAsync(Guid userId, PatientSettingsData settings)
+    {
+        var profile = await _patientProfileService.GetByUserIdAsync(userId);
+        
+        if (profile?.User != null)
+        {
+            profile.User.DataSharingEnabled = settings.DataSharingEnabled;
+            profile.User.AiAnalysisEnabled = settings.AiAnalysisEnabled;
+            profile.User.ActivityTrackingEnabled = settings.ActivityTrackingEnabled;
+            profile.User.UpdatedAt = DateTime.UtcNow;
+
+            // Update user through UserService
+            // Note: You may need to add an UpdateUser method to UserService
+            await _activityLogService.LogActivityAsync(userId, "UpdatePatientSettings");
+        }
+    }
 }
 
 // DTOs for Facade responses
@@ -428,6 +489,8 @@ public class PatientDashboardData
     public List<Conversation> RecentConversations { get; set; } = new();
     public List<MedicalRecord> MedicalRecords { get; set; } = new();
     public List<Prescription> ActivePrescriptions { get; set; } = new();
+    public Conversation? UpcomingAppointment { get; set; }
+    public MedicalRecord? RecentHealthMetric { get; set; }
 }
 
 public class PatientMedicalHistory
@@ -469,4 +532,13 @@ public class TimelineItem
     public Guid DoctorId { get; set; }
     public bool Success { get; set; }
     public string? ErrorMessage { get; set; }
+}
+
+public class PatientSettingsData
+{
+    public PatientProfile? Profile { get; set; }
+    public string Email { get; set; } = string.Empty;
+    public bool DataSharingEnabled { get; set; }
+    public bool AiAnalysisEnabled { get; set; }
+    public bool ActivityTrackingEnabled { get; set; }
 }

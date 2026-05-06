@@ -28,11 +28,11 @@
 
 <!-- Filter Tabs -->
 <div class="filter-tabs">
-    <button class="tab-btn active">All Records</button>
-    <button class="tab-btn">Lab Results</button>
-    <button class="tab-btn">Prescriptions</button>
-    <button class="tab-btn">Visit Notes</button>
-    <button class="tab-btn">Imaging</button>
+    <button class="tab-btn @(currentFilter == "all" ? "active" : "")" @onclick='() => SetFilter("all")'>All Records</button>
+    <button class="tab-btn @(currentFilter == "lab" ? "active" : "")" @onclick='() => SetFilter("lab")'>Lab Results</button>
+    <button class="tab-btn @(currentFilter == "prescriptions" ? "active" : "")" @onclick='() => SetFilter("prescriptions")'>Prescriptions</button>
+    <button class="tab-btn @(currentFilter == "records" ? "active" : "")" @onclick='() => SetFilter("records")'>Visit Notes</button>
+    <button class="tab-btn @(currentFilter == "imaging" ? "active" : "")" @onclick='() => SetFilter("imaging")'>Imaging</button>
 </div>
 
 <!-- Content Grid -->
@@ -43,138 +43,101 @@
             <h2 class="headline-md">Recent Records</h2>
             <div class="search-box">
                 <i data-lucide="search"></i>
-                <input type="text" placeholder="Search records..." />
+                <input type="text" placeholder="Search records..." @bind="searchQuery" @bind:event="oninput" @onkeyup="@(async (e) => { if (e.Key == "Enter") await HandleSearch(); })" />
             </div>
         </div>
         
-        <div class="records-list">
-            <div class="record-item">
-                <div class="record-icon lab">
-                    <i data-lucide="flask-conical"></i>
-                </div>
-                <div class="record-info">
-                    <h4 class="headline-sm">Complete Blood Count (CBC)</h4>
-                    <p class="body-sm">Patient: Sarah Johnson • Oct 15, 2023</p>
-                    <p class="body-sm">Lab: Quest Diagnostics</p>
-                </div>
-                <span class="badge badge-lab">LAB RESULT</span>
-                <div class="record-actions">
-                    <button class="btn-icon-sm">
-                        <i data-lucide="eye"></i>
-                    </button>
-                    <button class="btn-icon-sm">
-                        <i data-lucide="edit-2"></i>
-                    </button>
-                    <button class="btn-icon-sm">
-                        <i data-lucide="download"></i>
-                    </button>
-                </div>
+        @if (isLoading)
+        {
+            <div style="text-align: center; padding: 3rem;">
+                <p class="body-md">Loading records...</p>
             </div>
-
-            <div class="record-item">
-                <div class="record-icon prescription">
-                    <i data-lucide="pill"></i>
-                </div>
-                <div class="record-info">
-                    <h4 class="headline-sm">Lisinopril 10mg Prescription</h4>
-                    <p class="body-sm">Patient: Michael Chen • Oct 12, 2023</p>
-                    <p class="body-sm">Duration: 90-day supply</p>
-                </div>
-                <span class="badge badge-prescription">PRESCRIPTION</span>
-                <div class="record-actions">
-                    <button class="btn-icon-sm">
-                        <i data-lucide="eye"></i>
-                    </button>
-                    <button class="btn-icon-sm">
-                        <i data-lucide="edit-2"></i>
-                    </button>
-                    <button class="btn-icon-sm">
-                        <i data-lucide="download"></i>
-                    </button>
-                </div>
+        }
+        else if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div style="text-align: center; padding: 3rem;">
+                <p class="body-md" style="color: #d32f2f;">@errorMessage</p>
             </div>
-
-            <div class="record-item">
-                <div class="record-icon visit">
-                    <i data-lucide="file-text"></i>
-                </div>
-                <div class="record-info">
-                    <h4 class="headline-sm">Annual Physical Examination</h4>
-                    <p class="body-sm">Patient: Emma Williams • Oct 10, 2023</p>
-                    <p class="body-sm">Type: Primary Care Visit</p>
-                </div>
-                <span class="badge badge-visit">VISIT NOTE</span>
-                <div class="record-actions">
-                    <button class="btn-icon-sm">
-                        <i data-lucide="eye"></i>
-                    </button>
-                    <button class="btn-icon-sm">
-                        <i data-lucide="edit-2"></i>
-                    </button>
-                    <button class="btn-icon-sm">
-                        <i data-lucide="download"></i>
-                    </button>
-                </div>
+        }
+        else if (!GetFilteredRecords().Any())
+        {
+            <div style="text-align: center; padding: 3rem;">
+                <p class="body-md">No records found</p>
             </div>
-
-            <div class="record-item">
-                <div class="record-icon imaging">
-                    <i data-lucide="scan"></i>
-                </div>
-                <div class="record-info">
-                    <h4 class="headline-sm">Chest X-Ray</h4>
-                    <p class="body-sm">Patient: James Brown • Sep 28, 2023</p>
-                    <p class="body-sm">Department: Radiology</p>
-                </div>
-                <span class="badge badge-imaging">IMAGING</span>
-                <div class="record-actions">
-                    <button class="btn-icon-sm">
-                        <i data-lucide="eye"></i>
-                    </button>
-                    <button class="btn-icon-sm">
-                        <i data-lucide="edit-2"></i>
-                    </button>
-                    <button class="btn-icon-sm">
-                        <i data-lucide="download"></i>
-                    </button>
-                </div>
+        }
+        else
+        {
+            <div class="records-list">
+                @foreach (var record in GetFilteredRecords())
+                {
+                    var recordType = GetRecordType(record);
+                    <div class="record-item">
+                        <div class="record-icon @GetIconClass(recordType)">
+                            <i data-lucide="@GetIconName(recordType)"></i>
+                        </div>
+                        <div class="record-info">
+                            <h4 class="headline-sm">@GetRecordTitle(record)</h4>
+                            <p class="body-sm">Date: @GetRecordDate(record)</p>
+                            <p class="body-sm">@GetRecordDetails(record)</p>
+                        </div>
+                        <span class="badge @GetBadgeClass(recordType)">@recordType.ToUpper()</span>
+                        <div class="record-actions">
+                            <button class="btn-icon-sm">
+                                <i data-lucide="eye"></i>
+                            </button>
+                            <button class="btn-icon-sm">
+                                <i data-lucide="edit-2"></i>
+                            </button>
+                            <button class="btn-icon-sm">
+                                <i data-lucide="download"></i>
+                            </button>
+                        </div>
+                    </div>
+                }
             </div>
-        </div>
+        }
     </section>
 
     <!-- Quick Stats -->
     <section class="stats-card">
         <h3 class="headline-md">Record Summary</h3>
-        <div class="stats-list">
-            <div class="stat-item">
-                <i data-lucide="file-text" class="stat-icon"></i>
-                <div class="stat-info">
-                    <h4 class="headline-lg">1,247</h4>
-                    <p class="body-sm">Total Records</p>
+        @if (isLoading)
+        {
+            <p class="body-sm">Loading...</p>
+        }
+        else
+        {
+            <div class="stats-list">
+                <div class="stat-item">
+                    <i data-lucide="file-text" class="stat-icon"></i>
+                    <div class="stat-info">
+                        <h4 class="headline-lg">@statistics.TotalRecords</h4>
+                        <p class="body-sm">Total Records</p>
+                    </div>
+                </div>
+                <div class="stat-item">
+                    <i data-lucide="flask-conical" class="stat-icon"></i>
+                    <div class="stat-info">
+                        <h4 class="headline-lg">@statistics.LabResults</h4>
+                        <p class="body-sm">Lab Results</p>
+                    </div>
+                </div>
+                <div class="stat-item">
+                    <i data-lucide="pill" class="stat-icon"></i>
+                    <div class="stat-info">
+                        <h4 class="headline-lg">@statistics.Prescriptions</h4>
+                        <p class="body-sm">Prescriptions</p>
+                    </div>
+                </div>
+                <div class="stat-item">
+                    <i data-lucide="scan" class="stat-icon"></i>
+                    <div class="stat-info">
+                        <h4 class="headline-lg">@statistics.ImagingStudies</h4>
+                        <p class="body-sm">Imaging Studies</p>
+                    </div>
                 </div>
             </div>
-            <div class="stat-item">
-                <i data-lucide="flask-conical" class="stat-icon"></i>
-                <div class="stat-info">
-                    <h4 class="headline-lg">342</h4>
-                    <p class="body-sm">Lab Results</p>
-                </div>
-            </div>
-            <div class="stat-item">
-                <i data-lucide="pill" class="stat-icon"></i>
-                <div class="stat-info">
-                    <h4 class="headline-lg">218</h4>
-                    <p class="body-sm">Prescriptions</p>
-                </div>
-            </div>
-            <div class="stat-item">
-                <i data-lucide="scan" class="stat-icon"></i>
-                <div class="stat-info">
-                    <h4 class="headline-lg">87</h4>
-                    <p class="body-sm">Imaging Studies</p>
-                </div>
-            </div>
-        </div>
+        }
     </section>
 </div>
 

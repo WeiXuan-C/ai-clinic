@@ -682,6 +682,61 @@ Respond in JSON format:
     }
 
     #endregion
+
+    #region AI Model Management
+
+    /// <summary>
+    /// Get available AI models for consultation
+    /// Facade method to expose AI model information to UI
+    /// </summary>
+    public List<AiModelInfo> GetAvailableAiModels()
+    {
+        var models = _aiAssistantService.GetAvailableModels();
+        return models.Select(m => new AiModelInfo
+        {
+            Key = m.Key,
+            ModelId = m.ModelId,
+            DisplayName = m.DisplayName,
+            Description = GetModelDescription(m.Key)
+        }).ToList();
+    }
+
+    /// <summary>
+    /// Switch AI model for current session
+    /// Facade method to control AI model selection
+    /// </summary>
+    public void SwitchAiModel(string modelKey)
+    {
+        _aiAssistantService.SwitchModel(modelKey);
+        _logger.LogInformation($"[CONSULTATION FACADE] Switched AI model to: {modelKey}");
+    }
+
+    /// <summary>
+    /// Get current AI model name
+    /// Facade method to query current model
+    /// </summary>
+    public string GetCurrentAiModelName()
+    {
+        return _aiAssistantService.CurrentModelName;
+    }
+
+    /// <summary>
+    /// Get model description for UI display
+    /// </summary>
+    private static string GetModelDescription(string modelKey)
+    {
+        return modelKey switch
+        {
+            "owl-alpha" => "High-performance reasoning model, best for complex medical analysis",
+            "gemma-4" => "Google's powerful open-source model with strong general capabilities",
+            "minimax" => "Excellent multilingual support and natural conversation",
+            "nemotron" => "NVIDIA's advanced model for technical tasks",
+            "qianfan-ocr" => "Specialized in document analysis and OCR",
+            _ => "AI model for medical consultation"
+        };
+    }
+
+    #endregion
 }
 
 #region DTOs (Data Transfer Objects)

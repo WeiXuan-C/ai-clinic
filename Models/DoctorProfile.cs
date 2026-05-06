@@ -90,6 +90,27 @@ public class DoctorProfile
     [Column("is_accepting_patients")]
     public bool IsAcceptingPatients { get; set; } = true;
 
+    [Column("auto_accept_appointments")]
+    public bool AutoAcceptAppointments { get; set; } = false;
+
+    [Column("max_daily_patients")]
+    public int MaxDailyPatients { get; set; } = 30;
+
+    [Column("notify_urgent_consultations")]
+    public bool NotifyUrgentConsultations { get; set; } = true;
+
+    [Column("notify_new_appointments")]
+    public bool NotifyNewAppointments { get; set; } = true;
+
+    [Column("notify_ai_assessments")]
+    public bool NotifyAiAssessments { get; set; } = true;
+
+    [Column("notify_email_summaries")]
+    public bool NotifyEmailSummaries { get; set; } = false;
+
+    [Column("session_timeout_minutes")]
+    public int SessionTimeoutMinutes { get; set; } = 30;
+
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

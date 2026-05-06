@@ -17,7 +17,6 @@ public partial class Consultation : ComponentBase
     [Inject] private NavigationManager Navigation { get; set; } = null!;
     [Inject] private AuthFacade AuthFacade { get; set; } = null!;
     [Inject] private ConsultationFacade ConsultationFacade { get; set; } = null!;
-    [Inject] private AiAssistantService AiAssistantService { get; set; } = null!;
     [Inject] private IJSRuntime JS { get; set; } = null!;
 
     private List<ConversationListItem> conversationList = [];
@@ -35,13 +34,12 @@ public partial class Consultation : ComponentBase
     private List<AiModelInfo> availableModels = [];
     private string currentModelKey = "owl-alpha";
     private Guid? selectedDoctorId = null;
-    private string DoctorSearchQuery
     private List<RecommendedDoctorItem> recommendedDoctors = new();
     private bool showRecommendedDoctors = false;
     private bool isLoadingRecommendations = false;
     private bool showAllRecommendedDoctorsModal = false;
     private Guid? selectedRecommendedDoctorId = null;
-    private string doctorSearchQuery
+    private string DoctorSearchQuery
     {
         get => _doctorSearchQuery;
         set
@@ -67,23 +65,16 @@ public partial class Consultation : ComponentBase
 
     /// <summary>
     /// Loads available AI models list
+    /// Uses Facade to get model information
     /// </summary>
     private void LoadAvailableModels()
     {
-        var models = AiAssistantService.GetAvailableModels();
-        availableModels = models.Select(m => new AiModelInfo
-        {
-            Key = m.Key,
-            ModelId = m.ModelId,
-            DisplayName = m.DisplayName,
-            Description = GetModelDescription(m.Key)
-        }).ToList();
-
-        currentModelKey = models.Count > 0 ? models[0].Key : "owl-alpha";
+        availableModels = ConsultationFacade.GetAvailableAiModels();
+        currentModelKey = availableModels.Count > 0 ? availableModels[0].Key : "owl-alpha";
     }
 
     /// <summary>
-    /// Gets model description
+    /// Gets model description (moved to Facade)
     /// </summary>
     private static string GetModelDescription(string modelKey)
     {
@@ -407,14 +398,15 @@ public partial class Consultation : ComponentBase
 
     /// <summary>
     /// Switches AI model
+    /// Uses Facade to control model selection
     /// </summary>
     private void SwitchModel(string modelKey)
     {
         Console.WriteLine($"[UI] Switching AI model to: {modelKey}");
         currentModelKey = modelKey;
-        AiAssistantService.SwitchModel(modelKey);
+        ConsultationFacade.SwitchAiModel(modelKey);
         showModelSelectorModal = false;
-        Console.WriteLine($"[UI] Model switched successfully to: {AiAssistantService.CurrentModelName}");
+        Console.WriteLine($"[UI] Model switched successfully to: {ConsultationFacade.GetCurrentAiModelName()}");
         StateHasChanged();
     }
 
@@ -505,7 +497,7 @@ public partial class Consultation : ComponentBase
             
             // Create new doctor consultation
             var newSession = await ConsultationFacade.StartDoctorConsultationAsync(
-                AuthState.CurrentUser!.Id,
+                AuthFacade.CurrentUser!.Id,
                 doctorId.Value
             );
 
@@ -525,15 +517,5 @@ public partial class Consultation : ComponentBase
         }
     }
 
-    /// <summary>
-    /// AI model information class
-    /// </summary>
-    private class AiModelInfo
-    {
-        public string Key { get; set; } = string.Empty;
-        public string ModelId { get; set; } = string.Empty;
-        public string DisplayName { get; set; } = string.Empty;
-        public string Description { get; set; } = string.Empty;
-    }
 }
 

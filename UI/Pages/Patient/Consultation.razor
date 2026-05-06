@@ -805,7 +805,7 @@
                 <div class="input-features">
                     <span class="feature-badge">🔒 End-to-end encrypted medical sanctuary</span>
                     <button class="model-selector-btn" @onclick="ShowModelSelector">
-                        🤖 @AiAssistantService.CurrentModelName
+                        🤖 @ConsultationFacade.GetCurrentAiModelName()
                     </button>
                 </div>
                 

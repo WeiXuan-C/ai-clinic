@@ -358,3 +358,26 @@ public class SystemHealthOverview
     public int OpenSupportTickets { get; set; }
     public string SystemStatus { get; set; } = "Unknown";
 }
+
+public class AdminDashboardStats
+{
+    public int TotalUsers { get; set; }
+    public int TotalDoctors { get; set; }
+    public int VerifiedDoctors { get; set; }
+    public int PendingVerifications { get; set; }
+    public int TotalPatients { get; set; }
+    public int ActiveConversations { get; set; }
+    public int TotalConversations { get; set; }
+    public int OpenSupportTickets { get; set; }
+    public int TotalSupportTickets { get; set; }
+    public int RecentRegistrations { get; set; }
+}
+
+public class PaginatedResult<T>
+{
+    public List<T> Items { get; set; } = new();
+    public int TotalCount { get; set; }
+    public int Page { get; set; }
+    public int PageSize { get; set; }
+    public int TotalPages { get; set; }
+}

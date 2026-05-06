@@ -1,14 +1,27 @@
 @page "/patient/dashboard"
 @layout Components.Layout.SidebarLayout
-@using ai_clinic.Services.Facades
-@inject AuthFacade AuthFacade
 
 <PageTitle>Dashboard - AI Medical Clinic</PageTitle>
 
 <link rel="stylesheet" href="/css/stitch-design-system.css" />
 
-<!-- Header -->
-<header class="content-header">
+@if (isLoading)
+{
+    <div class="loading-container">
+        <p>Loading dashboard...</p>
+    </div>
+}
+else if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="error-container">
+        <p>@errorMessage</p>
+        <button class="btn btn-primary" @onclick="LoadDashboardData">Retry</button>
+    </div>
+}
+else if (dashboardData != null)
+{
+    <!-- Header -->
+    <header class="content-header">
         <div class="header-left">
             <h1>Welcome back, @displayName</h1>
             <p class="body-md" style="margin: 0.5rem;">
@@ -18,119 +31,140 @@
         </div>
     </header>
 
-<!-- Content Grid -->
-<div class="content-grid">
-    <!-- Hero Card -->
-    <div class="hero-card">
-        <i data-lucide="zap" class="hero-icon"></i>
-        <h2 class="headline-md">Start New<br/>AI Chat</h2>
-        <p class="body-md">Instant assessment</p>
-        <button class="hero-arrow">
-            <i data-lucide="arrow-right"></i>
-        </button>
+    <!-- Content Grid -->
+    <div class="content-grid">
+        <!-- Hero Card -->
+        <div class="hero-card" @onclick="NavigateToNewConsultation" style="cursor: pointer;">
+            <i data-lucide="zap" class="hero-icon"></i>
+            <h2 class="headline-md">Start New<br/>AI Chat</h2>
+            <p class="body-md">Instant assessment</p>
+            <button class="hero-arrow">
+                <i data-lucide="arrow-right"></i>
+            </button>
+        </div>
+
+        <!-- Recent Consultations -->
+        <section class="consultations-section">
+            <div class="section-header">
+                <h2 class="headline-md">Recent Consultations</h2>
+                <a href="/patient/consultation" class="link-primary">View All</a>
+            </div>
+            <div class="consultations-list">
+                @if (dashboardData.RecentConversations.Any())
+                {
+                    @foreach (var consultation in dashboardData.RecentConversations)
+                    {
+                        <div class="consultation-item">
+                            <div class="consultation-icon @GetConsultationIconClass(consultation)">
+                                <i data-lucide="@GetConsultationIcon(consultation)"></i>
+                            </div>
+                            <div class="consultation-info">
+                                <h4 class="headline-sm">@consultation.Title</h4>
+                                <p class="body-sm">@GetTimeSince(consultation.UpdatedAt)</p>
+                            </div>
+                            <span class="badge @GetConsultationBadgeClass(consultation)">@GetConsultationBadgeText(consultation)</span>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <p class="body-md" style="color: #434654; padding: 1rem;">No recent consultations. Start a new AI chat to get started!</p>
+                }
+            </div>
+        </section>
+
+        <!-- Book Doctor Visit -->
+        <div class="book-visit-card" @onclick="NavigateToDoctors" style="cursor: pointer;">
+            <i data-lucide="calendar-check" class="book-icon"></i>
+            <h3 class="headline-md">Book Doctor<br/>Visit</h3>
+            <p class="body-md">Specialist network</p>
+            <button class="card-arrow">
+                <i data-lucide="arrow-right"></i>
+            </button>
+        </div>
+
+        <!-- Upcoming Appointment -->
+        <section class="upcoming-section">
+            <div class="upcoming-header">
+                <i data-lucide="calendar" class="upcoming-icon"></i>
+                <span class="headline-sm">Upcoming</span>
+            </div>
+            @if (dashboardData.UpcomingAppointment != null)
+            {
+                <div class="upcoming-card">
+                    <h3 class="headline-md">@dashboardData.UpcomingAppointment.CreatedAt.ToString("dddd")</h3>
+                    <p class="body-lg primary-text">@dashboardData.UpcomingAppointment.CreatedAt.ToString("MMM dd @ h:mm tt")</p>
+                    <p class="body-md">@dashboardData.UpcomingAppointment.Title</p>
+                </div>
+            }
+            else
+            {
+                <div class="upcoming-card">
+                    <p class="body-md" style="color: #434654;">No upcoming appointments scheduled.</p>
+                </div>
+            }
+        </section>
+
+        <!-- Health Pulse -->
+        <section class="health-pulse-card">
+            <div class="pulse-header">
+                <i data-lucide="heart-pulse" class="pulse-icon"></i>
+                <span class="headline-sm">Health Pulse</span>
+            </div>
+            <div class="pulse-content">
+                @if (dashboardData.RecentHealthMetric != null)
+                {
+                    <p class="body-sm">@dashboardData.RecentHealthMetric.RecordType.ToUpper()</p>
+                    <h2 class="display-sm">@dashboardData.RecentHealthMetric.Title</h2>
+                    <div class="pulse-status">
+                        <span class="badge badge-success">RECORDED</span>
+                        <p class="body-sm" style="margin-top: 0.5rem;">@GetTimeSince(dashboardData.RecentHealthMetric.RecordDate)</p>
+                    </div>
+                }
+                else
+                {
+                    <p class="body-md" style="color: #434654;">No recent health metrics available.</p>
+                }
+            </div>
+        </section>
+
+        <!-- Health Summary -->
+        <section class="prediction-section">
+            <div class="prediction-header">
+                <h2 class="headline-md">Health Summary</h2>
+            </div>
+            <p class="body-md prediction-text">
+                @if (dashboardData.MedicalRecords.Any())
+                {
+                    <text>You have @dashboardData.MedicalRecords.Count medical record@(dashboardData.MedicalRecords.Count != 1 ? "s" : "") on file. </text>
+                }
+                @if (dashboardData.ActivePrescriptions.Any())
+                {
+                    <text>You have @dashboardData.ActivePrescriptions.Count active prescription@(dashboardData.ActivePrescriptions.Count != 1 ? "s" : ""). </text>
+                }
+                @if (!dashboardData.MedicalRecords.Any() && !dashboardData.ActivePrescriptions.Any())
+                {
+                    <text>Start your health journey by consulting with our AI assistant or booking a doctor visit.</text>
+                }
+            </p>
+            <div class="prediction-actions">
+                <button class="btn btn-primary" @onclick="@(() => Navigation.NavigateTo("/patient/records"))">View Medical Records</button>
+                <button class="btn btn-secondary" @onclick="NavigateToNewConsultation">Start Consultation</button>
+            </div>
+        </section>
     </div>
-
-    <!-- Recent Consultations -->
-    <section class="consultations-section">
-        <div class="section-header">
-            <h2 class="headline-md">Recent Consultations</h2>
-            <a href="#" class="link-primary">View All</a>
-        </div>
-        <div class="consultations-list">
-            <div class="consultation-item">
-                <div class="consultation-icon ai">
-                    <i data-lucide="bot"></i>
-                </div>
-                <div class="consultation-info">
-                    <h4 class="headline-sm">Symptom Assessment</h4>
-                    <p class="body-sm">Clinical AI Assistant • Today, 10:24 AM</p>
-                </div>
-                <span class="badge badge-ai">AI ASSIST</span>
-            </div>
-            <div class="consultation-item">
-                <div class="consultation-icon doctor">
-                    <i data-lucide="stethoscope"></i>
-                </div>
-                <div class="consultation-info">
-                    <h4 class="headline-sm">Cardiology Follow-up</h4>
-                    <p class="body-sm">Dr. Helena Vance • Oct 12, 2023</p>
-                </div>
-                <span class="badge badge-doctor">DOCTOR VISIT</span>
-            </div>
-            <div class="consultation-item">
-                <div class="consultation-icon lab">
-                    <i data-lucide="bar-chart-3"></i>
-                </div>
-                <div class="consultation-info">
-                    <h4 class="headline-sm">Blood Analysis Review</h4>
-                    <p class="body-sm">Pathology Dept • Oct 08, 2023</p>
-                </div>
-                <span class="badge badge-lab">LAB RESULTS</span>
-            </div>
-        </div>
-    </section>
-
-    <!-- Book Doctor Visit -->
-    <div class="book-visit-card">
-        <i data-lucide="calendar-check" class="book-icon"></i>
-        <h3 class="headline-md">Book Doctor<br/>Visit</h3>
-        <p class="body-md">Specialist network</p>
-        <button class="card-arrow">
-            <i data-lucide="arrow-right"></i>
-        </button>
-    </div>
-
-    <!-- Upcoming Appointment -->
-    <section class="upcoming-section">
-        <div class="upcoming-header">
-            <i data-lucide="calendar" class="upcoming-icon"></i>
-            <span class="headline-sm">Upcoming</span>
-        </div>
-        <div class="upcoming-card">
-            <h3 class="headline-md">Wednesday</h3>
-            <p class="body-lg primary-text">Oct 25 @@ 2:30 PM</p>
-            <p class="body-md">Annual Physical with<br/>Dr. Michael Chen</p>
-        </div>
-    </section>
-
-    <!-- Health Pulse -->
-    <section class="health-pulse-card">
-        <div class="pulse-header">
-            <i data-lucide="heart-pulse" class="pulse-icon"></i>
-            <span class="headline-sm">Health Pulse</span>
-        </div>
-        <div class="pulse-content">
-            <p class="body-sm">HbA1C LEVELS</p>
-            <h2 class="display-sm">5.4%</h2>
-            <div class="pulse-status">
-                <div class="progress-bar">
-                    <div class="progress-fill" style="width: 54%"></div>
-                </div>
-                <span class="badge badge-success">NORMAL</span>
-            </div>
-        </div>
-    </section>
-
-    <!-- Health Prediction Summary -->
-    <section class="prediction-section">
-        <div class="prediction-header">
-            <h2 class="headline-md">Health Prediction Summary</h2>
-            <span class="badge badge-ai-insight">AI INSIGHTS</span>
-        </div>
-        <p class="body-md prediction-text">
-            Based on your recent wearable data and lab results, your cardiovascular 
-            efficiency has improved by 12% since last month. Keep up the high-intensity 
-            interval training for optimal longevity scores.
-        </p>
-        <div class="prediction-actions">
-            <button class="btn btn-primary">View Detailed Report</button>
-            <button class="btn btn-secondary">Ask Follow-up</button>
-        </div>
-    </section>
-</div>
-
+}
 
 <style>
+    .loading-container, .error-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 400px;
+        gap: 1rem;
+    }
+
     .content-header {
         display: flex;
         justify-content: space-between;
@@ -156,42 +190,6 @@
     .status-indicator {
         color: #76f3ea;
         font-size: 0.75rem;
-    }
-
-    .header-right {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-    }
-
-    .user-avatars {
-        display: flex;
-        gap: 0.5rem;
-    }
-
-    .avatar-sm {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, #76f3ea, #006a65);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.25rem;
-        border: 2px solid white;
-    }
-
-    .icon-btn {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        background: #f2f4f6;
-        border: none;
-        cursor: pointer;
-        font-size: 1.25rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
     }
 
     /* Content Grid */
@@ -316,10 +314,6 @@
         background: #dae2ff;
     }
 
-    .consultation-icon.lab {
-        background: #e0e3e5;
-    }
-
     .consultation-info {
         flex: 1;
     }
@@ -354,17 +348,7 @@
         color: #434654;
     }
 
-    .badge-lab {
-        background: #e6e8ea;
-        color: #434654;
-    }
-
     .badge-success {
-        background: #76f3ea;
-        color: #006a65;
-    }
-
-    .badge-ai-insight {
         background: #76f3ea;
         color: #006a65;
     }
@@ -504,20 +488,6 @@
         gap: 0.75rem;
     }
 
-    .progress-bar {
-        width: 100%;
-        height: 8px;
-        background: #e6e8ea;
-        border-radius: 4px;
-        overflow: hidden;
-    }
-
-    .progress-fill {
-        height: 100%;
-        background: linear-gradient(90deg, #76f3ea, #006a65);
-        border-radius: 4px;
-    }
-
     /* Prediction Section */
     .prediction-section {
         grid-column: span 3;
@@ -551,7 +521,7 @@
     }
 
     .btn {
-        padding: 1rem 1.75rem;
+        padding: 0.75rem 1.5rem;
         border-radius: 8px;
         font-weight: 600;
         cursor: pointer;
@@ -567,7 +537,6 @@
 
     .btn-primary:hover {
         background: #003d9b;
-        transform: translateY(-1px);
     }
 
     .btn-secondary {
@@ -606,23 +575,3 @@
         }
     }
 </style>
-
-@code {
-    private string displayName = "Guest";
-    private string userInitials = "?";
-
-    protected override async Task OnInitializedAsync()
-    {
-        // AuthFacade should already be initialized by the layout or app
-        // If not, it will initialize itself on first access
-
-        // Load user data from auth facade
-        if (AuthFacade.IsAuthenticated && AuthFacade.CurrentUser != null)
-        {
-            displayName = AuthFacade.GetDisplayName();
-            userInitials = AuthFacade.GetUserInitials();
-        }
-
-        await base.OnInitializedAsync();
-    }
-}

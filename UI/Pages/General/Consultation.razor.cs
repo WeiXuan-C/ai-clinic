@@ -14,7 +14,7 @@ public partial class Consultation : ComponentBase
 {
     [Inject] private NavigationManager Navigation { get; set; } = null!;
     [Inject] private AuthFacade AuthFacade { get; set; } = null!;
-    [Inject] private AnonymousConsultationService AnonymousConsultation { get; set; } = null!;
+    [Inject] private AiFacade AiFacade { get; set; } = null!;
     [Inject] private IJSRuntime JS { get; set; } = null!;
 
     private readonly List<ChatMessage> messages = [];
@@ -37,7 +37,7 @@ public partial class Consultation : ComponentBase
         sessionId = await GetOrCreateSessionId();
 
         // Get remaining queries
-        availableCredits = AnonymousConsultation.GetRemainingQueries(sessionId);
+        availableCredits = AiFacade.GetAnonymousRemainingQueries(sessionId);
 
         Console.WriteLine($"[GENERAL CONSULTATION] Session ID: {sessionId}, Available Credits: {availableCredits}");
     }
@@ -127,7 +127,7 @@ public partial class Consultation : ComponentBase
         try
         {
             // Send query to backend
-            var result = await AnonymousConsultation.SendQueryAsync(sessionId, messageContent);
+            var result = await AiFacade.SendAnonymousQueryAsync(sessionId, messageContent);
 
             // Update available credits
             availableCredits = result.RemainingQueries;

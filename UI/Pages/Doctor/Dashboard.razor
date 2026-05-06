@@ -1,232 +1,179 @@
 @page "/doctor/dashboard"
 @layout Components.Layout.DoctorSidebarLayout
+@using ai_clinic.Models
 
 <PageTitle>Dashboard - AI Medical Clinic</PageTitle>
 
 <link rel="stylesheet" href="/css/stitch-design-system.css" />
 
-<!-- Header -->
-<header class="content-header">
-    <div class="header-left">
-        <h1>Welcome back, Dr. Smith</h1>
-        <p class="body-md" style="margin: 0.5rem;">
-            <span class="status-indicator">●</span>
-            You have 3 pending consultations today
-        </p>
+@if (isLoading)
+{
+    <div class="loading-container">
+        <p>Loading dashboard...</p>
     </div>
-</header>
-
-<!-- Content Grid -->
-<div class="content-grid">
-    <!-- Quick Stats -->
-    <div class="stats-row">
-        <div class="stat-card">
-            <div class="stat-icon patients">
-                <i data-lucide="users"></i>
-            </div>
-            <div class="stat-info">
-                <h3 class="stat-value">24</h3>
-                <p class="stat-label">Patients Today</p>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon appointments">
-                <i data-lucide="calendar-check"></i>
-            </div>
-            <div class="stat-info">
-                <h3 class="stat-value">8</h3>
-                <p class="stat-label">Appointments</p>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon consultations">
-                <i data-lucide="message-circle"></i>
-            </div>
-            <div class="stat-info">
-                <h3 class="stat-value">12</h3>
-                <p class="stat-label">Consultations</p>
-            </div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon rating">
-                <i data-lucide="star"></i>
-            </div>
-            <div class="stat-info">
-                <h3 class="stat-value">4.9</h3>
-                <p class="stat-label">Rating</p>
-            </div>
-        </div>
+}
+else if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="error-container">
+        <p>@errorMessage</p>
+        <button class="btn btn-primary" @onclick="LoadDashboardData">Retry</button>
     </div>
+}
+else if (dashboardData != null)
+{
+    <!-- Header -->
+    <header class="content-header">
+        <div class="header-left">
+            <h1>Welcome back, @doctorName</h1>
+            <p class="body-md" style="margin: 0.5rem;">
+                <span class="status-indicator">●</span>
+                You have @dashboardData.PendingConsultations.Count pending consultation@(dashboardData.PendingConsultations.Count != 1 ? "s" : "") today
+            </p>
+        </div>
+    </header>
 
-    <!-- Today's Schedule -->
-    <section class="schedule-section">
-        <div class="section-header">
-            <h2 class="headline-md">Today's Schedule</h2>
-            <a href="/doctor/appointments" class="link-primary">View All</a>
-        </div>
-        <div class="schedule-list">
-            <div class="schedule-item urgent">
-                <div class="time-badge">09:00 AM</div>
-                <div class="patient-info">
-                    <h4 class="headline-sm">Sarah Johnson</h4>
-                    <p class="body-sm">Annual Physical Examination</p>
+    <!-- Content Grid -->
+    <div class="content-grid">
+        <!-- Quick Stats -->
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="stat-icon patients">
+                    <i data-lucide="users"></i>
                 </div>
-                <span class="badge badge-urgent">URGENT</span>
-                <button class="btn-icon">
-                    <i data-lucide="video"></i>
-                </button>
+                <div class="stat-info">
+                    <h3 class="stat-value">@dashboardData.Stats.PatientsToday</h3>
+                    <p class="stat-label">Patients Today</p>
+                </div>
             </div>
-            <div class="schedule-item">
-                <div class="time-badge">10:30 AM</div>
-                <div class="patient-info">
-                    <h4 class="headline-sm">Michael Chen</h4>
-                    <p class="body-sm">Follow-up Consultation</p>
+            <div class="stat-card">
+                <div class="stat-icon appointments">
+                    <i data-lucide="calendar-check"></i>
                 </div>
-                <span class="badge badge-scheduled">SCHEDULED</span>
-                <button class="btn-icon">
-                    <i data-lucide="video"></i>
-                </button>
+                <div class="stat-info">
+                    <h3 class="stat-value">@dashboardData.Stats.TotalAppointments</h3>
+                    <p class="stat-label">Appointments</p>
+                </div>
             </div>
-            <div class="schedule-item">
-                <div class="time-badge">02:00 PM</div>
-                <div class="patient-info">
-                    <h4 class="headline-sm">Emma Williams</h4>
-                    <p class="body-sm">Lab Results Review</p>
+            <div class="stat-card">
+                <div class="stat-icon consultations">
+                    <i data-lucide="message-circle"></i>
                 </div>
-                <span class="badge badge-scheduled">SCHEDULED</span>
-                <button class="btn-icon">
-                    <i data-lucide="video"></i>
-                </button>
+                <div class="stat-info">
+                    <h3 class="stat-value">@dashboardData.Stats.TotalConsultations</h3>
+                    <p class="stat-label">Consultations</p>
+                </div>
             </div>
-            <div class="schedule-item">
-                <div class="time-badge">03:30 PM</div>
-                <div class="patient-info">
-                    <h4 class="headline-sm">James Brown</h4>
-                    <p class="body-sm">New Patient Consultation</p>
+            <div class="stat-card">
+                <div class="stat-icon rating">
+                    <i data-lucide="star"></i>
                 </div>
-                <span class="badge badge-new">NEW PATIENT</span>
-                <button class="btn-icon">
-                    <i data-lucide="video"></i>
-                </button>
+                <div class="stat-info">
+                    <h3 class="stat-value">@dashboardData.Stats.AverageRating.ToString("F1")</h3>
+                    <p class="stat-label">Rating</p>
+                </div>
             </div>
         </div>
-    </section>
 
-    <!-- Pending Consultations -->
-    <section class="consultations-section">
-        <div class="section-header">
-            <h2 class="headline-md">Pending Consultations</h2>
-            <a href="/doctor/consultation" class="link-primary">View All</a>
-        </div>
-        <div class="consultations-list">
-            <div class="consultation-item">
-                <div class="consultation-icon ai">
-                    <i data-lucide="bot"></i>
-                </div>
-                <div class="consultation-info">
-                    <h4 class="headline-sm">AI Pre-Assessment</h4>
-                    <p class="body-sm">Patient: Lisa Anderson • 15 min ago</p>
-                </div>
-                <span class="badge badge-ai">AI ASSIST</span>
-                <button class="btn-secondary-sm">Review</button>
+        <!-- Pending Consultations -->
+        <section class="consultations-section">
+            <div class="section-header">
+                <h2 class="headline-md">Pending Consultations</h2>
+                <a href="/doctor/consultation" class="link-primary">View All</a>
             </div>
-            <div class="consultation-item">
-                <div class="consultation-icon urgent">
-                    <i data-lucide="alert-circle"></i>
-                </div>
-                <div class="consultation-info">
-                    <h4 class="headline-sm">Urgent Consultation</h4>
-                    <p class="body-sm">Patient: Robert Taylor • 5 min ago</p>
-                </div>
-                <span class="badge badge-urgent">URGENT</span>
-                <button class="btn-primary-sm">Respond</button>
+            <div class="consultations-list">
+                @if (dashboardData.PendingConsultations.Any())
+                {
+                    @foreach (var consultation in dashboardData.PendingConsultations)
+                    {
+                        <div class="consultation-item">
+                            <div class="consultation-icon @(consultation.Status == ConversationStatus.Active ? "urgent" : "message")">
+                                <i data-lucide="@(consultation.Status == ConversationStatus.Active ? "alert-circle" : "message-square")"></i>
+                            </div>
+                            <div class="consultation-info">
+                                <h4 class="headline-sm">@consultation.Title</h4>
+                                <p class="body-sm">@GetTimeSince(consultation.CreatedAt)</p>
+                            </div>
+                            <span class="badge @GetConversationBadgeClass(consultation)">@GetConversationBadgeText(consultation)</span>
+                            <button class="btn-primary-sm" @onclick="@(() => Navigation.NavigateTo($"/doctor/chat/{consultation.Id}"))">
+                                @(consultation.Status == ConversationStatus.Active ? "Respond" : "Review")
+                            </button>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <p class="body-md" style="color: #434654; padding: 1rem;">No pending consultations at the moment.</p>
+                }
             </div>
-            <div class="consultation-item">
-                <div class="consultation-icon message">
-                    <i data-lucide="message-square"></i>
-                </div>
-                <div class="consultation-info">
-                    <h4 class="headline-sm">Follow-up Question</h4>
-                    <p class="body-sm">Patient: Maria Garcia • 1 hour ago</p>
-                </div>
-                <span class="badge badge-followup">FOLLOW-UP</span>
-                <button class="btn-secondary-sm">Reply</button>
-            </div>
-        </div>
-    </section>
+        </section>
 
-    <!-- Recent Activity -->
-    <section class="activity-section">
-        <div class="section-header">
-            <h2 class="headline-md">Recent Activity</h2>
-        </div>
-        <div class="activity-timeline">
-            <div class="activity-item">
-                <div class="activity-dot"></div>
-                <div class="activity-content">
-                    <span class="activity-time">10 min ago</span>
-                    <p class="body-md">Completed consultation with <strong>Sarah Johnson</strong></p>
-                </div>
+        <!-- Recent Activity -->
+        <section class="activity-section">
+            <div class="section-header">
+                <h2 class="headline-md">Recent Activity</h2>
             </div>
-            <div class="activity-item">
-                <div class="activity-dot"></div>
-                <div class="activity-content">
-                    <span class="activity-time">1 hour ago</span>
-                    <p class="body-md">Prescribed medication for <strong>Michael Chen</strong></p>
-                </div>
+            <div class="activity-timeline">
+                @if (dashboardData.RecentActivity.Any())
+                {
+                    @foreach (var activity in dashboardData.RecentActivity)
+                    {
+                        <div class="activity-item">
+                            <div class="activity-dot"></div>
+                            <div class="activity-content">
+                                <span class="activity-time">@GetTimeSince(activity.CreatedAt)</span>
+                                <p class="body-md">@GetActivityDescription(activity)</p>
+                            </div>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <p class="body-md" style="color: #434654;">No recent activity.</p>
+                }
             </div>
-            <div class="activity-item">
-                <div class="activity-dot"></div>
-                <div class="activity-content">
-                    <span class="activity-time">2 hours ago</span>
-                    <p class="body-md">Reviewed lab results for <strong>Emma Williams</strong></p>
-                </div>
-            </div>
-            <div class="activity-item">
-                <div class="activity-dot"></div>
-                <div class="activity-content">
-                    <span class="activity-time">3 hours ago</span>
-                    <p class="body-md">Updated medical records for <strong>James Brown</strong></p>
-                </div>
-            </div>
-        </div>
-    </section>
+        </section>
 
-    <!-- Performance Summary -->
-    <section class="performance-section">
-        <div class="section-header">
-            <h2 class="headline-md">This Week's Performance</h2>
-        </div>
-        <div class="performance-grid">
-            <div class="performance-item">
-                <i data-lucide="users" class="performance-icon"></i>
-                <h4 class="headline-lg">142</h4>
-                <p class="body-sm">Patients Seen</p>
-                <span class="trend positive">+12%</span>
+        <!-- Performance Summary -->
+        <section class="performance-section">
+            <div class="section-header">
+                <h2 class="headline-md">This Week's Performance</h2>
             </div>
-            <div class="performance-item">
-                <i data-lucide="clock" class="performance-icon"></i>
-                <h4 class="headline-lg">18 min</h4>
-                <p class="body-sm">Avg Response Time</p>
-                <span class="trend positive">-5%</span>
+            <div class="performance-grid">
+                <div class="performance-item">
+                    <i data-lucide="users" class="performance-icon"></i>
+                    <h4 class="headline-lg">@dashboardData.WeekPerformance.PatientsSeen</h4>
+                    <p class="body-sm">Patients Seen</p>
+                </div>
+                <div class="performance-item">
+                    <i data-lucide="clock" class="performance-icon"></i>
+                    <h4 class="headline-lg">@dashboardData.WeekPerformance.AverageResponseTimeMinutes min</h4>
+                    <p class="body-sm">Avg Response Time</p>
+                </div>
+                <div class="performance-item">
+                    <i data-lucide="heart" class="performance-icon"></i>
+                    <h4 class="headline-lg">@dashboardData.WeekPerformance.SatisfactionRate.ToString("F0")%</h4>
+                    <p class="body-sm">Satisfaction Rate</p>
+                </div>
+                <div class="performance-item">
+                    <i data-lucide="file-text" class="performance-icon"></i>
+                    <h4 class="headline-lg">@dashboardData.WeekPerformance.RecordsUpdated</h4>
+                    <p class="body-sm">Records Updated</p>
+                </div>
             </div>
-            <div class="performance-item">
-                <i data-lucide="heart" class="performance-icon"></i>
-                <h4 class="headline-lg">98%</h4>
-                <p class="body-sm">Satisfaction Rate</p>
-                <span class="trend positive">+2%</span>
-            </div>
-            <div class="performance-item">
-                <i data-lucide="file-text" class="performance-icon"></i>
-                <h4 class="headline-lg">87</h4>
-                <p class="body-sm">Records Updated</p>
-                <span class="trend neutral">0%</span>
-            </div>
-        </div>
-    </section>
-</div>
+        </section>
+    </div>
+}
 
 <style>
+    .loading-container, .error-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 400px;
+        gap: 1rem;
+    }
+
     .content-header {
         display: flex;
         justify-content: space-between;
@@ -325,8 +272,8 @@
         font-size: 0.875rem;
     }
 
-    /* Schedule Section */
-    .schedule-section {
+    /* Consultations Section */
+    .consultations-section {
         grid-column: span 1;
         background: white;
         padding: 2rem;
@@ -353,114 +300,6 @@
         font-weight: 600;
     }
 
-    .schedule-list {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-    }
-
-    .schedule-item {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        padding: 1rem;
-        background: #f7f9fb;
-        border-radius: 12px;
-        border-left: 4px solid #e6e8ea;
-    }
-
-    .schedule-item.urgent {
-        border-left-color: #ef4444;
-        background: #fef2f2;
-    }
-
-    .time-badge {
-        padding: 0.5rem 0.75rem;
-        background: white;
-        border-radius: 8px;
-        font-size: 0.875rem;
-        font-weight: 600;
-        color: #1e40af;
-        white-space: nowrap;
-    }
-
-    .patient-info {
-        flex: 1;
-    }
-
-    .patient-info h4 {
-        font-size: 0.9375rem;
-        font-weight: 600;
-        color: #191c1e;
-        margin-bottom: 0.25rem;
-    }
-
-    .patient-info p {
-        font-size: 0.8125rem;
-        color: #434654;
-    }
-
-    .badge {
-        padding: 0.375rem 0.75rem;
-        border-radius: 6px;
-        font-size: 0.625rem;
-        font-weight: 700;
-        letter-spacing: 0.05em;
-        white-space: nowrap;
-    }
-
-    .badge-urgent {
-        background: #fee2e2;
-        color: #991b1b;
-    }
-
-    .badge-scheduled {
-        background: #dbeafe;
-        color: #1e40af;
-    }
-
-    .badge-new {
-        background: #d1fae5;
-        color: #065f46;
-    }
-
-    .badge-ai {
-        background: #e0e7ff;
-        color: #3730a3;
-    }
-
-    .badge-followup {
-        background: #fef3c7;
-        color: #92400e;
-    }
-
-    .btn-icon {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        background: #1e40af;
-        color: white;
-        border: none;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.2s;
-    }
-
-    .btn-icon:hover {
-        background: #1e3a8a;
-        transform: scale(1.05);
-    }
-
-    /* Consultations Section */
-    .consultations-section {
-        grid-column: span 1;
-        background: white;
-        padding: 2rem;
-        border-radius: 16px;
-    }
-
     .consultations-list {
         display: flex;
         flex-direction: column;
@@ -484,11 +323,6 @@
         align-items: center;
         justify-content: center;
         font-size: 1.5rem;
-    }
-
-    .consultation-icon.ai {
-        background: #e0e7ff;
-        color: #3730a3;
     }
 
     .consultation-icon.urgent {
@@ -517,6 +351,30 @@
         color: #434654;
     }
 
+    .badge {
+        padding: 0.375rem 0.75rem;
+        border-radius: 6px;
+        font-size: 0.625rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        white-space: nowrap;
+    }
+
+    .badge-urgent {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .badge-scheduled {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+
+    .badge-followup {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
     .btn-primary-sm {
         padding: 0.5rem 1rem;
         background: #1e40af;
@@ -531,22 +389,6 @@
 
     .btn-primary-sm:hover {
         background: #1e3a8a;
-    }
-
-    .btn-secondary-sm {
-        padding: 0.5rem 1rem;
-        background: #e6e8ea;
-        color: #191c1e;
-        border: none;
-        border-radius: 8px;
-        font-size: 0.8125rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-
-    .btn-secondary-sm:hover {
-        background: #d8dadc;
     }
 
     /* Activity Section */
@@ -612,7 +454,7 @@
 
     /* Performance Section */
     .performance-section {
-        grid-column: span 1;
+        grid-column: span 2;
         background: white;
         padding: 2rem;
         border-radius: 16px;
@@ -620,7 +462,7 @@
 
     .performance-grid {
         display: grid;
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(4, 1fr);
         gap: 1.5rem;
     }
 
@@ -654,24 +496,25 @@
     .performance-item p {
         color: #434654;
         font-size: 0.875rem;
-        margin-bottom: 0.5rem;
     }
 
-    .trend {
-        font-size: 0.8125rem;
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
         font-weight: 600;
-        padding: 0.25rem 0.5rem;
-        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: none;
+        font-size: 0.875rem;
     }
 
-    .trend.positive {
-        color: #065f46;
-        background: #d1fae5;
+    .btn-primary {
+        background: #1e40af;
+        color: white;
     }
 
-    .trend.neutral {
-        color: #434654;
-        background: #e6e8ea;
+    .btn-primary:hover {
+        background: #1e3a8a;
     }
 
     /* Responsive */
@@ -684,21 +527,20 @@
             grid-template-columns: 1fr;
         }
 
-        .schedule-section,
         .consultations-section,
         .activity-section,
         .performance-section {
             grid-column: span 1;
+        }
+
+        .performance-grid {
+            grid-template-columns: repeat(2, 1fr);
         }
     }
 
     @@media (max-width: 768px) {
         .stats-row {
             grid-template-columns: 1fr;
-        }
-
-        .schedule-item {
-            flex-wrap: wrap;
         }
 
         .performance-grid {

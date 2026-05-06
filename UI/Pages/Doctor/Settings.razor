@@ -1,4 +1,5 @@
 @page "/doctor/settings"
+@using ai_clinic.Models
 @layout Components.Layout.DoctorSidebarLayout
 
 <PageTitle>Settings - AI Medical Clinic</PageTitle>
@@ -16,6 +17,20 @@
 </header>
 
 <!-- Content Grid -->
+@if (isLoading)
+{
+    <div style="text-align: center; padding: 3rem;">
+        <p class="body-md">Loading settings...</p>
+    </div>
+}
+else if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div style="text-align: center; padding: 3rem;">
+        <p class="body-md" style="color: #d32f2f;">@errorMessage</p>
+    </div>
+}
+else
+{
 <div class="content-grid">
     <!-- Account Settings -->
     <section class="settings-card">
@@ -29,7 +44,7 @@
             <div class="setting-item">
                 <div class="setting-info">
                     <h4 class="headline-sm">Email Address</h4>
-                    <p class="body-sm">dr.smith@aiclinic.com</p>
+                    <p class="body-sm">@settings.Email</p>
                 </div>
                 <button class="btn-link">Change</button>
             </div>
@@ -57,10 +72,10 @@
                     <h4 class="headline-sm">Current Status</h4>
                     <p class="body-sm">Set your availability status</p>
                 </div>
-                <select class="select-input">
-                    <option value="available">Available</option>
-                    <option value="busy">Busy</option>
-                    <option value="offline">Offline</option>
+                <select class="select-input" @bind="settings.AvailabilityStatus" @bind:after="SaveSettings">
+                    <option value="@DoctorAvailabilityStatus.Available">Available</option>
+                    <option value="@DoctorAvailabilityStatus.Busy">Busy</option>
+                    <option value="@DoctorAvailabilityStatus.Offline">Offline</option>
                 </select>
             </div>
             <div class="setting-item">
@@ -69,7 +84,7 @@
                     <p class="body-sm">Automatically accept new appointment requests</p>
                 </div>
                 <label class="toggle-switch">
-                    <input type="checkbox" />
+                    <input type="checkbox" @bind="settings.AutoAcceptAppointments" @bind:after="SaveSettings" />
                     <span class="toggle-slider"></span>
                 </label>
             </div>
@@ -78,7 +93,7 @@
                     <h4 class="headline-sm">Maximum Daily Patients</h4>
                     <p class="body-sm">Limit the number of patients per day</p>
                 </div>
-                <input type="number" class="number-input" value="30" />
+                <input type="number" class="number-input" @bind="settings.MaxDailyPatients" @bind:after="SaveSettings" />
             </div>
         </div>
     </section>
@@ -98,7 +113,7 @@
                     <p class="body-sm">Get notified about urgent patient requests</p>
                 </div>
                 <label class="toggle-switch">
-                    <input type="checkbox" checked />
+                    <input type="checkbox" @bind="settings.NotifyUrgentConsultations" @bind:after="SaveSettings" />
                     <span class="toggle-slider"></span>
                 </label>
             </div>
@@ -108,7 +123,7 @@
                     <p class="body-sm">Receive alerts for new appointment bookings</p>
                 </div>
                 <label class="toggle-switch">
-                    <input type="checkbox" checked />
+                    <input type="checkbox" @bind="settings.NotifyNewAppointments" @bind:after="SaveSettings" />
                     <span class="toggle-slider"></span>
                 </label>
             </div>
@@ -118,7 +133,7 @@
                     <p class="body-sm">Notify when AI completes patient pre-assessment</p>
                 </div>
                 <label class="toggle-switch">
-                    <input type="checkbox" checked />
+                    <input type="checkbox" @bind="settings.NotifyAiAssessments" @bind:after="SaveSettings" />
                     <span class="toggle-slider"></span>
                 </label>
             </div>
@@ -128,7 +143,7 @@
                     <p class="body-sm">Receive email summaries of daily activity</p>
                 </div>
                 <label class="toggle-switch">
-                    <input type="checkbox" />
+                    <input type="checkbox" @bind="settings.NotifyEmailSummaries" @bind:after="SaveSettings" />
                     <span class="toggle-slider"></span>
                 </label>
             </div>
@@ -156,9 +171,9 @@
                     <h4 class="headline-sm">Session Timeout</h4>
                     <p class="body-sm">Auto-logout after inactivity</p>
                 </div>
-                <select class="select-input">
+                <select class="select-input" @bind="settings.SessionTimeoutMinutes" @bind:after="SaveSettings">
                     <option value="15">15 minutes</option>
-                    <option value="30" selected>30 minutes</option>
+                    <option value="30">30 minutes</option>
                     <option value="60">1 hour</option>
                     <option value="120">2 hours</option>
                 </select>
@@ -377,3 +392,4 @@
         }
     }
 </style>
+}

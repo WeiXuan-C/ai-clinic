@@ -1,13 +1,12 @@
 @using Microsoft.AspNetCore.Components.Web
 @using Microsoft.AspNetCore.Components.Routing
-@using ai_clinic.Services
+@using ai_clinic.Services.Facades
 @using ai_clinic.UI.Components
 @inherits LayoutComponentBase
 @implements IDisposable
 @inject IJSRuntime JSRuntime
 @inject NavigationManager Navigation
-@inject AuthStateService AuthState
-@inject UserService UserService
+@inject AuthFacade AuthFacade
 
 @code {
     private string? userName = null;
@@ -18,9 +17,9 @@
     protected override void OnInitialized()
     {
         // Subscribe to auth state changes
-        AuthState.OnAuthStateChanged += UpdateUserInfo;
+        AuthFacade.OnAuthStateChanged += UpdateUserInfo;
         
-        // Initialize user data from AuthState
+        // Initialize user data from AuthFacade
         UpdateUserInfo();
         
         // Subscribe to navigation changes
@@ -36,9 +35,9 @@
 
     private async void UpdateUserInfo()
     {
-        userName = AuthState.GetDisplayName();
-        userEmail = AuthState.CurrentUser?.Email;
-        userInitials = AuthState.GetUserInitials();
+        userName = AuthFacade.GetDisplayName();
+        userEmail = AuthFacade.CurrentUser?.Email;
+        userInitials = AuthFacade.GetUserInitials();
         
         // Trigger re-render
         await InvokeAsync(StateHasChanged);
@@ -66,8 +65,11 @@
 
     private async Task HandleLogout()
     {
-        // Clear authentication state and session
-        await AuthState.ClearCurrentUserAsync();
+        // Clear authentication state and session using Facade
+        if (AuthFacade.CurrentUser != null)
+        {
+            await AuthFacade.SignOutAsync(AuthFacade.CurrentUser.Id);
+        }
         
         // Navigate to sign-in page
         Navigation.NavigateTo("/auth/signin", forceLoad: true);
@@ -81,7 +83,7 @@
     public void Dispose()
     {
         // Unsubscribe from auth state changes
-        AuthState.OnAuthStateChanged -= UpdateUserInfo;
+        AuthFacade.OnAuthStateChanged -= UpdateUserInfo;
         Navigation.LocationChanged -= OnLocationChanged;
     }
 }

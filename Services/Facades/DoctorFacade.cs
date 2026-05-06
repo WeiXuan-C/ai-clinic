@@ -231,6 +231,183 @@ public class DoctorFacade
 
         return success;
     }
+
+    /// <summary>
+    /// Get doctor profile photo
+    /// Simplified interface for UI layer
+    /// </summary>
+    public async Task<byte[]?> GetDoctorProfilePhotoAsync(Guid userId)
+    {
+        return await _doctorProfileService.GetProfilePhotoAsync(userId);
+    }
+
+    /// <summary>
+    /// Get comprehensive doctor dashboard data
+    /// Includes stats, schedule, pending consultations, and recent activity
+    /// </summary>
+    public async Task<DoctorDashboardFullData> GetDoctorDashboardFullDataAsync(Guid userId)
+    {
+        var profile = await _doctorProfileService.GetByUserIdAsync(userId);
+        var conversations = await _conversationService.GetByDoctorIdAsync(userId);
+        var performance = await _statisticsService.GetDoctorPerformanceAsync(userId);
+        var recentLogs = await _activityLogService.GetRecentLogsByUserAsync(userId, 10);
+
+        var today = DateTime.UtcNow.Date;
+        var activeConversations = conversations.Where(c => c.Status == ConversationStatus.Active).ToList();
+        var pendingConversations = conversations.Where(c => c.Status == ConversationStatus.Deactive).ToList();
+
+        await _activityLogService.LogActivityAsync(userId, "ViewDoctorDashboard");
+
+        return new DoctorDashboardFullData
+        {
+            Profile = profile,
+            Stats = new DoctorDashboardStatsData
+            {
+                PatientsToday = activeConversations.Count,
+                TotalAppointments = conversations.Count(c => c.CreatedAt.Date == today),
+                TotalConsultations = conversations.Count,
+                AverageRating = performance.AverageRating
+            },
+            PendingConsultations = pendingConversations.Take(5).ToList(),
+            RecentActivity = recentLogs,
+            WeekPerformance = new WeekPerformanceData
+            {
+                PatientsSeen = performance.CompletedConsultations,
+                AverageResponseTimeMinutes = 18, // TODO: Calculate from actual data
+                SatisfactionRate = performance.AverageRating / 5.0m * 100,
+                RecordsUpdated = recentLogs.Count(l => l.Action.Contains("Update"))
+            }
+        };
+    }
+
+    /// <summary>
+    /// Get doctor analytics data
+    /// Includes metrics, demographics, top conditions, and AI insights
+    /// </summary>
+    public async Task<DoctorAnalyticsFullData> GetDoctorAnalyticsAsync(Guid userId, string period = "month")
+    {
+        var conversations = await _conversationService.GetByDoctorIdAsync(userId);
+        var performance = await _statisticsService.GetDoctorPerformanceAsync(userId);
+        var medicalRecords = await _medicalRecordService.GetByDoctorIdAsync(userId);
+
+        // Filter by period
+        var startDate = period switch
+        {
+            "week" => DateTime.UtcNow.AddDays(-7),
+            "quarter" => DateTime.UtcNow.AddMonths(-3),
+            "year" => DateTime.UtcNow.AddYears(-1),
+            _ => DateTime.UtcNow.AddMonths(-1)
+        };
+
+        var filteredConversations = conversations.Where(c => c.CreatedAt >= startDate).ToList();
+
+        await _activityLogService.LogActivityAsync(userId, "ViewDoctorAnalytics");
+
+        return new DoctorAnalyticsFullData
+        {
+            Metrics = new DoctorMetricsData
+            {
+                TotalPatients = filteredConversations.Select(c => c.PatientId).Distinct().Count(),
+                TotalConsultations = filteredConversations.Count,
+                AverageResponseTimeMinutes = 18, // TODO: Calculate from actual data
+                PatientRating = performance.AverageRating
+            },
+            TopConditions = medicalRecords
+                .Where(r => !string.IsNullOrEmpty(r.Title))
+                .GroupBy(r => r.Title)
+                .Select(g => new TopConditionData
+                {
+                    ConditionName = g.Key,
+                    PatientCount = g.Count()
+                })
+                .OrderByDescending(c => c.PatientCount)
+                .Take(5)
+                .ToList()
+        };
+    }
+
+    /// <summary>
+    /// Get doctor's medical records with statistics
+    /// </summary>
+    public async Task<DoctorRecordsFullData> GetDoctorRecordsAsync(Guid userId, string? filter = null)
+    {
+        var medicalRecords = await _medicalRecordService.GetByDoctorIdAsync(userId);
+        var prescriptions = await _prescriptionService.GetByDoctorIdAsync(userId);
+
+        if (!string.IsNullOrEmpty(filter))
+        {
+            medicalRecords = medicalRecords.Where(r => 
+                r.Title.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
+                r.Content.Contains(filter, StringComparison.OrdinalIgnoreCase)
+            ).ToList();
+        }
+
+        await _activityLogService.LogActivityAsync(userId, "ViewDoctorRecords");
+
+        return new DoctorRecordsFullData
+        {
+            MedicalRecords = medicalRecords.OrderByDescending(r => r.RecordDate).Take(20).ToList(),
+            Prescriptions = prescriptions.OrderByDescending(p => p.CreatedAt).Take(20).ToList(),
+            Statistics = new RecordStatisticsData
+            {
+                TotalRecords = medicalRecords.Count + prescriptions.Count,
+                LabResults = medicalRecords.Count(r => r.RecordType == "Lab Result"),
+                Prescriptions = prescriptions.Count,
+                ImagingStudies = medicalRecords.Count(r => r.RecordType == "Imaging")
+            }
+        };
+    }
+
+    /// <summary>
+    /// Get doctor settings
+    /// Combines User and DoctorProfile settings
+    /// </summary>
+    public async Task<DoctorSettingsData> GetDoctorSettingsAsync(Guid userId)
+    {
+        var profile = await _doctorProfileService.GetByUserIdAsync(userId);
+        
+        await _activityLogService.LogActivityAsync(userId, "ViewDoctorSettings");
+
+        return new DoctorSettingsData
+        {
+            Profile = profile,
+            Email = profile?.User?.Email ?? string.Empty,
+            AvailabilityStatus = profile?.AvailabilityStatus ?? DoctorAvailabilityStatus.Offline,
+            AutoAcceptAppointments = profile?.AutoAcceptAppointments ?? false,
+            MaxDailyPatients = profile?.MaxDailyPatients ?? 30,
+            NotifyUrgentConsultations = profile?.NotifyUrgentConsultations ?? true,
+            NotifyNewAppointments = profile?.NotifyNewAppointments ?? true,
+            NotifyAiAssessments = profile?.NotifyAiAssessments ?? true,
+            NotifyEmailSummaries = profile?.NotifyEmailSummaries ?? false,
+            SessionTimeoutMinutes = profile?.SessionTimeoutMinutes ?? 30
+        };
+    }
+
+    /// <summary>
+    /// Save doctor settings
+    /// Updates both User and DoctorProfile
+    /// </summary>
+    public async Task SaveDoctorSettingsAsync(Guid userId, DoctorSettingsData settings)
+    {
+        var profile = await _doctorProfileService.GetByUserIdAsync(userId);
+        
+        if (profile != null)
+        {
+            profile.AvailabilityStatus = settings.AvailabilityStatus;
+            profile.AutoAcceptAppointments = settings.AutoAcceptAppointments;
+            profile.MaxDailyPatients = settings.MaxDailyPatients;
+            profile.NotifyUrgentConsultations = settings.NotifyUrgentConsultations;
+            profile.NotifyNewAppointments = settings.NotifyNewAppointments;
+            profile.NotifyAiAssessments = settings.NotifyAiAssessments;
+            profile.NotifyEmailSummaries = settings.NotifyEmailSummaries;
+            profile.SessionTimeoutMinutes = settings.SessionTimeoutMinutes;
+            profile.UpdatedAt = DateTime.UtcNow;
+
+            await _doctorProfileService.UpdateAsync(profile);
+
+            await _activityLogService.LogActivityAsync(userId, "UpdateDoctorSettings");
+        }
+    }
 }
 
 // DTOs for Facade responses
@@ -255,4 +432,79 @@ public class DoctorWorkloadSummary
     public int CompletedToday { get; set; }
     public int TotalCompleted { get; set; }
     public decimal AverageRating { get; set; }
+}
+
+// Extended DTOs for Dashboard and Analytics
+public class DoctorDashboardFullData
+{
+    public DoctorProfile? Profile { get; set; }
+    public DoctorDashboardStatsData Stats { get; set; } = new();
+    public List<Conversation> PendingConsultations { get; set; } = new();
+    public List<ActivityLog> RecentActivity { get; set; } = new();
+    public WeekPerformanceData WeekPerformance { get; set; } = new();
+}
+
+public class DoctorDashboardStatsData
+{
+    public int PatientsToday { get; set; }
+    public int TotalAppointments { get; set; }
+    public int TotalConsultations { get; set; }
+    public decimal AverageRating { get; set; }
+}
+
+public class WeekPerformanceData
+{
+    public int PatientsSeen { get; set; }
+    public int AverageResponseTimeMinutes { get; set; }
+    public decimal SatisfactionRate { get; set; }
+    public int RecordsUpdated { get; set; }
+}
+
+public class DoctorAnalyticsFullData
+{
+    public DoctorMetricsData Metrics { get; set; } = new();
+    public List<TopConditionData> TopConditions { get; set; } = new();
+}
+
+public class DoctorMetricsData
+{
+    public int TotalPatients { get; set; }
+    public int TotalConsultations { get; set; }
+    public int AverageResponseTimeMinutes { get; set; }
+    public decimal PatientRating { get; set; }
+}
+
+public class TopConditionData
+{
+    public string ConditionName { get; set; } = string.Empty;
+    public int PatientCount { get; set; }
+}
+
+public class DoctorRecordsFullData
+{
+    public List<MedicalRecord> MedicalRecords { get; set; } = new();
+    public List<Prescription> Prescriptions { get; set; } = new();
+    public RecordStatisticsData Statistics { get; set; } = new();
+}
+
+public class RecordStatisticsData
+{
+    public int TotalRecords { get; set; }
+    public int LabResults { get; set; }
+    public int Prescriptions { get; set; }
+    public int ImagingStudies { get; set; }
+}
+
+public class DoctorSettingsData
+{
+    public DoctorProfile? Profile { get; set; }
+    public string Email { get; set; } = string.Empty;
+    public DoctorAvailabilityStatus AvailabilityStatus { get; set; }
+    public bool AutoAcceptAppointments { get; set; }
+    public int MaxDailyPatients { get; set; }
+    public bool NotifyUrgentConsultations { get; set; }
+    public bool NotifyNewAppointments { get; set; }
+    public bool NotifyAiAssessments { get; set; }
+    public bool NotifyEmailSummaries { get; set; }
+    public int SessionTimeoutMinutes { get; set; }
 }

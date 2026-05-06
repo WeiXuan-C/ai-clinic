@@ -56,4 +56,14 @@ public class ActivityLogService
             .Take(limit)
             .ToListAsync();
     }
+
+    public async Task<List<ActivityLog>> GetRecentLogsByUserAsync(Guid userId, int limit = 50)
+    {
+        using var db = DbClient.Instance.GetDb();
+        return await db.ActivityLogs
+            .Where(al => al.UserId == userId)
+            .OrderByDescending(al => al.CreatedAt)
+            .Take(limit)
+            .ToListAsync();
+    }
 }

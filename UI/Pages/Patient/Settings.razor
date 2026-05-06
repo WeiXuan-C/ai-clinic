@@ -16,6 +16,20 @@
 </header>
 
 <!-- Content Grid -->
+@if (isLoading)
+{
+    <div style="text-align: center; padding: 3rem;">
+        <p class="body-md">Loading settings...</p>
+    </div>
+}
+else if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div style="text-align: center; padding: 3rem;">
+        <p class="body-md" style="color: #d32f2f;">@errorMessage</p>
+    </div>
+}
+else
+{
 <div class="content-grid">
     <!-- Account Settings -->
     <section class="settings-card">
@@ -29,7 +43,7 @@
             <div class="setting-item">
                 <div class="setting-info">
                     <h4 class="headline-sm">Email Address</h4>
-                    <p class="body-sm">sarah.johnson@email.com</p>
+                    <p class="body-sm">@settings.Email</p>
                 </div>
                 <button class="btn-link">Change</button>
             </div>
@@ -51,7 +65,7 @@
                     <p class="body-sm">Share health data with research programs</p>
                 </div>
                 <label class="toggle-switch">
-                    <input type="checkbox" />
+                    <input type="checkbox" @bind="settings.DataSharingEnabled" @bind:after="SaveSettings" />
                     <span class="toggle-slider"></span>
                 </label>
             </div>
@@ -61,7 +75,7 @@
                     <p class="body-sm">Allow AI to analyze your health data</p>
                 </div>
                 <label class="toggle-switch">
-                    <input type="checkbox" checked />
+                    <input type="checkbox" @bind="settings.AiAnalysisEnabled" @bind:after="SaveSettings" />
                     <span class="toggle-slider"></span>
                 </label>
             </div>
@@ -71,7 +85,7 @@
                     <p class="body-sm">Track app usage for better experience</p>
                 </div>
                 <label class="toggle-switch">
-                    <input type="checkbox" checked />
+                    <input type="checkbox" @bind="settings.ActivityTrackingEnabled" @bind:after="SaveSettings" />
                     <span class="toggle-slider"></span>
                 </label>
             </div>
@@ -345,3 +359,4 @@
         }
     }
 </style>
+}

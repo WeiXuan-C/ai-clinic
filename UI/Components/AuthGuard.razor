@@ -1,8 +1,5 @@
-@using ai_clinic.Services
-@inject AuthStateService AuthState
-@inject UserService UserService
-@inject PatientProfileService PatientProfileService
-@inject DoctorProfileService DoctorProfileService
+@using ai_clinic.Services.Facades
+@inject AuthFacade AuthFacade
 @inject NavigationManager Navigation
 @implements IDisposable
 
@@ -69,7 +66,7 @@ else if (isLoading)
         Console.WriteLine("[AuthGuard] OnInitialized called");
         
         // Subscribe to auth state changes
-        AuthState.OnAuthStateChanged += HandleAuthStateChanged;
+        AuthFacade.OnAuthStateChanged += HandleAuthStateChanged;
 
         // Start periodic check if enabled
         if (EnablePeriodicCheck)
@@ -104,22 +101,22 @@ else if (isLoading)
         
         try
         {
-            // Initialize auth state if not already initialized
-            if (!AuthState.IsInitialized)
+            // Revalidate session if needed
+            if (!AuthFacade.IsInitialized)
             {
-                Console.WriteLine("[AuthGuard] Initializing AuthState");
-                await AuthState.InitializeAsync(UserService, PatientProfileService, DoctorProfileService);
+                Console.WriteLine("[AuthGuard] Revalidating session");
+                await AuthFacade.RevalidateSessionAsync();
             }
 
             // Check authentication
-            isAuthenticated = AuthState.IsAuthenticated;
+            isAuthenticated = AuthFacade.IsAuthenticated;
             Console.WriteLine($"[AuthGuard] IsAuthenticated: {isAuthenticated}");
-            Console.WriteLine($"[AuthGuard] CurrentUser: {AuthState.CurrentUser?.Email ?? "null"}");
+            Console.WriteLine($"[AuthGuard] CurrentUser: {AuthFacade.CurrentUser?.Email ?? "null"}");
 
             // Check role if required
             if (isAuthenticated && !string.IsNullOrEmpty(RequiredRole))
             {
-                var currentRole = AuthState.CurrentUser?.Role.ToString();
+                var currentRole = AuthFacade.CurrentUser?.Role.ToString();
                 Console.WriteLine($"[AuthGuard] RequiredRole: {RequiredRole}, CurrentRole: {currentRole}");
                 
                 if (currentRole != RequiredRole)
@@ -174,7 +171,7 @@ else if (isLoading)
     public void Dispose()
     {
         Console.WriteLine("[AuthGuard] Disposing");
-        AuthState.OnAuthStateChanged -= HandleAuthStateChanged;
+        AuthFacade.OnAuthStateChanged -= HandleAuthStateChanged;
         periodicTimer?.Dispose();
     }
 }

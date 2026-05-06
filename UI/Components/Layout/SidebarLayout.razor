@@ -82,7 +82,10 @@
     private async Task HandleLogout()
     {
         // Clear authentication state and session using Facade
-        await AuthFacade.SignOutAsync();
+        if (AuthFacade.CurrentUser != null)
+        {
+            await AuthFacade.SignOutAsync(AuthFacade.CurrentUser.Id);
+        }
 
         // Navigate to sign-in page
         Navigation.NavigateTo("/auth/signin", forceLoad: true);
