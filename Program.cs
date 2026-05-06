@@ -2,6 +2,10 @@ using MudBlazor.Services;
 using ai_clinic.Data;
 using ai_clinic;
 using ai_clinic.Services.Hubs;
+using QuestPDF.Infrastructure;
+
+// Configure QuestPDF license (Community license for non-commercial use)
+QuestPDF.Settings.License = LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -39,6 +43,7 @@ try
     // Run manual migrations for existing databases
     await DatabaseMigrationHelper.AddProfilePhotoColumnAsync("Data Source=ai-clinic.db");
     await DatabaseMigrationHelper.AddMedicalDocumentFieldsAsync("Data Source=ai-clinic.db");
+    await DatabaseMigrationHelper.AddDoctorSettingsColumnsAsync("Data Source=ai-clinic.db");
     
     var logger = app.Services.GetRequiredService<ILogger<Program>>();
     logger.LogInformation("数据库已准备就绪");

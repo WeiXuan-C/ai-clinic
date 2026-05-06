@@ -13,19 +13,22 @@ public class AuthFacade
     private readonly DoctorProfileService _doctorProfileService;
     private readonly ActivityLogService _activityLogService;
     private readonly AuthStateService _authStateService;
+    private readonly UserSuspensionService _suspensionService;
 
     public AuthFacade(
         UserService userService,
         PatientProfileService patientProfileService,
         DoctorProfileService doctorProfileService,
         ActivityLogService activityLogService,
-        AuthStateService authStateService)
+        AuthStateService authStateService,
+        UserSuspensionService suspensionService)
     {
         _userService = userService;
         _patientProfileService = patientProfileService;
         _doctorProfileService = doctorProfileService;
         _activityLogService = activityLogService;
         _authStateService = authStateService;
+        _suspensionService = suspensionService;
     }
 
     /// <summary>
@@ -153,6 +156,38 @@ public class AuthFacade
             if (!user.IsActive || user.IsDeactivated)
             {
                 return AuthResult.Failure("This account has been deactivated");
+            }
+
+            // Check if user is suspended
+            var isSuspended = await _suspensionService.IsUserSuspendedAsync(user.Id);
+            if (isSuspended)
+            {
+                var suspension = await _suspensionService.GetActiveSuspensionAsync(user.Id);
+                var message = "Your account has been suspended.";
+                
+                if (suspension != null)
+                {
+                    if (suspension.SuspensionEnd.HasValue)
+                    {
+                        message = $"Your account has been suspended until {suspension.SuspensionEnd.Value:yyyy-MM-dd HH:mm}. Reason: {suspension.Reason}";
+                    }
+                    else
+                    {
+                        message = $"Your account has been suspended indefinitely. Reason: {suspension.Reason}";
+                    }
+                }
+                
+                message += " Please contact support for assistance.";
+                
+                // Log suspended login attempt
+                await _activityLogService.LogActivityAsync(
+                    user.Id,
+                    "login_suspended",
+                    "Suspended user attempted to login",
+                    ipAddress
+                );
+                
+                return AuthResult.Failure(message);
             }
 
             // Log successful login

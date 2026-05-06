@@ -307,6 +307,271 @@ public class ConsultationFacade
 
     #endregion
 
+    #region Send Messages with Streaming
+
+    /// <summary>
+    /// Sends patient message with streaming AI response
+    /// Returns an async enumerable that yields message chunks as they arrive
+    /// </summary>
+    public async IAsyncEnumerable<StreamingMessageChunk> SendPatientMessageWithStreamingAsync(
+        Guid conversationId,
+        Guid patientId,
+        string content)
+    {
+        _logger.LogInformation("=== [FACADE] SendPatientMessageWithStreamingAsync Started ===");
+
+        // 1. Save patient message first
+        Message patientMessage;
+        Conversation conversation;
+        
+        using (var db = DbClient.Instance.GetDb())
+        {
+            var transaction = await db.Database.BeginTransactionAsync();
+
+            conversation = await db.Conversations.FindAsync(conversationId);
+            if (conversation == null)
+            {
+                await transaction.RollbackAsync();
+                throw new InvalidOperationException("Conversation not found");
+            }
+
+            patientMessage = new Message
+            {
+                ConversationId = conversationId,
+                SenderId = patientId,
+                SenderType = MessageSenderType.Patient,
+                Content = content,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            db.Messages.Add(patientMessage);
+            conversation.LastMessageAt = DateTime.UtcNow;
+            conversation.UpdatedAt = DateTime.UtcNow;
+            conversation.TotalMessages++;
+
+            await db.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            _logger.LogInformation($"[FACADE] Patient message created - ID: {patientMessage.Id}");
+        }
+
+        // Yield user message
+        yield return new StreamingMessageChunk
+        {
+            IsUserMessage = true,
+            Message = patientMessage
+        };
+
+        // 2. Generate AI response if needed
+        if (conversation.AssignedDoctorId == null)
+        {
+            _logger.LogInformation("[FACADE] AI conversation detected, generating streaming response...");
+
+            var fullResponse = "";
+            var success = false;
+
+            // Stream AI response chunks
+            await foreach (var chunk in GenerateAiResponseWithFallbackAsync(content))
+            {
+                fullResponse += chunk;
+                success = true;
+                
+                yield return new StreamingMessageChunk
+                {
+                    IsAiChunk = true,
+                    Content = chunk
+                };
+            }
+
+            // Save AI response to database
+            if (!success || string.IsNullOrEmpty(fullResponse))
+            {
+                fullResponse = "I apologize, but I'm experiencing technical difficulties at the moment. Please try again in a few moments, or consider consulting with one of our human doctors for immediate assistance.";
+            }
+
+            using (var db2 = DbClient.Instance.GetDb())
+            {
+                var transaction2 = await db2.Database.BeginTransactionAsync();
+
+                var aiResponse = new Message
+                {
+                    ConversationId = conversationId,
+                    SenderId = null,
+                    SenderType = MessageSenderType.AI,
+                    Content = fullResponse,
+                    AiModelUsed = _aiAssistantService.CurrentModelName,
+                    AiConfidenceScore = success ? 0.85m : 0.0m,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                db2.Messages.Add(aiResponse);
+
+                var conv = await db2.Conversations.FindAsync(conversationId);
+                if (conv != null)
+                {
+                    conv.LastMessageAt = DateTime.UtcNow;
+                    conv.UpdatedAt = DateTime.UtcNow;
+                    conv.TotalMessages++;
+                    conv.AiMessagesCount++;
+                }
+
+                await db2.SaveChangesAsync();
+                await transaction2.CommitAsync();
+
+                _logger.LogInformation($"[FACADE] AI response saved - ID: {aiResponse.Id}");
+
+                // Yield complete message
+                yield return new StreamingMessageChunk
+                {
+                    IsComplete = true,
+                    Message = aiResponse
+                };
+            }
+        }
+    }
+
+    /// <summary>
+    /// Generates AI response with automatic fallback to other models
+    /// </summary>
+    private async IAsyncEnumerable<string> GenerateAiResponseWithFallbackAsync(string content)
+    {
+        _logger.LogInformation("[FACADE] GenerateAiResponseWithFallbackAsync started");
+        
+        var attemptedModels = new List<string>();
+        var currentModel = _aiAssistantService.CurrentModelName;
+        var hasYieldedAny = false;
+
+        _logger.LogInformation($"[FACADE] Trying primary model: {currentModel}");
+        attemptedModels.Add(currentModel);
+        
+        // Try current model first
+        await foreach (var result in TryGenerateStreamAsync(currentModel, content))
+        {
+            if (result.Success && result.Chunk != null)
+            {
+                hasYieldedAny = true;
+                yield return result.Chunk;
+            }
+        }
+
+        // If primary model failed or didn't yield anything, try fallback
+        if (!hasYieldedAny)
+        {
+            _logger.LogWarning("[FACADE] Primary model failed, trying fallback models");
+            
+            var availableModels = _aiAssistantService.GetAvailableModels();
+            var fallbackModels = availableModels
+                .Where(m => !attemptedModels.Contains(m.DisplayName))
+                .ToList();
+
+            _logger.LogInformation($"[FACADE] Found {fallbackModels.Count} fallback models");
+
+            foreach (var fallbackModel in fallbackModels)
+            {
+                _logger.LogInformation($"[FACADE] Trying fallback model: {fallbackModel.DisplayName}");
+                _aiAssistantService.SwitchModel(fallbackModel.Key);
+                attemptedModels.Add(fallbackModel.DisplayName);
+
+                await foreach (var result in TryGenerateStreamAsync(fallbackModel.DisplayName, content))
+                {
+                    if (result.Success && result.Chunk != null)
+                    {
+                        hasYieldedAny = true;
+                        yield return result.Chunk;
+                    }
+                }
+
+                if (hasYieldedAny)
+                {
+                    _logger.LogInformation($"[FACADE] Fallback model {fallbackModel.DisplayName} succeeded");
+                    break;
+                }
+            }
+        }
+
+        if (!hasYieldedAny)
+        {
+            _logger.LogError("[FACADE] All models failed to generate response");
+        }
+        else
+        {
+            _logger.LogInformation("[FACADE] GenerateAiResponseWithFallbackAsync completed successfully");
+        }
+    }
+
+    /// <summary>
+    /// Helper method to try generating stream from a model
+    /// </summary>
+    private async IAsyncEnumerable<StreamResult> TryGenerateStreamAsync(string modelName, string content)
+    {
+        var chunkCount = 0;
+        Exception? caughtException = null;
+        
+        IAsyncEnumerator<string>? enumerator = null;
+        
+        var stream = _aiAssistantService.GenerateStreamingMedicalResponseAsync(
+            patientQuery: content,
+            medicalContext: null,
+            temperature: 0.7);
+        
+        enumerator = stream.GetAsyncEnumerator();
+        
+        try
+        {
+            while (true)
+            {
+                bool hasMore = false;
+                string? chunk = null;
+                bool moveSuccess = false;
+                
+                try
+                {
+                    hasMore = await enumerator.MoveNextAsync();
+                    moveSuccess = true;
+                    if (hasMore)
+                    {
+                        chunk = enumerator.Current;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    caughtException = ex;
+                    _logger.LogWarning(ex, $"[FACADE] Model '{modelName}' failed during streaming: {ex.Message}");
+                }
+                
+                if (!moveSuccess || !hasMore)
+                    break;
+                
+                if (chunk != null)
+                {
+                    chunkCount++;
+                    _logger.LogInformation($"[FACADE] Received chunk #{chunkCount} from {modelName}, length: {chunk.Length}");
+                    yield return new StreamResult { Success = true, Chunk = chunk };
+                }
+            }
+            
+            if (caughtException == null)
+            {
+                _logger.LogInformation($"[FACADE] Model {modelName} completed successfully, total chunks: {chunkCount}");
+            }
+        }
+        finally
+        {
+            if (enumerator != null)
+            {
+                await enumerator.DisposeAsync();
+            }
+        }
+    }
+
+    private class StreamResult
+    {
+        public bool Success { get; set; }
+        public string? Chunk { get; set; }
+    }
+
+    #endregion
+
     #region Get Consultation Information
 
     /// <summary>
@@ -641,6 +906,7 @@ Respond in JSON format:
     /// <summary>
     /// Generates AI response content (does not involve database operations)
     /// This method only calls AI API, returns response content and metadata
+    /// Includes automatic fallback to alternative models on failure
     /// </summary>
     private async Task<AiResponseContent> GenerateAiResponseContentAsync(string userMessage)
     {
@@ -648,9 +914,13 @@ Respond in JSON format:
         _logger.LogInformation($"[AI GEN] User Message Length: {userMessage.Length} chars");
         _logger.LogInformation($"[AI GEN] Current AI Model: {_aiAssistantService.CurrentModelName}");
         
+        var attemptedModels = new List<string>();
+        var currentModel = _aiAssistantService.CurrentModelName;
+        attemptedModels.Add(currentModel);
+        
         try
         {
-            // 调用真实的 AI 服务
+            // 尝试使用当前模型
             string aiResponse = await _aiAssistantService.GenerateMedicalResponseAsync(
                 patientQuery: userMessage,
                 medicalContext: null,
@@ -669,12 +939,54 @@ Respond in JSON format:
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[AI GEN] AI generation failed");
+            _logger.LogWarning(ex, $"[AI GEN] Primary model '{currentModel}' failed, attempting fallback");
             
-            // 如果 AI 调用失败，返回错误消息
+            // 获取所有可用模型
+            var availableModels = _aiAssistantService.GetAvailableModels();
+            var fallbackModels = availableModels
+                .Where(m => !attemptedModels.Contains(m.DisplayName))
+                .ToList();
+            
+            // 尝试fallback模型
+            foreach (var fallbackModel in fallbackModels)
+            {
+                try
+                {
+                    _logger.LogInformation($"[AI GEN] Trying fallback model: {fallbackModel.DisplayName}");
+                    
+                    // 切换到fallback模型
+                    _aiAssistantService.SwitchModel(fallbackModel.Key);
+                    attemptedModels.Add(fallbackModel.DisplayName);
+                    
+                    // 重试请求
+                    string aiResponse = await _aiAssistantService.GenerateMedicalResponseAsync(
+                        patientQuery: userMessage,
+                        medicalContext: null,
+                        temperature: 0.7
+                    );
+                    
+                    _logger.LogInformation($"[AI GEN] Fallback successful with {fallbackModel.DisplayName}");
+                    
+                    return new AiResponseContent
+                    {
+                        Content = aiResponse,
+                        ModelUsed = fallbackModel.DisplayName,
+                        ConfidenceScore = 0.75m // Slightly lower confidence for fallback
+                    };
+                }
+                catch (Exception fallbackEx)
+                {
+                    _logger.LogWarning(fallbackEx, $"[AI GEN] Fallback model '{fallbackModel.DisplayName}' also failed");
+                    continue;
+                }
+            }
+            
+            // 所有模型都失败了，返回友好的错误消息
+            _logger.LogError("[AI GEN] All AI models failed");
+            
             return new AiResponseContent
             {
-                Content = "I apologize, but I'm having trouble processing your request right now. Please try again in a moment, or consider consulting with a human doctor for immediate assistance.",
+                Content = "I apologize, but I'm experiencing technical difficulties at the moment. Please try again in a few moments, or consider consulting with one of our human doctors for immediate assistance.",
                 ModelUsed = "Error",
                 ConfidenceScore = 0.0m
             };
@@ -782,6 +1094,18 @@ public class MessageResult
     public Message PatientMessage { get; set; } = null!;
     public Message? AiResponse { get; set; }
     public bool IsAiConversation { get; set; }
+}
+
+/// <summary>
+/// Streaming message chunk for real-time updates
+/// </summary>
+public class StreamingMessageChunk
+{
+    public bool IsUserMessage { get; set; }
+    public bool IsAiChunk { get; set; }
+    public bool IsComplete { get; set; }
+    public string Content { get; set; } = string.Empty;
+    public Message? Message { get; set; }
 }
 
 /// <summary>

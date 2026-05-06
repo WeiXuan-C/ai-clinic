@@ -26,16 +26,24 @@ public partial class Records : ComponentBase
     private string searchQuery = "";
     private bool isLoading = true;
     private bool showUploadModal = false;
+    private bool showExportDialog = false;
     private bool isUploading = false;
+    private bool isExporting = false;
     private string? errorMessage;
     private string? successMessage;
+    private string? exportErrorMessage;
 
     // Upload form data
     private string uploadTitle = "";
     private string uploadType = "";
     private string uploadDescription = "";
     private IBrowserFile? selectedFile;
-    private long maxFileSize = 10 * 1024 * 1024; // 10MB
+    private readonly long maxFileSize = 10 * 1024 * 1024; // 10MB
+
+    // Export form data
+    private string exportRange = "all";
+    private DateTime? exportStartDate;
+    private DateTime? exportEndDate;
 
     protected override async Task OnInitializedAsync()
     {
@@ -350,12 +358,90 @@ public partial class Records : ComponentBase
     }
 
     /// <summary>
+    /// Show export dialog
+    /// </summary>
+    private void ShowExportDialog()
+    {
+        showExportDialog = true;
+        exportRange = "all";
+        exportStartDate = null;
+        exportEndDate = null;
+        exportErrorMessage = null;
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Close export dialog
+    /// </summary>
+    private void CloseExportDialog()
+    {
+        showExportDialog = false;
+        exportErrorMessage = null;
+        StateHasChanged();
+    }
+
+    /// <summary>
     /// Export all records
     /// </summary>
     private async Task ExportRecords()
     {
-        // TODO: Implement export functionality
-        await JS.InvokeVoidAsync("alert", "Export functionality coming soon!");
+        try
+        {
+            exportErrorMessage = null;
+
+            // Validate date range if custom
+            if (exportRange == "custom")
+            {
+                if (!exportStartDate.HasValue || !exportEndDate.HasValue)
+                {
+                    exportErrorMessage = "Please select both start and end dates.";
+                    StateHasChanged();
+                    return;
+                }
+
+                if (exportStartDate.Value > exportEndDate.Value)
+                {
+                    exportErrorMessage = "Start date must be before end date.";
+                    StateHasChanged();
+                    return;
+                }
+            }
+
+            isExporting = true;
+            StateHasChanged();
+
+            // Export medical records to PDF through Facade
+            DateTime? startDate = exportRange == "custom" ? exportStartDate : null;
+            DateTime? endDate = exportRange == "custom" ? exportEndDate : null;
+
+            var pdfBytes = await PatientFacade.ExportMedicalRecordsToPdfAsync(
+                AuthFacade.CurrentUser!.Id,
+                startDate,
+                endDate);
+
+            // Download the PDF file
+            var dateRangeStr = exportRange == "custom" 
+                ? $"_{exportStartDate:yyyyMMdd}_to_{exportEndDate:yyyyMMdd}"
+                : "";
+            var fileName = $"Medical_Records{dateRangeStr}_{DateTime.Now:yyyyMMdd}.pdf";
+            
+            await JS.InvokeVoidAsync("downloadFileFromBytes", fileName, "application/pdf", pdfBytes);
+
+            successMessage = "Medical records exported successfully!";
+            CloseExportDialog();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            exportErrorMessage = $"Error exporting records: {ex.Message}";
+            Console.WriteLine($"[ERROR] {ex}");
+            StateHasChanged();
+        }
+        finally
+        {
+            isExporting = false;
+            StateHasChanged();
+        }
     }
 
     /// <summary>

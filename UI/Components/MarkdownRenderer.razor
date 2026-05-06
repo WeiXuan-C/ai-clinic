@@ -1,0 +1,164 @@
+@using Markdig
+
+<div class="markdown-content">
+    @((MarkupString)_htmlContent)
+</div>
+
+@code {
+    [Parameter]
+    public string Content { get; set; } = string.Empty;
+
+    private string _htmlContent = string.Empty;
+
+    protected override void OnParametersSet()
+    {
+        if (!string.IsNullOrEmpty(Content))
+        {
+            // Convert Markdown to HTML using Markdig
+            var pipeline = new Markdig.MarkdownPipelineBuilder()
+                .UseAdvancedExtensions()
+                .Build();
+            
+            _htmlContent = Markdig.Markdown.ToHtml(Content, pipeline);
+        }
+        else
+        {
+            _htmlContent = string.Empty;
+        }
+    }
+}
+
+<style>
+    .markdown-content {
+        line-height: 1.5;
+        color: #111827;
+    }
+
+    .markdown-content h1,
+    .markdown-content h2,
+    .markdown-content h3,
+    .markdown-content h4,
+    .markdown-content h5,
+    .markdown-content h6 {
+        margin-top: 0.75em;
+        margin-bottom: 0.4em;
+        font-weight: 600;
+        line-height: 1.3;
+    }
+
+    .markdown-content h1 {
+        font-size: 1.5em;
+        border-bottom: 1px solid #e5e7eb;
+        padding-bottom: 0.3em;
+    }
+
+    .markdown-content h2 {
+        font-size: 1.3em;
+        border-bottom: 1px solid #e5e7eb;
+        padding-bottom: 0.3em;
+    }
+
+    .markdown-content h3 {
+        font-size: 1.15em;
+    }
+
+    .markdown-content p {
+        margin-bottom: 0.75em;
+        line-height: 1.5;
+    }
+
+    .markdown-content ul,
+    .markdown-content ol {
+        margin-bottom: 0.75em;
+        padding-left: 1.5em;
+        line-height: 1.5;
+    }
+
+    .markdown-content li {
+        margin-bottom: 0.15em;
+    }
+
+    .markdown-content code {
+        background: #f3f4f6;
+        padding: 0.2em 0.4em;
+        border-radius: 3px;
+        font-size: 0.9em;
+        font-family: 'Courier New', monospace;
+    }
+
+    .markdown-content pre {
+        background: #1f2937;
+        color: #f9fafb;
+        padding: 1em;
+        border-radius: 6px;
+        overflow-x: auto;
+        margin-bottom: 0.75em;
+        line-height: 1.4;
+    }
+
+    .markdown-content pre code {
+        background: transparent;
+        padding: 0;
+        color: inherit;
+    }
+
+    .markdown-content blockquote {
+        border-left: 4px solid #0ea5e9;
+        padding-left: 1em;
+        margin-left: 0;
+        margin-bottom: 0.75em;
+        color: #6b7280;
+        font-style: italic;
+        line-height: 1.5;
+    }
+
+    .markdown-content a {
+        color: #0ea5e9;
+        text-decoration: none;
+    }
+
+    .markdown-content a:hover {
+        text-decoration: underline;
+    }
+
+    .markdown-content table {
+        border-collapse: collapse;
+        width: 100%;
+        margin-bottom: 0.75em;
+    }
+
+    .markdown-content th,
+    .markdown-content td {
+        border: 1px solid #e5e7eb;
+        padding: 0.5em;
+        text-align: left;
+    }
+
+    .markdown-content th {
+        background: #f9fafb;
+        font-weight: 600;
+    }
+
+    .markdown-content strong {
+        font-weight: 600;
+    }
+
+    .markdown-content em {
+        font-style: italic;
+    }
+
+    .markdown-content hr {
+        border: none;
+        border-top: 1px solid #e5e7eb;
+        margin: 1em 0;
+    }
+
+    /* Remove extra spacing from first and last elements */
+    .markdown-content > *:first-child {
+        margin-top: 0;
+    }
+
+    .markdown-content > *:last-child {
+        margin-bottom: 0;
+    }
+</style>

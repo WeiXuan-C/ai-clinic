@@ -80,8 +80,8 @@ namespace ai_clinic.Services.AI
         }
 
         /// <summary>
-        /// Streaming response adapter (placeholder for future implementation)
-        /// 流式响应适配器(未来实现的占位符)
+        /// Streaming response adapter with real streaming support
+        /// 流式响应适配器，支持真正的流式输出
         /// </summary>
         public virtual async Task<IAsyncEnumerable<string>> GenerateStreamingResponseAsync(
             string prompt,
@@ -89,15 +89,53 @@ namespace ai_clinic.Services.AI
             double temperature = 0.7,
             int maxTokens = 1000)
         {
-            // For now, return a simple async enumerable with the full response
-            var response = await GenerateResponseAsync(prompt, systemInstructions, temperature, maxTokens);
-            return CreateAsyncEnumerable(response);
+            if (string.IsNullOrWhiteSpace(prompt))
+                throw new ArgumentException("Prompt cannot be empty", nameof(prompt));
+
+            // Build messages array
+            var messages = new List<Message>();
+            
+            if (!string.IsNullOrWhiteSpace(systemInstructions))
+            {
+                messages.Add(new Message 
+                { 
+                    Role = "system", 
+                    Content = systemInstructions 
+                });
+            }
+
+            messages.Add(new Message 
+            { 
+                Role = "user", 
+                Content = prompt 
+            });
+
+            // Create request with streaming enabled
+            var request = new OpenRouterRequest
+            {
+                Model = ModelId,
+                Messages = messages.ToArray(),
+                Temperature = temperature,
+                MaxTokens = maxTokens,
+                Stream = true
+            };
+
+            // Return the streaming enumerable
+            return StreamResponseAsync(request);
         }
 
-        private async IAsyncEnumerable<string> CreateAsyncEnumerable(string response)
+        /// <summary>
+        /// Internal method to handle streaming
+        /// </summary>
+        private async IAsyncEnumerable<string> StreamResponseAsync(OpenRouterRequest request)
         {
-            await Task.Yield();
-            yield return response;
+            await foreach (var chunk in _apiClient.CallApiStreamingAsync(request))
+            {
+                if (!string.IsNullOrEmpty(chunk))
+                {
+                    yield return chunk;
+                }
+            }
         }
 
         /// <summary>

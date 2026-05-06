@@ -37,6 +37,8 @@ public static class DependencyInjectionExtensions
         services.AddScoped<StatisticsService>();
         services.AddScoped<AuthStateService>(); // Authentication state management
         services.AddScoped<AdminService>(); // Admin operations service
+        services.AddScoped<UserSuspensionService>(); // User suspension management
+        services.AddScoped<MedicalRecordExportService>(); // Medical record PDF export
 
         // 🔔 Real-time Services - SignalR for live messaging
         // Scoped lifetime ensures proper lifecycle management in Blazor Server

@@ -15,16 +15,75 @@
         </p>
     </div>
     <div class="header-right">
-        <button class="btn btn-secondary">
+        <button class="btn btn-secondary" @onclick="ShowExportDialog">
             <i data-lucide="download"></i>
             Export Records
         </button>
-        <button class="btn btn-primary">
+        <button class="btn btn-primary" @onclick="ShowUploadDialog">
             <i data-lucide="upload"></i>
             Upload Document
         </button>
     </div>
 </header>
+
+@* Export Options Dialog *@
+@if (showExportDialog)
+{
+    <div class="modal-overlay" @onclick="CloseExportDialog">
+        <div class="modal-content" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3>Export Medical Records</h3>
+                <button class="icon-btn" @onclick="CloseExportDialog">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Export Range</label>
+                    <select class="form-input" @bind="exportRange">
+                        <option value="all">All Records</option>
+                        <option value="custom">Custom Date Range</option>
+                    </select>
+                </div>
+
+                @if (exportRange == "custom")
+                {
+                    <div class="form-group">
+                        <label>Start Date</label>
+                        <input type="date" class="form-input" @bind="exportStartDate" max="@DateTime.Now.ToString("yyyy-MM-dd")" />
+                    </div>
+                    <div class="form-group">
+                        <label>End Date</label>
+                        <input type="date" class="form-input" @bind="exportEndDate" max="@DateTime.Now.ToString("yyyy-MM-dd")" />
+                    </div>
+                }
+
+                @if (!string.IsNullOrEmpty(exportErrorMessage))
+                {
+                    <div class="alert alert-error">
+                        <i data-lucide="alert-circle"></i>
+                        <span>@exportErrorMessage</span>
+                    </div>
+                }
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" @onclick="CloseExportDialog">Cancel</button>
+                <button class="btn btn-primary" @onclick="ExportRecords" disabled="@isExporting">
+                    @if (isExporting)
+                    {
+                        <div class="spinner-sm"></div>
+                        <span>Exporting...</span>
+                    }
+                    else
+                    {
+                        <i data-lucide="download"></i>
+                        <span>Export to PDF</span>
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+}
 
 <!-- Upload Dialog -->
 <!-- Hidden by default -->

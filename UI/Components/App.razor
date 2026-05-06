@@ -98,9 +98,18 @@
         window.initializeLucide = function() {
             if (window.lucide && window.lucide.createIcons) {
                 try {
-                    window.lucide.createIcons();
+                    // Use requestAnimationFrame to avoid conflicts with DOM updates
+                    requestAnimationFrame(() => {
+                        try {
+                            // Clear any existing icon instances to prevent conflicts
+                            window.lucide.createIcons();
+                        } catch (innerError) {
+                            // Silently ignore errors during icon creation
+                            console.debug('Lucide icons initialization skipped:', innerError.message);
+                        }
+                    });
                 } catch (e) {
-                    console.warn('Lucide icons initialization failed:', e);
+                    console.debug('Lucide icons initialization warning:', e.message);
                 }
             }
         };

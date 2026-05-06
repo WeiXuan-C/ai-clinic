@@ -146,7 +146,7 @@
     @if (showLoginPrompt)
     {
         <div class="modal-overlay" @onclick="CloseLoginPrompt">
-            <div class="modal-content" @onclick:stopPropagation="true">
+            <div class="modal-content modal-content-large" @onclick:stopPropagation="true">
                 <div class="modal-header">
                     <h2 class="modal-title">Continue Your Consultation</h2>
                     <button class="modal-close" @onclick="CloseLoginPrompt">
@@ -160,6 +160,80 @@
                     <p class="login-prompt-text">
                         You've reached the limit of 3 free queries. Sign in or create an account to continue your consultation and access more features.
                     </p>
+
+                    <!-- AI Recommended Doctors Preview -->
+                    @if (messages.Count >= 2)
+                    {
+                        <div class="doctor-recommendations-section">
+                            <div class="recommendations-header">
+                                <i data-lucide="sparkles" class="ai-icon"></i>
+                                <h3 class="recommendations-title">AI Recommended Specialists</h3>
+                            </div>
+                            <p class="recommendations-subtitle">Based on your symptoms, we found matching doctors</p>
+                            
+                            <div class="doctor-preview-cards">
+                                <!-- Preview Card 1 -->
+                                <div class="doctor-preview-card">
+                                    <div class="doctor-preview-blur">
+                                        <div class="doctor-preview-avatar">👨‍⚕️</div>
+                                        <div class="doctor-preview-info">
+                                            <div class="doctor-preview-name">Dr. ████████</div>
+                                            <div class="doctor-preview-specialty">Cardiologist</div>
+                                            <div class="doctor-preview-rating">⭐ 4.8 (120+ reviews)</div>
+                                            <div class="doctor-preview-match">
+                                                <span class="match-badge">95% Match</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="blur-overlay">
+                                        <i data-lucide="lock" class="lock-icon"></i>
+                                    </div>
+                                </div>
+
+                                <!-- Preview Card 2 -->
+                                <div class="doctor-preview-card">
+                                    <div class="doctor-preview-blur">
+                                        <div class="doctor-preview-avatar">👨‍⚕️</div>
+                                        <div class="doctor-preview-info">
+                                            <div class="doctor-preview-name">Dr. ████████</div>
+                                            <div class="doctor-preview-specialty">Internal Medicine</div>
+                                            <div class="doctor-preview-rating">⭐ 4.9 (85+ reviews)</div>
+                                            <div class="doctor-preview-match">
+                                                <span class="match-badge">92% Match</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="blur-overlay">
+                                        <i data-lucide="lock" class="lock-icon"></i>
+                                    </div>
+                                </div>
+
+                                <!-- Preview Card 3 -->
+                                <div class="doctor-preview-card">
+                                    <div class="doctor-preview-blur">
+                                        <div class="doctor-preview-avatar">👨‍⚕️</div>
+                                        <div class="doctor-preview-info">
+                                            <div class="doctor-preview-name">Dr. ████████</div>
+                                            <div class="doctor-preview-specialty">General Practitioner</div>
+                                            <div class="doctor-preview-rating">⭐ 4.7 (95+ reviews)</div>
+                                            <div class="doctor-preview-match">
+                                                <span class="match-badge">88% Match</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="blur-overlay">
+                                        <i data-lucide="lock" class="lock-icon"></i>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="unlock-message">
+                                <i data-lucide="info" class="info-icon"></i>
+                                <span>Sign in to view full doctor profiles and book consultations</span>
+                            </div>
+                        </div>
+                    }
+
                     <div class="login-prompt-features">
                         <div class="feature-item">
                             <i data-lucide="check-circle"></i>
@@ -744,6 +818,12 @@
         width: 100%;
         box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
         animation: modalSlideIn 0.3s ease-out;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+
+    .modal-content-large {
+        max-width: 700px;
     }
 
     @@keyframes modalSlideIn {
@@ -876,6 +956,167 @@
     @@media (max-width: 768px) {
         .modal-footer {
             flex-direction: column;
+        }
+    }
+
+    /* Doctor Recommendations Section */
+    .doctor-recommendations-section {
+        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+        border-radius: var(--radius-xl);
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        border: 2px solid #0ea5e9;
+    }
+
+    .recommendations-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .ai-icon {
+        font-size: 1.5rem;
+        color: #0ea5e9;
+    }
+
+    .recommendations-title {
+        font-family: var(--font-headline);
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--on-surface);
+        margin: 0;
+    }
+
+    .recommendations-subtitle {
+        font-size: 0.875rem;
+        color: var(--on-surface-variant);
+        margin-bottom: 1.5rem;
+        padding-left: 2.25rem;
+    }
+
+    .doctor-preview-cards {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .doctor-preview-card {
+        position: relative;
+        background: white;
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        border: 1px solid #e5e7eb;
+    }
+
+    .doctor-preview-blur {
+        display: flex;
+        gap: 1rem;
+        padding: 1rem;
+        filter: blur(3px);
+        user-select: none;
+        pointer-events: none;
+    }
+
+    .doctor-preview-avatar {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        flex-shrink: 0;
+    }
+
+    .doctor-preview-info {
+        flex: 1;
+    }
+
+    .doctor-preview-name {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--on-surface);
+        margin-bottom: 0.25rem;
+    }
+
+    .doctor-preview-specialty {
+        font-size: 0.875rem;
+        color: var(--on-surface-variant);
+        margin-bottom: 0.25rem;
+    }
+
+    .doctor-preview-rating {
+        font-size: 0.75rem;
+        color: #f59e0b;
+        margin-bottom: 0.5rem;
+    }
+
+    .doctor-preview-match {
+        display: flex;
+        align-items: center;
+    }
+
+    .match-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: var(--radius-full);
+        font-size: 0.75rem;
+        font-weight: 700;
+    }
+
+    .blur-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.3);
+        backdrop-filter: blur(2px);
+    }
+
+    .lock-icon {
+        font-size: 2rem;
+        color: #0ea5e9;
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+    }
+
+    .unlock-message {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 0.75rem;
+        background: rgba(14, 165, 233, 0.1);
+        border-radius: var(--radius-lg);
+        font-size: 0.875rem;
+        color: #0369a1;
+        font-weight: 500;
+    }
+
+    .info-icon {
+        font-size: 1rem;
+        flex-shrink: 0;
+    }
+
+    @@media (max-width: 768px) {
+        .doctor-preview-blur {
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .doctor-preview-avatar {
+            width: 80px;
+            height: 80px;
+            font-size: 2.5rem;
         }
     }
 </style>
