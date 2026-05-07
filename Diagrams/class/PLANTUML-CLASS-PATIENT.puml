@@ -1,0 +1,462 @@
+@startuml Patient Domain - Complete Class Diagram
+
+title Patient Domain - Complete UML Class Diagram
+scale 0.8
+skinparam linetype ortho
+skinparam nodesep 80
+skinparam ranksep 80
+
+' ========================================
+' UI LAYER
+' ========================================
+
+package "UI Layer" #LightBlue {
+    class PatientDashboard <<boundary>> {
+        -patientFacade : PatientFacade
+        -consultationFacade : ConsultationFacade
+        -aiFacade : AiFacade
+        -authFacade : AuthFacade
+        +OnInitializedAsync() : Task
+        +LoadDashboardData() : Task
+        +StartAiConsultation() : Task
+        +ViewMedicalRecords() : Task
+        +ViewPrescriptions() : Task
+        +UploadDocument() : Task
+        +ExportRecords() : Task
+    }
+}
+
+' ========================================
+' FACADE LAYER
+' ========================================
+
+package "Facade Layer" #LightGreen {
+    
+    class PatientFacade <<facade>> {
+        +GetDashboardDataAsync() : Task
+        +StartConsultationAsync() : Task
+        +GetMedicalHistoryAsync() : Task
+        +GetPatientProfileAsync() : Task
+        +SavePatientProfileAsync() : Task
+        +UploadMedicalDocumentAsync() : Task
+        +ExportMedicalRecordsToPdfAsync() : Task
+    }
+    
+    class ConsultationFacade <<facade>> {
+        +StartAiConsultationAsync() : Task
+        +StartDoctorConsultationAsync() : Task
+        +SendPatientMessageAsync() : Task
+        +GetConsultationSessionAsync() : Task
+        +GetPatientConsultationsAsync() : Task
+        +GetAvailableDoctorsAsync() : Task
+    }
+    
+    class AiFacade <<facade>> {
+        +GetAvailableModels() : List<string>
+        +SwitchModelAsync() : Task
+        +GenerateMedicalConsultationAsync() : Task
+        +AnalyzeMedicalDocumentAsync() : Task
+    }
+    
+    class AuthFacade <<facade>> {
+        +RegisterAsync() : Task
+        +SignInAsync() : Task
+        +SignOutAsync() : Task
+        +IsAuthenticated : bool
+        +CurrentUser : User
+    }
+}
+
+' ========================================
+' SERVICE LAYER
+' ========================================
+
+package "Service Layer" #LightYellow {
+    
+    together {
+        class PatientProfileService <<service>> {
+            +GetByUserIdAsync() : Task
+            +CreateAsync() : Task
+            +UpdateAsync() : Task
+        }
+        
+        class UserService <<service>> {
+            +GetByIdAsync() : Task
+            +GetByEmailAsync() : Task
+            +AuthenticateAsync() : Task
+        }
+        
+        class AuthStateService <<service>> {
+            +IsAuthenticated : bool
+            +CurrentUser : User
+            +SetCurrentUserAsync() : Task
+        }
+    }
+    
+    together {
+        class ConversationService <<service>> {
+            +GetByIdAsync() : Task
+            +CreateAsync() : Task
+            +GetByPatientIdAsync() : Task
+            +UpdateStatusAsync() : Task
+        }
+        
+        class MessageService <<service>> {
+            +GetByConversationIdAsync() : Task
+            +CreatePatientMessageAsync() : Task
+            +CreateAiMessageAsync() : Task
+        }
+        
+        class ConsultationHub <<service>> {
+            +SendMessageToConversation() : Task
+            +SendMessageReadReceipt() : Task
+        }
+    }
+    
+    together {
+        class MedicalRecordService <<service>> {
+            +GetByPatientIdAsync() : Task
+            +CreateAsync() : Task
+            +DeleteAsync() : Task
+        }
+        
+        class PrescriptionService <<service>> {
+            +GetByPatientIdAsync() : Task
+            +CreateAsync() : Task
+            +UpdateAsync() : Task
+        }
+        
+        class DocumentService <<service>> {
+            +GetByPatientIdAsync() : Task
+            +CreateAsync() : Task
+            +DeleteAsync() : Task
+        }
+    }
+    
+    together {
+        class PatientConsultationWorkflowService <<service>> {
+            +ExecuteFullWorkflowAsync() : Task
+            +CreateDoctorConsultationAsync() : Task
+        }
+        
+        class DoctorRecommendationService <<service>> {
+            +GetRecommendedDoctorsAsync() : Task
+            +GetBestMatchAsync() : Task
+        }
+        
+        class MedicalRecordExportService <<service>> {
+            +ExportMedicalRecordsToPdfAsync() : Task
+        }
+    }
+    
+    together {
+        class ActivityLogService <<service>> {
+            +LogActivityAsync() : Task
+            +GetByUserIdAsync() : Task
+        }
+        
+        class SupportTicketService <<service>> {
+            +GetByUserIdAsync() : Task
+            +CreateAsync() : Task
+        }
+    }
+}
+
+' ========================================
+' AI STRATEGY PATTERN
+' ========================================
+
+package "AI Strategy Pattern" #Lavender {
+    
+    interface IAiModelStrategy <<interface>> {
+        +ModelId : string
+        +ModelName : string
+        +GenerateResponseAsync() : Task<string>
+    }
+    
+    class AiModelContext <<context>> {
+        -_currentStrategy : IAiModelStrategy
+        +CurrentStrategy : IAiModelStrategy
+        +SetStrategy() : void
+        +GenerateResponseAsync() : Task<string>
+    }
+    
+    class AiAssistantService <<service>> {
+        -_modelContext : AiModelContext
+        +CurrentModelName : string
+        +GenerateMedicalResponseAsync() : Task<string>
+        +AnalyzeDocumentAsync() : Task<string>
+        +GetAvailableModels() : List<string>
+    }
+    
+    class BaseAiModelAdapter <<adapter>> {
+        #_apiClient : OpenRouterApiClient
+        +GenerateResponseAsync() : Task<string>
+    }
+    
+    class OpenRouterApiClient <<adapter>> {
+        -_httpClient : HttpClient
+        +CallApiAsync() : Task<string>
+    }
+    
+    together {
+        class Gemma4Strategy <<strategy>>
+        class MiniMaxStrategy <<strategy>>
+        class NemotronStrategy <<strategy>>
+        class OwlAlphaStrategy <<strategy>>
+        class QianfanOcrStrategy <<strategy>>
+    }
+}
+
+' ========================================
+' DATA ACCESS LAYER
+' ========================================
+
+package "Data Access Layer" #LightCoral {
+    
+    class DbClient <<singleton>> {
+        -{static} _instance : Lazy<DbClient>
+        +{static} Instance : DbClient
+        +GetDb() : AiClinicDbContext
+    }
+    
+    class AiClinicDbContext <<context>> {
+        +Users : DbSet<User>
+        +PatientProfiles : DbSet<PatientProfile>
+        +Conversations : DbSet<Conversation>
+        +Messages : DbSet<Message>
+        +MedicalRecords : DbSet<MedicalRecord>
+        +Prescriptions : DbSet<Prescription>
+        +Documents : DbSet<Document>
+        +ActivityLogs : DbSet<ActivityLog>
+    }
+}
+
+' ========================================
+' ENTITY LAYER
+' ========================================
+
+package "Entity Layer" #LightGray {
+    
+    together {
+        class User <<entity>> {
+            +Id : Guid
+            +Email : string
+            +Role : UserRole
+            +IsActive : bool
+        }
+        
+        class PatientProfile <<entity>> {
+            +Id : Guid
+            +UserId : Guid
+            +FullName : string
+            +DateOfBirth : DateTime
+            +Gender : string
+            +BloodType : string
+            +Allergies : string
+        }
+    }
+    
+    together {
+        class Conversation <<entity>> {
+            +Id : Guid
+            +PatientId : Guid
+            +AssignedDoctorId : Guid
+            +Status : ConversationStatus
+            +InitialSymptoms : string
+        }
+        
+        class Message <<entity>> {
+            +Id : Guid
+            +ConversationId : Guid
+            +SenderId : Guid
+            +SenderType : MessageSenderType
+            +Content : string
+            +AiModelUsed : string
+        }
+    }
+    
+    together {
+        class MedicalRecord <<entity>> {
+            +Id : Guid
+            +PatientId : Guid
+            +RecordType : string
+            +Title : string
+            +Content : string
+            +DiagnosisCode : string
+        }
+        
+        class Prescription <<entity>> {
+            +Id : Guid
+            +PatientId : Guid
+            +DoctorId : Guid
+            +MedicationName : string
+            +Dosage : string
+            +Frequency : string
+        }
+        
+        class Document <<entity>> {
+            +Id : Guid
+            +PatientId : Guid
+            +FileName : string
+            +FileType : DocumentType
+            +ExtractedText : string
+        }
+    }
+    
+    together {
+        class ConsultationNote <<entity>> {
+            +Id : Guid
+            +ConversationId : Guid
+            +DoctorId : Guid
+            +Diagnosis : string
+            +TreatmentPlan : string
+        }
+        
+        class DoctorRating <<entity>> {
+            +Id : Guid
+            +DoctorId : Guid
+            +PatientId : Guid
+            +Rating : int
+            +ReviewText : string
+        }
+    }
+    
+    together {
+        class SupportTicket <<entity>> {
+            +Id : Guid
+            +UserId : Guid
+            +Subject : string
+            +Status : string
+        }
+        
+        class ActivityLog <<entity>> {
+            +Id : Guid
+            +UserId : Guid
+            +Action : string
+            +Details : string
+        }
+    }
+}
+
+' ========================================
+' RELATIONSHIPS WITH MULTIPLICITY
+' ========================================
+
+' ==================== UI to Facade ====================
+PatientDashboard "1" --> "1" PatientFacade : uses
+PatientDashboard "1" --> "1" ConsultationFacade : uses
+PatientDashboard "1" --> "1" AiFacade : uses
+PatientDashboard "1" --> "1" AuthFacade : uses
+
+' ==================== Facade to Facade ====================
+ConsultationFacade "1" --> "1" AiFacade : uses
+
+' ==================== Facade to Service ====================
+PatientFacade "1" --> "1" PatientProfileService : uses
+PatientFacade "1" --> "1" ConversationService : uses
+PatientFacade "1" --> "1" MedicalRecordService : uses
+PatientFacade "1" --> "1" PrescriptionService : uses
+PatientFacade "1" --> "1" DocumentService : uses
+PatientFacade "1" --> "1" PatientConsultationWorkflowService : uses
+PatientFacade "1" --> "1" MedicalRecordExportService : uses
+PatientFacade "1" --> "1" ActivityLogService : uses
+
+ConsultationFacade "1" --> "1" ConversationService : uses
+ConsultationFacade "1" --> "1" MessageService : uses
+ConsultationFacade "1" --> "1" ConsultationHub : uses
+ConsultationFacade "1" --> "1" DoctorRecommendationService : uses
+
+AiFacade "1" --> "1" AiAssistantService : uses
+AiFacade "1" --> "1" AiModelContext : uses
+
+AuthFacade "1" --> "1" UserService : uses
+AuthFacade "1" --> "1" PatientProfileService : uses
+AuthFacade "1" --> "1" AuthStateService : uses
+AuthFacade "1" --> "1" ActivityLogService : uses
+
+' ==================== Service to Data Access ====================
+PatientProfileService "1" --> "1" DbClient : uses
+ConversationService "1" --> "1" DbClient : uses
+MessageService "1" --> "1" DbClient : uses
+MedicalRecordService "1" --> "1" DbClient : uses
+PrescriptionService "1" --> "1" DbClient : uses
+DocumentService "1" --> "1" DbClient : uses
+UserService "1" --> "1" DbClient : uses
+ActivityLogService "1" --> "1" DbClient : uses
+SupportTicketService "1" --> "1" DbClient : uses
+
+' ==================== Service to Entity (manages) ====================
+PatientProfileService "1" ..> "0..*" PatientProfile : manages
+ConversationService "1" ..> "0..*" Conversation : manages
+MessageService "1" ..> "0..*" Message : manages
+MedicalRecordService "1" ..> "0..*" MedicalRecord : manages
+PrescriptionService "1" ..> "0..*" Prescription : manages
+DocumentService "1" ..> "0..*" Document : manages
+UserService "1" ..> "0..*" User : manages
+ActivityLogService "1" ..> "0..*" ActivityLog : manages
+SupportTicketService "1" ..> "0..*" SupportTicket : manages
+
+' ==================== Data Access to Context ====================
+DbClient "1" --> "1" AiClinicDbContext : creates
+
+' ==================== Context to Entities ====================
+AiClinicDbContext "1" --> "0..*" User : maps
+AiClinicDbContext "1" --> "0..*" PatientProfile : maps
+AiClinicDbContext "1" --> "0..*" Conversation : maps
+AiClinicDbContext "1" --> "0..*" Message : maps
+AiClinicDbContext "1" --> "0..*" MedicalRecord : maps
+AiClinicDbContext "1" --> "0..*" Prescription : maps
+AiClinicDbContext "1" --> "0..*" Document : maps
+AiClinicDbContext "1" --> "0..*" ConsultationNote : maps
+AiClinicDbContext "1" --> "0..*" DoctorRating : maps
+AiClinicDbContext "1" --> "0..*" SupportTicket : maps
+AiClinicDbContext "1" --> "0..*" ActivityLog : maps
+
+' ==================== Entity Relationships ====================
+User "1" -- "0..1" PatientProfile : has >
+User "1" -- "0..*" Conversation : creates as patient >
+User "1" -- "0..*" Message : sends >
+User "1" -- "0..*" Document : uploads >
+User "1" -- "0..*" MedicalRecord : has as patient >
+User "1" -- "0..*" Prescription : receives as patient >
+User "1" -- "0..*" SupportTicket : creates >
+User "1" -- "0..*" ActivityLog : performs >
+
+PatientProfile "1" -- "0..*" MedicalRecord : owns >
+PatientProfile "1" -- "0..*" Document : has >
+
+Conversation "1" -- "1..*" Message : contains >
+Conversation "1" -- "0..*" Document : includes >
+Conversation "1" -- "0..1" ConsultationNote : documented in >
+Conversation "1" -- "0..*" MedicalRecord : generates >
+Conversation "1" -- "0..1" DoctorRating : rated by >
+
+ConsultationNote "1" -- "0..*" Prescription : includes >
+ConsultationNote "1" -- "0..1" MedicalRecord : references >
+
+SupportTicket "1" -- "0..*" ActivityLog : tracked by >
+
+' ==================== Workflow Service Dependencies ====================
+PatientConsultationWorkflowService "1" --> "1" ConversationService : uses
+PatientConsultationWorkflowService "1" --> "1" MessageService : uses
+PatientConsultationWorkflowService "1" --> "1" MedicalRecordService : uses
+PatientConsultationWorkflowService "1" --> "1" DoctorRecommendationService : uses
+
+' ==================== AI Strategy Pattern ====================
+IAiModelStrategy <|.. BaseAiModelAdapter : implements
+BaseAiModelAdapter <|-- Gemma4Strategy : extends
+BaseAiModelAdapter <|-- MiniMaxStrategy : extends
+BaseAiModelAdapter <|-- NemotronStrategy : extends
+BaseAiModelAdapter <|-- OwlAlphaStrategy : extends
+BaseAiModelAdapter <|-- QianfanOcrStrategy : extends
+
+AiAssistantService "1" --> "1" AiModelContext : uses
+AiModelContext "1" o-- "1" IAiModelStrategy : uses strategy >
+BaseAiModelAdapter "1" --> "1" OpenRouterApiClient : calls
+
+' ==================== Hub Dependencies ====================
+ConsultationHub "1" ..> "0..*" Message : broadcasts
+ConsultationHub "1" ..> "0..*" Conversation : notifies
+
+@enduml
