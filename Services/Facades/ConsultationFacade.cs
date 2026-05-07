@@ -3,6 +3,7 @@ using ai_clinic.Data;
 using ai_clinic.Services.Hubs;
 using ai_clinic.Services.DoctorRecommendation;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 
 namespace ai_clinic.Services.Facades;
 
@@ -98,7 +99,8 @@ public class ConsultationFacade
     public async Task<ConsultationSession> StartDoctorConsultationAsync(
         Guid patientId, 
         Guid doctorId, 
-        string? initialMessage = null)
+        string? initialMessage = null,
+        Guid? sourceConversationId = null)
     {
         // 1. 获取医生信息（验证医生存在且可用）
         var doctorProfile = await _doctorProfileService.GetByUserIdAsync(doctorId);
@@ -114,17 +116,52 @@ public class ConsultationFacade
             initialMessage
         );
 
-        // 3. 记录活动日志
+        // 3. 如果是从AI对话转来的，自动发送病情总结给医生
+        if (sourceConversationId.HasValue)
+        {
+            try
+            {
+                var summary = await GeneratePatientConditionSummaryAsync(sourceConversationId.Value);
+                if (!string.IsNullOrWhiteSpace(summary))
+                {
+                    // 创建系统消息发送给医生
+                    var summaryMessage = new Message
+                    {
+                        ConversationId = conversation.Id,
+                        SenderId = null, // System message
+                        SenderType = MessageSenderType.AI,
+                        Content = summary,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    
+                    await _messageService.CreateAsync(summaryMessage);
+                    
+                    // 通过 SignalR 发送给医生
+                    await _hubContext.SendMessageToConversation(conversation.Id, summaryMessage);
+                    
+                    _logger.LogInformation("[FACADE] Sent patient condition summary to doctor {DoctorId} for conversation {ConversationId}", 
+                        doctorId, conversation.Id);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[FACADE] Failed to generate patient condition summary for conversation {ConversationId}", 
+                    sourceConversationId.Value);
+                // 不影响主流程，继续执行
+            }
+        }
+
+        // 4. 记录活动日志
         await _activityLogService.LogActivityAsync(
             patientId,
             "start_doctor_consultation",
             $"{{\"conversation_id\": \"{conversation.Id}\", \"doctor_id\": \"{doctorId}\", \"doctor_name\": \"{doctorProfile.FullName}\"}}"
         );
 
-        // 4. 获取消息列表
+        // 5. 获取消息列表
         var messages = await _messageService.GetByConversationIdAsync(conversation.Id);
 
-        // 5. Return unified session object
+        // 6. Return unified session object
         return new ConsultationSession
         {
             Conversation = conversation,
@@ -572,6 +609,201 @@ public class ConsultationFacade
 
     #endregion
 
+    #region Send Messages with Streaming and Attachments
+
+    /// <summary>
+    /// Sends patient message with attachments and streaming AI response
+    /// Returns an async enumerable that yields message chunks as they arrive
+    /// </summary>
+    public async IAsyncEnumerable<StreamingMessageChunk> SendPatientMessageWithAttachmentsAsync(
+        Guid conversationId,
+        Guid patientId,
+        string content,
+        List<Guid> documentIds)
+    {
+        _logger.LogInformation("=== [FACADE] SendPatientMessageWithAttachmentsAsync Started ===");
+        _logger.LogInformation($"[FACADE] Attachments: {documentIds.Count}");
+
+        // 1. Save patient message first
+        Message patientMessage;
+        Conversation conversation;
+        string? attachmentContext = null;
+        
+        using (var db = DbClient.Instance.GetDb())
+        {
+            var transaction = await db.Database.BeginTransactionAsync();
+
+            conversation = await db.Conversations.FindAsync(conversationId);
+            if (conversation == null)
+            {
+                await transaction.RollbackAsync();
+                throw new InvalidOperationException("Conversation not found");
+            }
+
+            // Store document references in message
+            var documentReferences = documentIds.Count > 0 
+                ? System.Text.Json.JsonSerializer.Serialize(documentIds) 
+                : null;
+
+            patientMessage = new Message
+            {
+                ConversationId = conversationId,
+                SenderId = patientId,
+                SenderType = MessageSenderType.Patient,
+                Content = content,
+                DocumentReferences = documentReferences,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            db.Messages.Add(patientMessage);
+            conversation.LastMessageAt = DateTime.UtcNow;
+            conversation.UpdatedAt = DateTime.UtcNow;
+            conversation.TotalMessages++;
+
+            await db.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            _logger.LogInformation($"[FACADE] Patient message created - ID: {patientMessage.Id}");
+            
+            // 🔔 REAL-TIME: Send patient message via SignalR
+            await _hubContext.SendMessageToConversation(conversationId, patientMessage);
+            _logger.LogInformation($"[FACADE] Patient message sent via SignalR");
+
+            // Extract text from attachments for AI context
+            if (documentIds.Count > 0)
+            {
+                var documents = await db.Documents
+                    .Where(d => documentIds.Contains(d.Id))
+                    .ToListAsync();
+                
+                var attachmentTexts = new List<string>();
+                var imageBase64List = new List<string>();
+                
+                foreach (var doc in documents)
+                {
+                    attachmentTexts.Add($"[Attachment: {doc.FileName}]");
+                    
+                    // If it's an image, add to image list for vision AI
+                    if (doc.FileType == DocumentType.Image && doc.FileData != null)
+                    {
+                        var base64 = Convert.ToBase64String(doc.FileData);
+                        imageBase64List.Add(base64);
+                        _logger.LogInformation($"[FACADE] Added image {doc.FileName} for vision analysis");
+                    }
+                    
+                    if (!string.IsNullOrEmpty(doc.ExtractedText))
+                    {
+                        attachmentTexts.Add(doc.ExtractedText);
+                    }
+                }
+                
+                if (attachmentTexts.Count > 0)
+                {
+                    attachmentContext = string.Join("\n", attachmentTexts);
+                }
+                
+                // Store image list in a way we can access it later
+                if (imageBase64List.Count > 0)
+                {
+                    _logger.LogInformation($"[FACADE] Total {imageBase64List.Count} images ready for vision AI");
+                    // Store in attachmentContext for now - we'll parse it later
+                    attachmentContext += $"\n[IMAGES:{imageBase64List.Count}]";
+                    foreach (var img in imageBase64List)
+                    {
+                        attachmentContext += $"\n[IMG_BASE64:{img.Substring(0, Math.Min(50, img.Length))}...]";
+                    }
+                }
+            }
+        }
+
+        // Yield user message
+        yield return new StreamingMessageChunk
+        {
+            IsUserMessage = true,
+            Message = patientMessage
+        };
+
+        // 2. Generate AI response if needed
+        if (conversation.AssignedDoctorId == null)
+        {
+            _logger.LogInformation("[FACADE] AI conversation detected, generating streaming response with attachments...");
+
+            var fullResponse = "";
+            var success = false;
+
+            // Combine message content with attachment context
+            var fullContext = content;
+            if (!string.IsNullOrEmpty(attachmentContext))
+            {
+                fullContext = $"{content}\n\n{attachmentContext}";
+            }
+
+            // Stream AI response chunks
+            await foreach (var chunk in GenerateAiResponseWithFallbackAsync(fullContext))
+            {
+                fullResponse += chunk;
+                success = true;
+                
+                yield return new StreamingMessageChunk
+                {
+                    IsAiChunk = true,
+                    Content = chunk
+                };
+            }
+
+            // Save AI response to database
+            if (!success || string.IsNullOrEmpty(fullResponse))
+            {
+                fullResponse = "I apologize, but I'm experiencing technical difficulties at the moment. Please try again in a few moments, or consider consulting with one of our human doctors for immediate assistance.";
+            }
+
+            using (var db2 = DbClient.Instance.GetDb())
+            {
+                var transaction2 = await db2.Database.BeginTransactionAsync();
+
+                var aiResponse = new Message
+                {
+                    ConversationId = conversationId,
+                    SenderId = null,
+                    SenderType = MessageSenderType.AI,
+                    Content = fullResponse,
+                    AiModelUsed = _aiAssistantService.CurrentModelName,
+                    AiConfidenceScore = success ? 0.85m : 0.0m,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                db2.Messages.Add(aiResponse);
+
+                var conv = await db2.Conversations.FindAsync(conversationId);
+                if (conv != null)
+                {
+                    conv.LastMessageAt = DateTime.UtcNow;
+                    conv.UpdatedAt = DateTime.UtcNow;
+                    conv.TotalMessages++;
+                    conv.AiMessagesCount++;
+                }
+
+                await db2.SaveChangesAsync();
+                await transaction2.CommitAsync();
+
+                _logger.LogInformation($"[FACADE] AI response saved - ID: {aiResponse.Id}");
+                
+                // 🔔 REAL-TIME: Send AI response via SignalR (for doctor to see)
+                await _hubContext.SendMessageToConversation(conversationId, aiResponse);
+                _logger.LogInformation($"[FACADE] AI response sent via SignalR");
+
+                // Yield complete message
+                yield return new StreamingMessageChunk
+                {
+                    IsComplete = true,
+                    Message = aiResponse
+                };
+            }
+        }
+    }
+
+    #endregion
+
     #region Get Consultation Information
 
     /// <summary>
@@ -749,6 +981,94 @@ Respond in JSON format:
             
             // Fallback: simple keyword extraction
             return ExtractSymptomsUsingKeywords(conversationContext);
+        }
+    }
+
+    /// <summary>
+    /// Generates a comprehensive summary of patient's condition from AI conversation
+    /// This summary will be sent to the doctor when patient selects them
+    /// </summary>
+    private async Task<string> GeneratePatientConditionSummaryAsync(Guid aiConversationId)
+    {
+        try
+        {
+            // 1. Get the AI conversation messages
+            var messages = await _messageService.GetByConversationIdAsync(aiConversationId);
+            if (!messages.Any())
+            {
+                return string.Empty;
+            }
+
+            // 2. Build conversation context (only patient and AI messages)
+            var conversationContext = string.Join("\n\n", messages
+                .Where(m => m.SenderType == MessageSenderType.Patient || m.SenderType == MessageSenderType.AI)
+                .OrderBy(m => m.CreatedAt)
+                .Select(m => $"{(m.SenderType == MessageSenderType.Patient ? "Patient" : "AI")}: {m.Content}"));
+
+            // 3. Use AI to generate a professional medical summary
+            var prompt = $@"Based on the following conversation between a patient and an AI assistant, generate a concise professional medical summary for the doctor. The summary should include:
+
+1. Chief Complaint: Main reason for consultation
+2. Symptoms: List of symptoms mentioned with duration and severity
+3. Medical History: Any relevant medical history mentioned
+4. AI Assessment: Key findings from the AI conversation
+5. Reason for Referral: Why the patient is being referred to this doctor
+
+Keep the summary professional, concise, and focused on medically relevant information.
+
+Conversation:
+{conversationContext}
+
+Generate the summary in a clear, structured format suitable for a doctor to quickly understand the patient's condition.";
+
+            var summary = await _aiAssistantService.GenerateMedicalResponseAsync(
+                patientQuery: prompt,
+                medicalContext: null,
+                temperature: 0.5 // Balanced temperature for professional summary
+            );
+
+            // 4. Format the summary with a header
+            var formattedSummary = $@"📋 **Patient Condition Summary** (AI-Generated)
+
+{summary}
+
+---
+*This summary was automatically generated from the patient's conversation with the AI assistant. Please review and verify all information with the patient.*";
+
+            return formattedSummary;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[FACADE] Failed to generate patient condition summary for conversation {ConversationId}", aiConversationId);
+            
+            // Fallback: Create a basic summary
+            try
+            {
+                var messages = await _messageService.GetByConversationIdAsync(aiConversationId);
+                var patientMessages = messages
+                    .Where(m => m.SenderType == MessageSenderType.Patient)
+                    .OrderBy(m => m.CreatedAt)
+                    .Take(3)
+                    .Select(m => m.Content)
+                    .ToList();
+
+                if (patientMessages.Any())
+                {
+                    return $@"📋 **Patient Condition Summary**
+
+**Patient's Main Concerns:**
+{string.Join("\n", patientMessages.Select((msg, idx) => $"{idx + 1}. {msg.Substring(0, Math.Min(200, msg.Length))}{(msg.Length > 200 ? "..." : "")}"))}
+
+---
+*This is a basic summary. Please discuss details with the patient.*";
+                }
+            }
+            catch
+            {
+                // Ignore fallback errors
+            }
+
+            return string.Empty;
         }
     }
 

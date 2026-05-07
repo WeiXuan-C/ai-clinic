@@ -1,16 +1,11 @@
-using System;
-using System.Net.Http;
-using System.Net.Http.Json;
+
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Configuration;
 
 namespace ai_clinic.Services.AI
 {
     /// <summary>
     /// Adaptee - The legacy/external OpenRouter API client
-    /// 被适配者 - 外部OpenRouter API客户端
     /// </summary>
     public class OpenRouterApiClient
     {
@@ -24,7 +19,6 @@ namespace ai_clinic.Services.AI
             _apiKey = configuration["OpenRouter:ApiKey"] 
                 ?? throw new InvalidOperationException("OpenRouter API key not configured");
             
-            // 不设置 BaseAddress，使用完整 URL
             _httpClient.DefaultRequestHeaders.Clear();
             _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_apiKey}");
             _httpClient.DefaultRequestHeaders.Add("HTTP-Referer", "https://ai-clinic.app");
@@ -35,19 +29,10 @@ namespace ai_clinic.Services.AI
 
         /// <summary>
         /// Makes a raw API call to OpenRouter
-        /// 向OpenRouter发起原始API调用
         /// </summary>
         public async Task<OpenRouterResponse> CallApiAsync(OpenRouterRequest request)
         {
             const string endpoint = "https://openrouter.ai/api/v1/chat/completions";
-            
-            Console.WriteLine("=== [OPENROUTER API DEBUG] CallApiAsync Started ===");
-            Console.WriteLine($"[API] Endpoint: {endpoint}");
-            Console.WriteLine($"[API] Model: {request.Model}");
-            Console.WriteLine($"[API] Messages Count: {request.Messages.Length}");
-            Console.WriteLine($"[API] Temperature: {request.Temperature}");
-            Console.WriteLine($"[API] Max Tokens: {request.MaxTokens}");
-            
             try
             {
                 var response = await _httpClient.PostAsJsonAsync(endpoint, request);
@@ -96,7 +81,8 @@ namespace ai_clinic.Services.AI
                 if (result.Choices != null && result.Choices.Length > 0)
                 {
                     var firstChoice = result.Choices[0];
-                    Console.WriteLine($"[API] First Choice Content Length: {firstChoice.Message?.Content?.Length ?? 0} chars");
+                    var contentLength = firstChoice.Message?.Content is string str ? str.Length : 0;
+                    Console.WriteLine($"[API] First Choice Content Length: {contentLength} chars");
                 }
                 Console.WriteLine("=== [OPENROUTER API DEBUG] CallApiAsync Completed ===\n");
                 
@@ -118,7 +104,6 @@ namespace ai_clinic.Services.AI
 
         /// <summary>
         /// Gets model information from OpenRouter
-        /// 从OpenRouter获取模型信息
         /// </summary>
         public async Task<ModelInfo> GetModelInfoAsync(string modelId)
         {
@@ -132,7 +117,6 @@ namespace ai_clinic.Services.AI
 
         /// <summary>
         /// Makes a streaming API call to OpenRouter
-        /// 向OpenRouter发起流式API调用
         /// </summary>
         public async IAsyncEnumerable<string> CallApiStreamingAsync(OpenRouterRequest request)
         {
@@ -254,7 +238,34 @@ namespace ai_clinic.Services.AI
         public string Role { get; set; } = string.Empty;
 
         [JsonPropertyName("content")]
-        public string Content { get; set; } = string.Empty;
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public object? Content { get; set; } // Can be string or ContentPart[]
+    }
+
+    /// <summary>
+    /// Content part for multimodal messages (text + images)
+    /// </summary>
+    public class ContentPart
+    {
+        [JsonPropertyName("type")]
+        public string Type { get; set; } = string.Empty; // "text" or "image_url"
+
+        [JsonPropertyName("text")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? Text { get; set; }
+
+        [JsonPropertyName("image_url")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public ImageUrl? ImageUrl { get; set; }
+    }
+
+    /// <summary>
+    /// Image URL for multimodal messages
+    /// </summary>
+    public class ImageUrl
+    {
+        [JsonPropertyName("url")]
+        public string Url { get; set; } = string.Empty; // Can be URL or data:image/jpeg;base64,...
     }
 
     public class OpenRouterResponse

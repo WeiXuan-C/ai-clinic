@@ -140,7 +140,6 @@ Identify important dates, medications, diagnoses, and test results.";
 
         /// <summary>
         /// Generates a streaming response
-        /// 生成流式响应
         /// </summary>
         public async Task<IAsyncEnumerable<string>> GenerateStreamingResponseAsync(
             string prompt,
@@ -157,7 +156,6 @@ Identify important dates, medications, diagnoses, and test results.";
 
         /// <summary>
         /// Generates a streaming medical consultation response
-        /// 生成流式医疗咨询响应
         /// </summary>
         public async IAsyncEnumerable<string> GenerateStreamingMedicalResponseAsync(
             string patientQuery,

@@ -1,4 +1,6 @@
 using ai_clinic.Models;
+using ai_clinic.Services.Hubs;
+using Microsoft.AspNetCore.SignalR;
 
 namespace ai_clinic.Services.Facades;
 
@@ -15,6 +17,7 @@ public class DoctorFacade
     private readonly MedicalRecordService _medicalRecordService;
     private readonly ActivityLogService _activityLogService;
     private readonly StatisticsService _statisticsService;
+    private readonly IHubContext<ConsultationHub> _hubContext;
 
     public DoctorFacade(
         DoctorProfileService doctorProfileService,
@@ -23,7 +26,8 @@ public class DoctorFacade
         PrescriptionService prescriptionService,
         MedicalRecordService medicalRecordService,
         ActivityLogService activityLogService,
-        StatisticsService statisticsService)
+        StatisticsService statisticsService,
+        IHubContext<ConsultationHub> hubContext)
     {
         _doctorProfileService = doctorProfileService;
         _conversationService = conversationService;
@@ -32,6 +36,7 @@ public class DoctorFacade
         _medicalRecordService = medicalRecordService;
         _activityLogService = activityLogService;
         _statisticsService = statisticsService;
+        _hubContext = hubContext;
     }
 
     /// <summary>
@@ -356,6 +361,80 @@ public class DoctorFacade
                 ImagingStudies = medicalRecords.Count(r => r.RecordType == "Imaging")
             }
         };
+    }
+
+    /// <summary>
+    /// Get doctor's conversation list for UI
+    /// Returns simplified conversation list items
+    /// </summary>
+    public async Task<List<ConversationListItem>> GetDoctorConversationListAsync(Guid doctorId)
+    {
+        var conversations = await _conversationService.GetByDoctorIdAsync(doctorId);
+        
+        return conversations.Select(c => new ConversationListItem
+        {
+            Id = c.Id,
+            Title = c.Title ?? $"Consultation with {c.Patient?.Email?.Split('@')[0] ?? "Patient"}",
+            LastMessageAt = c.LastMessageAt,
+            Status = c.Status,
+            UnreadCount = 0, // TODO: Implement unread count logic
+            IsAiConversation = c.AiMessagesCount > 0,
+            DoctorName = null // Not needed for doctor view
+        }).OrderByDescending(c => c.LastMessageAt).ToList();
+    }
+
+    /// <summary>
+    /// Get doctor's consultation session with messages
+    /// Returns complete session data for chat interface
+    /// </summary>
+    public async Task<ConsultationSession> GetDoctorConsultationSessionAsync(Guid conversationId, Guid doctorId)
+    {
+        var conversation = await _conversationService.GetByIdAsync(conversationId);
+        
+        if (conversation == null || conversation.AssignedDoctorId != doctorId)
+        {
+            throw new UnauthorizedAccessException("Doctor does not have access to this conversation");
+        }
+
+        var messages = await _conversationService.GetMessagesAsync(conversationId);
+
+        return new ConsultationSession
+        {
+            Conversation = conversation,
+            Messages = messages.OrderBy(m => m.CreatedAt).ToList(),
+            IsAiConsultation = conversation.AssignedDoctorId == null
+        };
+    }
+
+    /// <summary>
+    /// Send message from doctor
+    /// Simplified interface for doctor chat
+    /// </summary>
+    public async Task<Message> SendDoctorMessageAsync(Guid conversationId, Guid doctorId, string content)
+    {
+        var message = new Message
+        {
+            ConversationId = conversationId,
+            SenderId = doctorId,
+            SenderType = MessageSenderType.Doctor,
+            Content = content,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        message = await _conversationService.AddMessageAsync(message);
+
+        // Update conversation last message time
+        await _conversationService.UpdateLastMessageTimeAsync(conversationId);
+
+        // 🔔 REAL-TIME: Send doctor message via SignalR
+        await _hubContext.SendMessageToConversation(conversationId, message);
+
+        await _activityLogService.LogActivityAsync(
+            doctorId,
+            "SendDoctorMessage",
+            $"Conversation ID: {conversationId}");
+
+        return message;
     }
 
     /// <summary>

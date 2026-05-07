@@ -8,7 +8,6 @@ namespace ai_clinic.Services.AI
 {
     /// <summary>
     /// Adapter Base Class - Adapts OpenRouter API to our unified interface
-    /// 适配器基类 - 将OpenRouter API适配到我们的统一接口
     /// 
     /// This follows the Adapter pattern by:
     /// 1. Implementing the Target interface (IAiModelStrategy)
@@ -21,6 +20,7 @@ namespace ai_clinic.Services.AI
 
         public abstract string ModelId { get; }
         public abstract string ModelName { get; }
+        public virtual bool SupportsVision => false; // Default: no vision support
 
         protected BaseAiModelAdapter(OpenRouterApiClient apiClient)
         {
@@ -29,7 +29,6 @@ namespace ai_clinic.Services.AI
 
         /// <summary>
         /// Adapts the OpenRouter API call to our unified interface
-        /// 将OpenRouter API调用适配到我们的统一接口
         /// </summary>
         public virtual async Task<string> GenerateResponseAsync(
             string prompt,
@@ -42,20 +41,20 @@ namespace ai_clinic.Services.AI
 
             // Build messages array
             var messages = new List<Message>();
-            
+
             if (!string.IsNullOrWhiteSpace(systemInstructions))
             {
-                messages.Add(new Message 
-                { 
-                    Role = "system", 
-                    Content = systemInstructions 
+                messages.Add(new Message
+                {
+                    Role = "system",
+                    Content = systemInstructions
                 });
             }
 
-            messages.Add(new Message 
-            { 
-                Role = "user", 
-                Content = prompt 
+            messages.Add(new Message
+            {
+                Role = "user",
+                Content = prompt
             });
 
             // Create request using the Adaptee's format
@@ -75,13 +74,99 @@ namespace ai_clinic.Services.AI
             if (response.Choices == null || response.Choices.Length == 0)
                 throw new InvalidOperationException("No response from AI model");
 
-            return response.Choices[0].Message?.Content 
-                ?? throw new InvalidOperationException("Empty response from AI model");
+            var content = response.Choices[0].Message?.Content;
+            if (content is string textContent)
+            {
+                return textContent;
+            }
+
+            throw new InvalidOperationException("Empty response from AI model");
+        }
+
+        /// <summary>
+        /// Generates response with image support
+        /// </summary>
+        public virtual async Task<string> GenerateResponseWithImagesAsync(
+            string prompt,
+            List<string> imageBase64List,
+            string? systemInstructions = null,
+            double temperature = 0.7,
+            int maxTokens = 1000)
+        {
+            if (!SupportsVision)
+                throw new NotSupportedException($"Model {ModelName} does not support vision/image input");
+
+            if (string.IsNullOrWhiteSpace(prompt))
+                throw new ArgumentException("Prompt cannot be empty", nameof(prompt));
+
+            // Build messages array
+            var messages = new List<Message>();
+
+            if (!string.IsNullOrWhiteSpace(systemInstructions))
+            {
+                messages.Add(new Message
+                {
+                    Role = "system",
+                    Content = systemInstructions
+                });
+            }
+
+            // Build multimodal content
+            var contentParts = new List<ContentPart>
+            {
+                new ContentPart
+                {
+                    Type = "text",
+                    Text = prompt
+                }
+            };
+
+            // Add images
+            foreach (var imageBase64 in imageBase64List)
+            {
+                contentParts.Add(new ContentPart
+                {
+                    Type = "image_url",
+                    ImageUrl = new ImageUrl
+                    {
+                        Url = $"data:image/jpeg;base64,{imageBase64}"
+                    }
+                });
+            }
+
+            messages.Add(new Message
+            {
+                Role = "user",
+                Content = contentParts.ToArray()
+            });
+
+            // Create request
+            var request = new OpenRouterRequest
+            {
+                Model = ModelId,
+                Messages = messages.ToArray(),
+                Temperature = temperature,
+                MaxTokens = maxTokens,
+                Stream = false
+            };
+
+            // Call API
+            var response = await _apiClient.CallApiAsync(request);
+
+            if (response.Choices == null || response.Choices.Length == 0)
+                throw new InvalidOperationException("No response from AI model");
+
+            var content = response.Choices[0].Message?.Content;
+            if (content is string textContent)
+            {
+                return textContent;
+            }
+
+            throw new InvalidOperationException("Empty response from AI model");
         }
 
         /// <summary>
         /// Streaming response adapter with real streaming support
-        /// 流式响应适配器，支持真正的流式输出
         /// </summary>
         public virtual async Task<IAsyncEnumerable<string>> GenerateStreamingResponseAsync(
             string prompt,
@@ -94,20 +179,91 @@ namespace ai_clinic.Services.AI
 
             // Build messages array
             var messages = new List<Message>();
-            
+
             if (!string.IsNullOrWhiteSpace(systemInstructions))
             {
-                messages.Add(new Message 
-                { 
-                    Role = "system", 
-                    Content = systemInstructions 
+                messages.Add(new Message
+                {
+                    Role = "system",
+                    Content = systemInstructions
                 });
             }
 
-            messages.Add(new Message 
-            { 
-                Role = "user", 
-                Content = prompt 
+            messages.Add(new Message
+            {
+                Role = "user",
+                Content = prompt
+            });
+
+            // Create request with streaming enabled
+            var request = new OpenRouterRequest
+            {
+                Model = ModelId,
+                Messages = messages.ToArray(),
+                Temperature = temperature,
+                MaxTokens = maxTokens,
+                Stream = true
+            };
+
+            // Return the streaming enumerable
+            return StreamResponseAsync(request);
+        }
+
+        /// <summary>
+        /// Streaming response with image support
+        /// </summary>
+        public virtual async Task<IAsyncEnumerable<string>> GenerateStreamingResponseWithImagesAsync(
+            string prompt,
+            List<string> imageBase64List,
+            string? systemInstructions = null,
+            double temperature = 0.7,
+            int maxTokens = 1000)
+        {
+            if (!SupportsVision)
+                throw new NotSupportedException($"Model {ModelName} does not support vision/image input");
+
+            if (string.IsNullOrWhiteSpace(prompt))
+                throw new ArgumentException("Prompt cannot be empty", nameof(prompt));
+
+            // Build messages array
+            var messages = new List<Message>();
+
+            if (!string.IsNullOrWhiteSpace(systemInstructions))
+            {
+                messages.Add(new Message
+                {
+                    Role = "system",
+                    Content = systemInstructions
+                });
+            }
+
+            // Build multimodal content
+            var contentParts = new List<ContentPart>
+            {
+                new ContentPart
+                {
+                    Type = "text",
+                    Text = prompt
+                }
+            };
+
+            // Add images
+            foreach (var imageBase64 in imageBase64List)
+            {
+                contentParts.Add(new ContentPart
+                {
+                    Type = "image_url",
+                    ImageUrl = new ImageUrl
+                    {
+                        Url = $"data:image/jpeg;base64,{imageBase64}"
+                    }
+                });
+            }
+
+            messages.Add(new Message
+            {
+                Role = "user",
+                Content = contentParts.ToArray()
             });
 
             // Create request with streaming enabled
@@ -140,7 +296,6 @@ namespace ai_clinic.Services.AI
 
         /// <summary>
         /// Hook for model-specific preprocessing
-        /// 模型特定预处理的钩子方法
         /// </summary>
         protected virtual string PreprocessPrompt(string prompt)
         {
@@ -149,7 +304,6 @@ namespace ai_clinic.Services.AI
 
         /// <summary>
         /// Hook for model-specific postprocessing
-        /// 模型特定后处理的钩子方法
         /// </summary>
         protected virtual string PostprocessResponse(string response)
         {
