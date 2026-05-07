@@ -425,10 +425,12 @@ public partial class Consultation : ComponentBase, IAsyncDisposable
                 {
                     return;
                 }
-                // 使用 Facade 创建医生咨询
+                // 使用 Facade 创建医生咨询（不传递 sourceConversationId，因为这不是从AI推荐来的）
                 newSession = await ConsultationFacade.StartDoctorConsultationAsync(
                     AuthFacade.CurrentUser!.Id, 
-                    selectedDoctorId.Value
+                    selectedDoctorId.Value,
+                    initialMessage: null,
+                    sourceConversationId: null
                 );
             }
 
@@ -850,10 +852,12 @@ public partial class Consultation : ComponentBase, IAsyncDisposable
         {
             Console.WriteLine($"[UI] Starting consultation with doctor {doctorId}");
             
-            // Create new doctor consultation
+            // Create new doctor consultation with source conversation ID for summary
             var newSession = await ConsultationFacade.StartDoctorConsultationAsync(
                 AuthFacade.CurrentUser!.Id,
-                doctorId.Value
+                doctorId.Value,
+                initialMessage: null,
+                sourceConversationId: currentConversation?.Id // Pass current AI conversation ID
             );
 
             // Close modals

@@ -4,31 +4,26 @@ namespace ai_clinic.Services.AI
 {
     /// <summary>
     /// Strategy Interface - Defines the contract for all AI model strategies
-    /// 策略接口 - 定义所有AI模型策略的契约
     /// </summary>
     public interface IAiModelStrategy
     {
         /// <summary>
         /// Gets the model identifier used by OpenRouter
-        /// 获取OpenRouter使用的模型标识符
         /// </summary>
         string ModelId { get; }
 
         /// <summary>
         /// Gets the display name of the model
-        /// 获取模型的显示名称
         /// </summary>
         string ModelName { get; }
 
         /// <summary>
         /// Indicates if this model supports vision/image input
-        /// 指示此模型是否支持视觉/图片输入
         /// </summary>
         bool SupportsVision { get; }
 
         /// <summary>
         /// Generates a response from the AI model
-        /// 从AI模型生成响应
         /// </summary>
         /// <param name="prompt">The user's input prompt</param>
         /// <param name="systemInstructions">Optional system instructions to guide the model</param>
@@ -44,7 +39,6 @@ namespace ai_clinic.Services.AI
 
         /// <summary>
         /// Generates a response with image input support
-        /// 生成支持图片输入的响应
         /// </summary>
         /// <param name="prompt">The user's text prompt</param>
         /// <param name="imageBase64List">List of base64-encoded images</param>
@@ -62,7 +56,6 @@ namespace ai_clinic.Services.AI
 
         /// <summary>
         /// Generates a streaming response from the AI model
-        /// 从AI模型生成流式响应
         /// </summary>
         Task<IAsyncEnumerable<string>> GenerateStreamingResponseAsync(
             string prompt,
@@ -73,7 +66,6 @@ namespace ai_clinic.Services.AI
 
         /// <summary>
         /// Generates a streaming response with image input support
-        /// 生成支持图片输入的流式响应
         /// </summary>
         Task<IAsyncEnumerable<string>> GenerateStreamingResponseWithImagesAsync(
             string prompt,

@@ -1,14 +1,10 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+
 using ai_clinic.Services.AI.Strategies;
 
 namespace ai_clinic.Services.AI
 {
     /// <summary>
     /// Context - Manages AI model strategy selection and execution
-    /// 上下文 - 管理AI模型策略选择和执行
     /// 
     /// This is the Context in the Strategy pattern that:
     /// 1. Maintains a reference to a Strategy object
@@ -24,15 +20,14 @@ namespace ai_clinic.Services.AI
         public AiModelContext(OpenRouterApiClient apiClient)
         {
             _apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
-            
+
             // Initialize all available strategies
             _availableStrategies = new Dictionary<string, IAiModelStrategy>
             {
                 ["owl-alpha"] = new OwlAlphaStrategy(_apiClient),
                 ["gemma-4"] = new Gemma4Strategy(_apiClient),
                 ["minimax"] = new MiniMaxStrategy(_apiClient),
-                ["nemotron"] = new NemotronStrategy(_apiClient),
-                ["qianfan-ocr"] = new QianfanOcrStrategy(_apiClient)
+                ["nemotron"] = new NemotronStrategy(_apiClient)
             };
 
             // Set default strategy
@@ -41,19 +36,16 @@ namespace ai_clinic.Services.AI
 
         /// <summary>
         /// Gets the current active strategy
-        /// 获取当前活动策略
         /// </summary>
         public IAiModelStrategy CurrentStrategy => _currentStrategy;
 
         /// <summary>
         /// Gets all available model strategies
-        /// 获取所有可用的模型策略
         /// </summary>
         public IEnumerable<IAiModelStrategy> AvailableStrategies => _availableStrategies.Values;
 
         /// <summary>
         /// Switches to a different AI model strategy
-        /// 切换到不同的AI模型策略
         /// </summary>
         /// <param name="strategyKey">The key identifying the strategy (e.g., "owl-alpha", "gemma-4")</param>
         public void SetStrategy(string strategyKey)
@@ -74,7 +66,6 @@ namespace ai_clinic.Services.AI
 
         /// <summary>
         /// Switches strategy by model ID (e.g., "openrouter/owl-alpha")
-        /// 通过模型ID切换策略
         /// </summary>
         public void SetStrategyByModelId(string modelId)
         {
@@ -91,7 +82,6 @@ namespace ai_clinic.Services.AI
 
         /// <summary>
         /// Generates a response using the current strategy
-        /// 使用当前策略生成响应
         /// </summary>
         public async Task<string> GenerateResponseAsync(
             string prompt,
@@ -109,9 +99,9 @@ namespace ai_clinic.Services.AI
 
             Console.WriteLine("[AI CONTEXT] Delegating to strategy...");
             var response = await _currentStrategy.GenerateResponseAsync(
-                prompt, 
-                systemInstructions, 
-                temperature, 
+                prompt,
+                systemInstructions,
+                temperature,
                 maxTokens);
 
             Console.WriteLine($"[AI CONTEXT] Strategy returned response - Length: {response.Length} chars");
@@ -122,7 +112,6 @@ namespace ai_clinic.Services.AI
 
         /// <summary>
         /// Generates a streaming response using the current strategy
-        /// 使用当前策略生成流式响应
         /// </summary>
         public async Task<IAsyncEnumerable<string>> GenerateStreamingResponseAsync(
             string prompt,
@@ -139,7 +128,6 @@ namespace ai_clinic.Services.AI
 
         /// <summary>
         /// Gets information about all available models
-        /// 获取所有可用模型的信息
         /// </summary>
         public List<ModelInfo> GetAvailableModels()
         {
@@ -153,7 +141,6 @@ namespace ai_clinic.Services.AI
 
         /// <summary>
         /// Model information DTO
-        /// 模型信息数据传输对象
         /// </summary>
         public class ModelInfo
         {

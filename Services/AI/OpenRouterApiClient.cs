@@ -1,16 +1,11 @@
-using System;
-using System.Net.Http;
-using System.Net.Http.Json;
+
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Configuration;
 
 namespace ai_clinic.Services.AI
 {
     /// <summary>
     /// Adaptee - The legacy/external OpenRouter API client
-    /// 被适配者 - 外部OpenRouter API客户端
     /// </summary>
     public class OpenRouterApiClient
     {
@@ -24,7 +19,6 @@ namespace ai_clinic.Services.AI
             _apiKey = configuration["OpenRouter:ApiKey"] 
                 ?? throw new InvalidOperationException("OpenRouter API key not configured");
             
-            // 不设置 BaseAddress，使用完整 URL
             _httpClient.DefaultRequestHeaders.Clear();
             _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_apiKey}");
             _httpClient.DefaultRequestHeaders.Add("HTTP-Referer", "https://ai-clinic.app");
@@ -35,19 +29,10 @@ namespace ai_clinic.Services.AI
 
         /// <summary>
         /// Makes a raw API call to OpenRouter
-        /// 向OpenRouter发起原始API调用
         /// </summary>
         public async Task<OpenRouterResponse> CallApiAsync(OpenRouterRequest request)
         {
             const string endpoint = "https://openrouter.ai/api/v1/chat/completions";
-            
-            Console.WriteLine("=== [OPENROUTER API DEBUG] CallApiAsync Started ===");
-            Console.WriteLine($"[API] Endpoint: {endpoint}");
-            Console.WriteLine($"[API] Model: {request.Model}");
-            Console.WriteLine($"[API] Messages Count: {request.Messages.Length}");
-            Console.WriteLine($"[API] Temperature: {request.Temperature}");
-            Console.WriteLine($"[API] Max Tokens: {request.MaxTokens}");
-            
             try
             {
                 var response = await _httpClient.PostAsJsonAsync(endpoint, request);
@@ -119,7 +104,6 @@ namespace ai_clinic.Services.AI
 
         /// <summary>
         /// Gets model information from OpenRouter
-        /// 从OpenRouter获取模型信息
         /// </summary>
         public async Task<ModelInfo> GetModelInfoAsync(string modelId)
         {
@@ -133,7 +117,6 @@ namespace ai_clinic.Services.AI
 
         /// <summary>
         /// Makes a streaming API call to OpenRouter
-        /// 向OpenRouter发起流式API调用
         /// </summary>
         public async IAsyncEnumerable<string> CallApiStreamingAsync(OpenRouterRequest request)
         {

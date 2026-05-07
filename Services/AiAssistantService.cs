@@ -140,7 +140,6 @@ Identify important dates, medications, diagnoses, and test results.";
 
         /// <summary>
         /// Generates a streaming response
-        /// 生成流式响应
         /// </summary>
         public async Task<IAsyncEnumerable<string>> GenerateStreamingResponseAsync(
             string prompt,
@@ -157,7 +156,6 @@ Identify important dates, medications, diagnoses, and test results.";
 
         /// <summary>
         /// Generates a streaming medical consultation response
-        /// 生成流式医疗咨询响应
         /// </summary>
         public async IAsyncEnumerable<string> GenerateStreamingMedicalResponseAsync(
             string patientQuery,
@@ -191,53 +189,6 @@ Format your response using Markdown for better readability.";
             }
 
             Console.WriteLine("=== [AI ASSISTANT SERVICE] GenerateStreamingMedicalResponseAsync Completed ===\n");
-        }
-        /// <summary>
-        /// Generates a streaming medical consultation response with image support
-        /// 生成支持图片的流式医疗咨询响应
-        /// </summary>
-        public async IAsyncEnumerable<string> GenerateStreamingMedicalResponseWithImagesAsync(
-            string patientQuery,
-            List<string> imageBase64List,
-            string? medicalContext = null,
-            double temperature = 0.7)
-        {
-            Console.WriteLine("=== [AI ASSISTANT SERVICE] GenerateStreamingMedicalResponseWithImagesAsync Started ===");
-            Console.WriteLine($"[AI ASSISTANT] Current Model: {CurrentModelName}");
-            Console.WriteLine($"[AI ASSISTANT] Images: {imageBase64List.Count}");
-            Console.WriteLine($"[AI ASSISTANT] Supports Vision: {_modelContext.CurrentStrategy.SupportsVision}");
-
-            if (!_modelContext.CurrentStrategy.SupportsVision)
-            {
-                Console.WriteLine("[AI ASSISTANT] Current model doesn't support vision, switching to Qianfan OCR...");
-                _modelContext.SetStrategy("qianfan-ocr");
-            }
-
-            var systemInstructions = @"You are a helpful medical AI assistant with image analysis capabilities.
-Analyze any provided medical images (lab results, X-rays, skin conditions, etc.) and provide informative responses.
-Always remind users to consult with healthcare professionals for serious concerns.
-Do not provide definitive diagnoses based solely on images.
-Format your response using Markdown for better readability.";
-
-            var prompt = string.IsNullOrWhiteSpace(medicalContext)
-                ? patientQuery
-                : $"Medical Context: {medicalContext}\n\nPatient Query: {patientQuery}";
-
-            Console.WriteLine("[AI ASSISTANT] Calling AiModelContext.GenerateStreamingResponseWithImagesAsync...");
-
-            var streamingResponse = await _modelContext.CurrentStrategy.GenerateStreamingResponseWithImagesAsync(
-                prompt,
-                imageBase64List,
-                systemInstructions,
-                temperature,
-                maxTokens: 1500);
-
-            await foreach (var chunk in streamingResponse)
-            {
-                yield return chunk;
-            }
-
-            Console.WriteLine("=== [AI ASSISTANT SERVICE] GenerateStreamingMedicalResponseWithImagesAsync Completed ===\n");
         }
     }
 }

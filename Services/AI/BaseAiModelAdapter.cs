@@ -8,7 +8,6 @@ namespace ai_clinic.Services.AI
 {
     /// <summary>
     /// Adapter Base Class - Adapts OpenRouter API to our unified interface
-    /// 适配器基类 - 将OpenRouter API适配到我们的统一接口
     /// 
     /// This follows the Adapter pattern by:
     /// 1. Implementing the Target interface (IAiModelStrategy)
@@ -30,7 +29,6 @@ namespace ai_clinic.Services.AI
 
         /// <summary>
         /// Adapts the OpenRouter API call to our unified interface
-        /// 将OpenRouter API调用适配到我们的统一接口
         /// </summary>
         public virtual async Task<string> GenerateResponseAsync(
             string prompt,
@@ -87,7 +85,6 @@ namespace ai_clinic.Services.AI
 
         /// <summary>
         /// Generates response with image support
-        /// 生成支持图片的响应
         /// </summary>
         public virtual async Task<string> GenerateResponseWithImagesAsync(
             string prompt,
@@ -170,7 +167,6 @@ namespace ai_clinic.Services.AI
 
         /// <summary>
         /// Streaming response adapter with real streaming support
-        /// 流式响应适配器，支持真正的流式输出
         /// </summary>
         public virtual async Task<IAsyncEnumerable<string>> GenerateStreamingResponseAsync(
             string prompt,
@@ -215,7 +211,6 @@ namespace ai_clinic.Services.AI
 
         /// <summary>
         /// Streaming response with image support
-        /// 支持图片的流式响应
         /// </summary>
         public virtual async Task<IAsyncEnumerable<string>> GenerateStreamingResponseWithImagesAsync(
             string prompt,
@@ -301,7 +296,6 @@ namespace ai_clinic.Services.AI
 
         /// <summary>
         /// Hook for model-specific preprocessing
-        /// 模型特定预处理的钩子方法
         /// </summary>
         protected virtual string PreprocessPrompt(string prompt)
         {
@@ -310,7 +304,6 @@ namespace ai_clinic.Services.AI
 
         /// <summary>
         /// Hook for model-specific postprocessing
-        /// 模型特定后处理的钩子方法
         /// </summary>
         protected virtual string PostprocessResponse(string response)
         {

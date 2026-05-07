@@ -99,7 +99,8 @@ public class ConsultationFacade
     public async Task<ConsultationSession> StartDoctorConsultationAsync(
         Guid patientId, 
         Guid doctorId, 
-        string? initialMessage = null)
+        string? initialMessage = null,
+        Guid? sourceConversationId = null)
     {
         // 1. 获取医生信息（验证医生存在且可用）
         var doctorProfile = await _doctorProfileService.GetByUserIdAsync(doctorId);
@@ -115,17 +116,52 @@ public class ConsultationFacade
             initialMessage
         );
 
-        // 3. 记录活动日志
+        // 3. 如果是从AI对话转来的，自动发送病情总结给医生
+        if (sourceConversationId.HasValue)
+        {
+            try
+            {
+                var summary = await GeneratePatientConditionSummaryAsync(sourceConversationId.Value);
+                if (!string.IsNullOrWhiteSpace(summary))
+                {
+                    // 创建系统消息发送给医生
+                    var summaryMessage = new Message
+                    {
+                        ConversationId = conversation.Id,
+                        SenderId = null, // System message
+                        SenderType = MessageSenderType.AI,
+                        Content = summary,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    
+                    await _messageService.CreateAsync(summaryMessage);
+                    
+                    // 通过 SignalR 发送给医生
+                    await _hubContext.SendMessageToConversation(conversation.Id, summaryMessage);
+                    
+                    _logger.LogInformation("[FACADE] Sent patient condition summary to doctor {DoctorId} for conversation {ConversationId}", 
+                        doctorId, conversation.Id);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[FACADE] Failed to generate patient condition summary for conversation {ConversationId}", 
+                    sourceConversationId.Value);
+                // 不影响主流程，继续执行
+            }
+        }
+
+        // 4. 记录活动日志
         await _activityLogService.LogActivityAsync(
             patientId,
             "start_doctor_consultation",
             $"{{\"conversation_id\": \"{conversation.Id}\", \"doctor_id\": \"{doctorId}\", \"doctor_name\": \"{doctorProfile.FullName}\"}}"
         );
 
-        // 4. 获取消息列表
+        // 5. 获取消息列表
         var messages = await _messageService.GetByConversationIdAsync(conversation.Id);
 
-        // 5. Return unified session object
+        // 6. Return unified session object
         return new ConsultationSession
         {
             Conversation = conversation,
@@ -945,6 +981,94 @@ Respond in JSON format:
             
             // Fallback: simple keyword extraction
             return ExtractSymptomsUsingKeywords(conversationContext);
+        }
+    }
+
+    /// <summary>
+    /// Generates a comprehensive summary of patient's condition from AI conversation
+    /// This summary will be sent to the doctor when patient selects them
+    /// </summary>
+    private async Task<string> GeneratePatientConditionSummaryAsync(Guid aiConversationId)
+    {
+        try
+        {
+            // 1. Get the AI conversation messages
+            var messages = await _messageService.GetByConversationIdAsync(aiConversationId);
+            if (!messages.Any())
+            {
+                return string.Empty;
+            }
+
+            // 2. Build conversation context (only patient and AI messages)
+            var conversationContext = string.Join("\n\n", messages
+                .Where(m => m.SenderType == MessageSenderType.Patient || m.SenderType == MessageSenderType.AI)
+                .OrderBy(m => m.CreatedAt)
+                .Select(m => $"{(m.SenderType == MessageSenderType.Patient ? "Patient" : "AI")}: {m.Content}"));
+
+            // 3. Use AI to generate a professional medical summary
+            var prompt = $@"Based on the following conversation between a patient and an AI assistant, generate a concise professional medical summary for the doctor. The summary should include:
+
+1. Chief Complaint: Main reason for consultation
+2. Symptoms: List of symptoms mentioned with duration and severity
+3. Medical History: Any relevant medical history mentioned
+4. AI Assessment: Key findings from the AI conversation
+5. Reason for Referral: Why the patient is being referred to this doctor
+
+Keep the summary professional, concise, and focused on medically relevant information.
+
+Conversation:
+{conversationContext}
+
+Generate the summary in a clear, structured format suitable for a doctor to quickly understand the patient's condition.";
+
+            var summary = await _aiAssistantService.GenerateMedicalResponseAsync(
+                patientQuery: prompt,
+                medicalContext: null,
+                temperature: 0.5 // Balanced temperature for professional summary
+            );
+
+            // 4. Format the summary with a header
+            var formattedSummary = $@"📋 **Patient Condition Summary** (AI-Generated)
+
+{summary}
+
+---
+*This summary was automatically generated from the patient's conversation with the AI assistant. Please review and verify all information with the patient.*";
+
+            return formattedSummary;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[FACADE] Failed to generate patient condition summary for conversation {ConversationId}", aiConversationId);
+            
+            // Fallback: Create a basic summary
+            try
+            {
+                var messages = await _messageService.GetByConversationIdAsync(aiConversationId);
+                var patientMessages = messages
+                    .Where(m => m.SenderType == MessageSenderType.Patient)
+                    .OrderBy(m => m.CreatedAt)
+                    .Take(3)
+                    .Select(m => m.Content)
+                    .ToList();
+
+                if (patientMessages.Any())
+                {
+                    return $@"📋 **Patient Condition Summary**
+
+**Patient's Main Concerns:**
+{string.Join("\n", patientMessages.Select((msg, idx) => $"{idx + 1}. {msg.Substring(0, Math.Min(200, msg.Length))}{(msg.Length > 200 ? "..." : "")}"))}
+
+---
+*This is a basic summary. Please discuss details with the patient.*";
+                }
+            }
+            catch
+            {
+                // Ignore fallback errors
+            }
+
+            return string.Empty;
         }
     }
 
