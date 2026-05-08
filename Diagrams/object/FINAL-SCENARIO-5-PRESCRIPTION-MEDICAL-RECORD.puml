@@ -1,0 +1,221 @@
+@startuml Prescription Generation and Medical Record Creation
+title Object Diagram: Doctor Generates Prescriptions and Creates Medical Record
+note as N1
+  <b>Scenario:</b> Dr. Sarah Lee finalizes consultation note, generates
+  2 prescriptions (Amlodipine + Aspirin), and system creates permanent
+  medical record. Conversation is closed.
+  <b>Timestamp:</b> May 8, 2026 - 14:38-14:45 UTC
+  <b>Focus:</b> Prescriptions, finalized note, medical record, closed conversation
+end note
+
+' ========== PATIENT ==========
+object "<u>patient1 : User</u>" as patient1 {
+  <b>Id</b> = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+  <b>Email</b> = "john.tan@email.com"
+  <b>Role</b> = Patient
+}
+
+object "<u>patientProfile1 : PatientProfile</u>" as patientProfile1 {
+  <b>Id</b> = "p1a2b3c4-d5e6-f789-0abc-def123456789"
+  <b>FullName</b> = "John Tan Wei Ming"
+  ChronicConditions = "["Hypertension"]"
+}
+
+' ========== DOCTOR ==========
+object "<u>doctor1 : User</u>" as doctor1 {
+  <b>Id</b> = "d1e2f3a4-b5c6-7890-abcd-ef9876543210"
+  <b>Email</b> = "dr.sarah.lee@clinic.com"
+  <b>Role</b> = Doctor
+}
+
+object "<u>doctorProfile1 : DoctorProfile</u>" as doctorProfile1 {
+  <b>Id</b> = "doc1a2b3-c4d5-e6f7-8901-abcdef123456"
+  <b>FullName</b> = "Dr. Sarah Lee Mei Ling"
+  PrimarySpecialization = "Cardiology"
+  LicenseNumber = "MMC-45678"
+}
+
+' ========== CLOSED CONVERSATION ==========
+object "<u>conversation1 : Conversation</u>" as conversation1 {
+  <b>Id</b> = "conv1234-5678-90ab-cdef-1234567890ab"
+  <b>PatientId</b> = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+  <b>AssignedDoctorId</b> = "d1e2f3a4-b5c6-7890-abcd-ef9876543210"
+  Title = "Chest Pain Consultation"
+  <b>Status</b> = Closed
+  <b>ConsultationStatus</b> = "completed"
+  <b>DiagnosisCompleted</b> = true
+  <b>PrescriptionGenerated</b> = true
+  ClosedAt = "2026-05-08 14:45:00"
+}
+
+' ========== FINALIZED CONSULTATION NOTE ==========
+object "<u>consultationNote1 : ConsultationNote</u>" as consultationNote1 {
+  <b>Id</b> = "note1234-5678-90ab-cdef-abcdef123456"
+  <b>ConversationId</b> = "conv1234-5678-90ab-cdef-1234567890ab"
+  <b>DoctorId</b> = "d1e2f3a4-b5c6-7890-abcd-ef9876543210"
+  <b>PatientId</b> = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+  Symptoms = "["chest pain", "dyspnea", "fatigue"]"
+  PhysicalExamination = "BP: 145/95, HR: 88, Normal heart sounds"
+  <b>Diagnosis</b> = "Hypertension Stage 2 with angina pectoris"
+  TreatmentPlan = "Amlodipine 5mg OD, lifestyle modifications"
+  FollowUpInstructions = "Follow up in 2 weeks, monitor BP daily"
+  <b>IsFinalized</b> = true
+  <b>FinalizedAt</b> = "2026-05-08 14:40:00"
+}
+
+' ========== PRESCRIPTIONS ==========
+object "<u>prescription1 : Prescription</u>" as prescription1 {
+  <b>Id</b> = "presc123-4567-89ab-cdef-123456789abc"
+  <b>ConsultationNoteId</b> = "note1234-5678-90ab-cdef-abcdef123456"
+  <b>PatientId</b> = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+  <b>DoctorId</b> = "d1e2f3a4-b5c6-7890-abcd-ef9876543210"
+  <b>MedicationName</b> = "Amlodipine"
+  <b>Dosage</b> = "5mg"
+  <b>Frequency</b> = "Once daily"
+  Duration = "30 days"
+  Instructions = "Take in morning with food. Monitor BP daily."
+  <b>IsActive</b> = true
+  CreatedAt = "2026-05-08 14:38:00"
+}
+
+object "<u>prescription2 : Prescription</u>" as prescription2 {
+  <b>Id</b> = "presc234-5678-9abc-def0-123456789bcd"
+  <b>ConsultationNoteId</b> = "note1234-5678-90ab-cdef-abcdef123456"
+  <b>PatientId</b> = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+  <b>DoctorId</b> = "d1e2f3a4-b5c6-7890-abcd-ef9876543210"
+  <b>MedicationName</b> = "Aspirin"
+  <b>Dosage</b> = "100mg"
+  <b>Frequency</b> = "Once daily"
+  Duration = "Ongoing"
+  Instructions = "Continue current medication. Take after meals."
+  <b>IsActive</b> = true
+  CreatedAt = "2026-05-08 14:39:00"
+}
+
+' ========== MEDICAL RECORD ==========
+object "<u>medicalRecord1 : MedicalRecord</u>" as medicalRecord1 {
+  <b>Id</b> = "record12-3456-789a-bcde-f123456789ab"
+  <b>PatientId</b> = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+  <b>ConversationId</b> = "conv1234-5678-90ab-cdef-1234567890ab"
+  <b>CreatedByDoctorId</b> = "d1e2f3a4-b5c6-7890-abcd-ef9876543210"
+  <b>RecordType</b> = "Consultation"
+  Title = "Cardiology Consultation - Hypertension Stage 2"
+  Content = "Patient presented with chest pain and dyspnea..."
+  <b>DiagnosisCode</b> = "I10"
+  DiagnosisDescription = "Essential (primary) hypertension"
+  Medications = "["Amlodipine 5mg OD", "Aspirin 100mg OD"]"
+  RecordDate = "2026-05-08 14:40:00"
+  <b>IsExported</b> = false
+  CreatedAt = "2026-05-08 14:42:00"
+}
+
+' ========== OBJECT LINKS ==========
+
+' Patient and doctor
+patient1 -- patientProfile1
+doctor1 -- doctorProfile1
+
+' Conversation
+patient1 -- conversation1
+doctor1 -- conversation1
+
+' Consultation note
+conversation1 -- consultationNote1
+doctor1 -- consultationNote1
+patient1 -- consultationNote1
+
+' Prescriptions
+consultationNote1 -- prescription1
+consultationNote1 -- prescription2
+doctor1 -- prescription1
+doctor1 -- prescription2
+patient1 -- prescription1
+patient1 -- prescription2
+
+' Medical record
+conversation1 -- medicalRecord1
+patient1 -- medicalRecord1
+doctor1 -- medicalRecord1
+consultationNote1 ..> medicalRecord1
+
+note right of consultationNote1
+  <b>Finalized Consultation Note:</b>
+  Status: ✅ Finalized
+  
+  <b>Diagnosis:</b>
+  Hypertension Stage 2 with angina
+  
+  <b>Treatment:</b>
+  • Amlodipine 5mg (new)
+  • Aspirin 100mg (continue)
+  • Lifestyle modifications
+  
+  <b>Follow-up:</b>
+  2 weeks, monitor BP daily
+end note
+
+note bottom of prescription1
+  <b>New Prescription:</b>
+  Amlodipine 5mg
+  
+  <b>Class:</b>
+  Calcium channel blocker
+  
+  <b>Purpose:</b>
+  Lower blood pressure
+  
+  <b>Duration:</b> 30 days
+  <b>Refills:</b> As needed
+  
+  <b>Instructions:</b>
+  Take in morning with food
+end note
+
+note bottom of prescription2
+  <b>Continued Prescription:</b>
+  Aspirin 100mg
+  
+  <b>Class:</b>
+  Antiplatelet agent
+  
+  <b>Purpose:</b>
+  Prevent blood clots
+  
+  <b>Duration:</b> Ongoing
+  
+  <b>Instructions:</b>
+  Take after meals
+end note
+
+note left of medicalRecord1
+  <b>Medical Record:</b>
+  Permanent documentation
+  
+  <b>ICD-10:</b> I10
+  (Essential hypertension)
+  
+  <b>Contains:</b>
+  • Consultation summary
+  • Diagnosis
+  • 2 prescriptions
+  • Follow-up plan
+  
+  <b>Export:</b> Available as PDF
+  <b>Status:</b> Not yet exported
+end note
+
+note top of conversation1
+  <b>Consultation Complete:</b>
+  Status: ✅ Closed
+  
+  <b>Outcomes:</b>
+  ✓ Diagnosis provided
+  ✓ 2 prescriptions generated
+  ✓ Medical record created
+  ✓ Follow-up scheduled
+  
+  <b>Duration:</b> ~40 minutes
+  <b>Closed:</b> 2026-05-08 14:45:00
+end note
+
+@enduml

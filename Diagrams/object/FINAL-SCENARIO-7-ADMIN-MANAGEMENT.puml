@@ -1,0 +1,323 @@
+@startuml Admin System Management
+title Object Diagram: Admin Performs System Management Tasks
+note as N1
+  <b>Scenario:</b> Admin Wong Mei Ling performs administrative tasks:
+  verifies new doctor Dr. Rajesh Kumar, resolves patient support
+  ticket about database access, and views system analytics dashboard.
+  <b>Timestamp:</b> May 8, 2026 - 11:00-11:15 UTC
+  <b>Focus:</b> Doctor verification, support ticket resolution, analytics
+end note
+
+' ========== ADMIN USER ==========
+object "<u>admin1 : User</u>" as admin1 {
+  <b>Id</b> = "admin123-4567-89ab-cdef-0123456789ab"
+  <b>Email</b> = "admin.wong@clinic.com"
+  <b>Role</b> = Admin
+  IsActive = true
+  LastLoginAt = "2026-05-08 10:30:00"
+}
+
+object "<u>adminProfile1 : AdminProfile</u>" as adminProfile1 {
+  <b>Id</b> = "adm1a2b3-c4d5-e6f7-8901-abcdef123456"
+  <b>FullName</b> = "Wong Mei Ling"
+  Department = "System Administration"
+  <b>AccessLevel</b> = "SuperAdmin"
+  <b>CanManageUsers</b> = true
+  <b>CanManageDoctors</b> = true
+  CanViewReports = true
+  CanHandleSupportTickets = true
+}
+
+' ========== TASK 1: DOCTOR VERIFICATION ==========
+object "<u>pendingDoctor : User</u>" as pendingDoctor {
+  <b>Id</b> = "doc-new1-2345-6789-abcd-ef1234567890"
+  <b>Email</b> = "dr.kumar@clinic.com"
+  <b>Role</b> = Doctor
+  IsActive = true
+  CreatedAt = "2026-05-07 14:30:00"
+}
+
+object "<u>pendingDoctorProfile : DoctorProfile</u>" as pendingDoctorProfile {
+  <b>Id</b> = "doc-pend1-3456-789a-bcde-f012345678ab"
+  <b>FullName</b> = "Dr. Rajesh Kumar"
+  Title = "MBBS, MD"
+  <b>LicenseNumber</b> = "MMC-90123"
+  PrimarySpecialization = "Orthopedics"
+  YearsOfExperience = 8
+  <b>IsVerified</b> = false
+  <b>IsActive</b> = false
+  IsAcceptingPatients = false
+  CreatedAt = "2026-05-07 14:35:00"
+}
+
+object "<u>verifiedDoctorProfile : DoctorProfile</u>" as verifiedDoctorProfile {
+  <b>Id</b> = "doc-pend1-3456-789a-bcde-f012345678ab"
+  <b>FullName</b> = "Dr. Rajesh Kumar"
+  Title = "MBBS, MD"
+  <b>LicenseNumber</b> = "MMC-90123"
+  PrimarySpecialization = "Orthopedics"
+  YearsOfExperience = 8
+  <b>IsVerified</b> = true
+  <b>IsActive</b> = true
+  IsAcceptingPatients = true
+  UpdatedAt = "2026-05-08 11:00:00"
+}
+
+object "<u>verificationLog : ActivityLog</u>" as verificationLog {
+  <b>Id</b> = "log-ver1-2345-6789-abcd-ef1234567890"
+  <b>UserId</b> = "admin123-4567-89ab-cdef-0123456789ab"
+  <b>ActivityType</b> = "DoctorVerified"
+  Description = "Admin verified Dr. Rajesh Kumar (MMC-90123)"
+  Metadata = "{doctorId: doc-new1..., licenseNumber: MMC-90123}"
+  Timestamp = "2026-05-08 11:00:00"
+  Severity = "Info"
+}
+
+' ========== TASK 2: SUPPORT TICKET RESOLUTION ==========
+object "<u>patient2 : User</u>" as patient2 {
+  <b>Id</b> = "pat-user2-3456-789a-bcde-f012345678ab"
+  <b>Email</b> = "alice.lim@email.com"
+  <b>Role</b> = Patient
+  IsActive = true
+}
+
+object "<u>supportTicket1 : SupportTicket</u>" as supportTicket1 {
+  <b>Id</b> = "ticket12-3456-789a-bcde-f123456789ab"
+  <b>UserId</b> = "pat-user2-3456-789a-bcde-f012345678ab"
+  <b>Subject</b> = "Unable to access medical records"
+  Description = "I cannot view my medical records from last month. The page shows an error message."
+  <b>Category</b> = "Technical"
+  <b>Priority</b> = "Medium"
+  <b>Status</b> = "Open"
+  CreatedAt = "2026-05-08 09:30:00"
+}
+
+object "<u>supportTicketResolved : SupportTicket</u>" as supportTicketResolved {
+  <b>Id</b> = "ticket12-3456-789a-bcde-f123456789ab"
+  <b>UserId</b> = "pat-user2-3456-789a-bcde-f012345678ab"
+  <b>Subject</b> = "Unable to access medical records"
+  Description = "I cannot view my medical records from last month..."
+  <b>Category</b> = "Technical"
+  <b>Priority</b> = "Medium"
+  <b>Status</b> = "Resolved"
+  <b>ResolvedBy</b> = "admin123-4567-89ab-cdef-0123456789ab"
+  <b>ResolvedAt</b> = "2026-05-08 11:05:00"
+  UpdatedAt = "2026-05-08 11:05:00"
+}
+
+object "<u>ticketResponse1 : SupportTicketResponse</u>" as ticketResponse1 {
+  <b>Id</b> = "resp1234-5678-90ab-cdef-1234567890ab"
+  <b>TicketId</b> = "ticket12-3456-789a-bcde-f123456789ab"
+  <b>ResponderId</b> = "admin123-4567-89ab-cdef-0123456789ab"
+  ResponseText = "Thank you for reporting this issue. I've identified the problem - there was a database sync issue. I've resolved it and your records should now be accessible. Please try again and let me know if you still face any issues."
+  IsInternal = false
+  CreatedAt = "2026-05-08 11:05:00"
+}
+
+object "<u>ticketAttachment1 : SupportTicketAttachment</u>" as attachment1 {
+  <b>Id</b> = "attach12-3456-789a-bcde-f123456789ab"
+  <b>TicketId</b> = "ticket12-3456-789a-bcde-f123456789ab"
+  FileName = "error-screenshot.png"
+  FileSize = 245678
+  ContentType = "image/png"
+  UploadedAt = "2026-05-08 09:32:00"
+}
+
+' ========== TASK 3: SYSTEM ANALYTICS ==========
+object "<u>systemAnalytics : SystemAnalytics</u>" as systemAnalytics {
+  <b>TotalUsers</b> = 1247
+  <b>TotalPatients</b> = 1089
+  <b>TotalDoctors</b> = 145
+  <b>TotalAdmins</b> = 13
+  <b>ActiveConsultations</b> = 47
+  CompletedConsultationsToday = 156
+  TotalConsultationsThisMonth = 3421
+  AverageConsultationTime = 25.5
+  <b>SystemUptime</b> = 99.97
+  LastUpdated = "2026-05-08 11:15:00"
+}
+
+object "<u>doctorAnalytics : DoctorAnalytics</u>" as doctorAnalytics {
+  <b>TotalDoctors</b> = 145
+  <b>VerifiedDoctors</b> = 142
+  <b>PendingVerification</b> = 3
+  ActiveDoctors = 89
+  AvailableDoctors = 34
+  BusyDoctors = 55
+  OfflineDoctors = 56
+  <b>AverageRating</b> = 4.68
+  TopSpecialization = "General Medicine"
+}
+
+object "<u>patientAnalytics : PatientAnalytics</u>" as patientAnalytics {
+  <b>TotalPatients</b> = 1089
+  <b>ActivePatientsToday</b> = 234
+  <b>NewPatientsThisWeek</b> = 47
+  TotalConsultationsRequested = 3421
+  AverageWaitTime = 8.5
+  <b>PatientSatisfactionRate</b> = 4.72
+}
+
+object "<u>supportAnalytics : SupportAnalytics</u>" as supportAnalytics {
+  <b>TotalTickets</b> = 89
+  <b>OpenTickets</b> = 12
+  InProgressTickets = 8
+  <b>ResolvedTickets</b> = 69
+  <b>AverageResolutionTime</b> = 4.2
+  TicketsByCategory = "{Technical: 34, Billing: 12, General: 43}"
+}
+
+' ========== ACTIVITY MONITORING ==========
+object "<u>securityLog1 : ActivityLog</u>" as securityLog1 {
+  <b>Id</b> = "log55555-6666-7777-8888-999900001111"
+  UserId = "user-fail1-5678-9abc-def0-123456789abc"
+  <b>ActivityType</b> = "LoginFailed"
+  Description = "Failed login attempt - account locked after multiple attempts"
+  IpAddress = "192.168.1.100"
+  Timestamp = "2026-05-08 10:47:00"
+  <b>Severity</b> = "Error"
+}
+
+' ========== OBJECT LINKS ==========
+
+' Admin user
+admin1 -- adminProfile1
+
+' Task 1: Doctor verification
+admin1 ..> pendingDoctorProfile
+pendingDoctor -- pendingDoctorProfile
+pendingDoctor -- verifiedDoctorProfile
+pendingDoctorProfile ..> verifiedDoctorProfile
+admin1 -- verificationLog
+
+' Task 2: Support ticket resolution
+patient2 -- supportTicket1
+supportTicket1 -- attachment1
+admin1 -- ticketResponse1
+ticketResponse1 -- supportTicket1
+supportTicket1 ..> supportTicketResolved
+admin1 ..> supportTicketResolved
+
+' Task 3: Analytics viewing
+admin1 ..> systemAnalytics
+admin1 ..> doctorAnalytics
+admin1 ..> patientAnalytics
+admin1 ..> supportAnalytics
+
+' Activity monitoring
+admin1 ..> securityLog1
+
+note right of adminProfile1
+  <b>SuperAdmin Access:</b>
+  Full system privileges
+  
+  <b>Permissions:</b>
+  ✓ Manage all users
+  ✓ Verify doctors
+  ✓ View all reports
+  ✓ Handle support tickets
+  ✓ Suspend/ban users
+  ✓ System configuration
+  ✓ Access analytics
+  ✓ Monitor security logs
+  
+  <b>Department:</b>
+  System Administration
+end note
+
+note bottom of verifiedDoctorProfile
+  <b>Doctor Verification:</b>
+  Status changed:
+  ❌ Unverified → ✅ Verified
+  
+  <b>Verification Process:</b>
+  1. License number validation
+     (MMC-90123 confirmed)
+  2. Credentials verification
+     (MBBS, MD validated)
+  3. Background check
+     (Passed)
+  4. Profile activation
+  
+  <b>Result:</b>
+  • IsVerified: false → true
+  • IsActive: false → true
+  • Can now accept patients
+end note
+
+note left of supportTicketResolved
+  <b>Ticket Resolution:</b>
+  Status: Open → Resolved
+  
+  <b>Issue:</b>
+  Cannot access medical records
+  
+  <b>Category:</b> Technical
+  <b>Priority:</b> Medium
+  
+  <b>Root Cause:</b>
+  Database sync issue
+  
+  <b>Resolution:</b>
+  Database sync fixed,
+  records now accessible
+  
+  <b>Time to Resolve:</b> 1h 35min
+  <b>Resolved by:</b> Admin Wong
+end note
+
+note top of systemAnalytics
+  <b>System Dashboard:</b>
+  Real-time system overview
+  
+  <b>Users:</b> 1,247 total
+  • Patients: 1,089 (87.3%)
+  • Doctors: 145 (11.6%)
+  • Admins: 13 (1.1%)
+  
+  <b>Today's Activity:</b>
+  • Active consultations: 47
+  • Completed: 156
+  • Avg consultation time: 25.5 min
+  
+  <b>This Month:</b>
+  • Total consultations: 3,421
+  
+  <b>System Health:</b>
+  • Uptime: 99.97% ✅
+  • Status: Healthy
+end note
+
+note bottom of doctorAnalytics
+  <b>Doctor Analytics:</b>
+  
+  <b>Total:</b> 145 doctors
+  • Verified: 142 (97.9%)
+  • Pending: 3 (2.1%)
+  
+  <b>Current Status:</b>
+  • Available: 34 (23.4%)
+  • Busy: 55 (37.9%)
+  • Offline: 56 (38.6%)
+  
+  <b>Performance:</b>
+  • Avg rating: 4.68/5
+  • Top specialty: General Medicine
+end note
+
+note right of securityLog1
+  <b>Security Alert:</b>
+  Multiple failed login attempts
+  detected from same IP
+  
+  <b>IP Address:</b> 192.168.1.100
+  <b>Attempts:</b> 5 failed
+  <b>Action:</b> Account locked
+  
+  <b>Requires:</b>
+  Admin investigation
+  
+  <b>Status:</b> Flagged for review
+end note
+
+@enduml
