@@ -41,18 +41,59 @@ Service Layer → DbClient.Instance → GetDb() → AiClinicDbContext → SQLite
 
 ```mermaid
 classDiagram
+    %% Singleton
     class DbClient {
         <<Singleton>>
-        -instance : Singleton
+        -Lazy~DbClient~ _instance$
+        -string _connectionString
         -DbClient()
-        +Instance() DbClient
+        +DbClient Instance$
+        +GetDb() AiClinicDbContext
     }
     
-    note for DbClient "Singleton Pattern:
-    • Private constructor
-    • Static instance
-    • Thread-safe lazy init
-    • Global access point"
+    %% Database Context
+    class AiClinicDbContext {
+        <<DbContext>>
+        +DbSet~User~ Users
+        +DbSet~PatientProfile~ PatientProfiles
+        +DbSet~DoctorProfile~ DoctorProfiles
+        +DbSet~Conversation~ Conversations
+        +DbSet~Message~ Messages
+        +OnModelCreating(ModelBuilder)
+    }
+    
+    class DbContext {
+        <<Framework>>
+    }
+    
+    %% Service Layer
+    class UserService {
+        <<Service>>
+        +GetByIdAsync(Guid)
+        +CreateAsync(User, string)
+        +AuthenticateAsync(string, string)
+    }
+    
+    class PatientProfileService {
+        <<Service>>
+        +GetByUserIdAsync(Guid)
+        +CreateAsync(PatientProfile)
+        +UpdateAsync(PatientProfile)
+    }
+    
+    class ConversationService {
+        <<Service>>
+        +GetByPatientIdAsync(Guid)
+        +CreateAsync(Conversation)
+    }
+    
+    %% Relationships
+    DbClient "1" --> "0..*" AiClinicDbContext : creates
+    AiClinicDbContext "1" --|> "1" DbContext : inherits
+    
+    UserService "*" ..> "1" DbClient : uses Instance
+    PatientProfileService "*" ..> "1" DbClient : uses Instance
+    ConversationService "*" ..> "1" DbClient : uses Instance
 ```
 
 ### iv. Other UML Notations (Sequence Diagram)
@@ -68,7 +109,6 @@ sequenceDiagram
     
     alt First Access
         Singleton->>Singleton: Create new DbClient()
-        Note over Singleton: Lazy initialization<br/>Thread-safe
     end
     
     Singleton-->>Service: Return singleton instance
@@ -83,12 +123,8 @@ sequenceDiagram
     Context-->>Service: User object
     
     Service->>Context: Dispose()
-    Note over Context: Context disposed<br/>Connection closed
-    
-    Note over Singleton: Singleton instance<br/>remains in memory
     
     Service->>Singleton: GetDb() (subsequent call)
-    Note over Singleton: Same instance returned<br/>No new instantiation
     Singleton->>Context: new AiClinicDbContext(options)
     Context-->>Service: Return new context
 ```
@@ -346,44 +382,86 @@ Service   Service   Record    Service      Service  Log
 
 ```mermaid
 classDiagram
+    direction TB
+    
+    %% Top Layer
+    class PatientRecordsPage {
+        <<UI Layer>>
+        +OnInitializedAsync()
+        +HandleFileUpload()
+    }
+    
     class PatientFacade {
         <<Facade>>
+        +GetDashboardDataAsync()
+        +GetPatientRecordsAsync()
+        +UploadMedicalDocumentAsync()
+        +ExportMedicalRecordsToPdfAsync()
     }
     
-    class Subsystem {
-        <<Subsystem>>
+    class PatientDashboardData {
+        <<DTO>>
     }
     
+    class PatientRecordsData {
+        <<DTO>>
+    }
+    
+    %% Subsystems
     class PatientProfileService {
-        <<Subsystem>>
+        <<subsystem>>
+        +GetByUserIdAsync()
     }
     
     class ConversationService {
-        <<Subsystem>>
+        <<subsystem>>
+        +GetByPatientIdAsync()
     }
     
     class MedicalRecordService {
-        <<Subsystem>>
+        <<subsystem>>
+        +GetByPatientIdAsync()
     }
     
     class PrescriptionService {
-        <<Subsystem>>
+        <<subsystem>>
+        +GetByPatientIdAsync()
     }
     
     class DocumentService {
-        <<Subsystem>>
+        <<subsystem>>
+        +CreateAsync()
     }
     
     class ActivityLogService {
-        <<Subsystem>>
+        <<subsystem>>
+        +LogActivityAsync()
     }
     
-    PatientFacade --> PatientProfileService
-    PatientFacade --> ConversationService
-    PatientFacade --> MedicalRecordService
-    PatientFacade --> PrescriptionService
-    PatientFacade --> DocumentService
-    PatientFacade --> ActivityLogService
+    class ConsultationService {
+        <<subsystem>>
+        +GetByPatientIdAsync()
+    }
+    
+    class MedicalRecordExportService {
+        <<subsystem>>
+        +ExportMedicalRecordsToPdfAsync()
+    }
+    
+    %% Main relationships
+    PatientRecordsPage "1" --> "1" PatientFacade
+    PatientFacade "1" ..> "*" PatientDashboardData
+    PatientFacade "1" ..> "*" PatientRecordsData
+    
+    %% Facade controls subsystems
+    PatientFacade "1" --> "1" PatientProfileService
+    PatientFacade "1" --> "1" ConversationService
+    PatientFacade "1" --> "1" MedicalRecordService
+    PatientFacade "1" --> "1" PrescriptionService
+    PatientFacade "1" --> "1" DocumentService
+    PatientFacade "1" --> "1" ActivityLogService
+    PatientFacade "1" --> "1" ConsultationService
+    PatientFacade "1" --> "1" MedicalRecordExportService
 ```
 
 ### iv. Other UML Notations (Sequence Diagram)
@@ -403,8 +481,6 @@ sequenceDiagram
     
     UI->>Facade: GetDashboardDataAsync(userId)
     
-    Note over Facade: Parallel execution for performance
-    
     par Parallel Data Retrieval
         Facade->>ProfileSvc: GetByUserIdAsync(userId)
         ProfileSvc->>DB: SELECT * FROM PatientProfiles WHERE UserId = ?
@@ -423,16 +499,12 @@ sequenceDiagram
         DB-->>PrescSvc: Prescriptions data
     end
     
-    Note over Facade: Task.WhenAll() waits for all tasks
-    
     Facade->>Facade: Process and filter data<br/>- Top 3 conversations<br/>- Active prescriptions<br/>- Upcoming appointments<br/>- Recent health metrics
     
     Facade->>LogSvc: LogActivityAsync(userId, "ViewDashboard")
     LogSvc->>DB: INSERT INTO ActivityLogs
     
     Facade-->>UI: PatientDashboardData
-    
-    Note over UI,DB: Facade coordinates 5 services<br/>and returns unified DTO
 ```
 
 **Medical Document Upload Sequence:**
@@ -447,8 +519,6 @@ sequenceDiagram
     
     UI->>Facade: UploadMedicalDocumentAsync(<br/>userId, "Lab Results",<br/>"Lab Result", fileData,<br/>"blood-test.pdf")
     
-    Note over Facade: Validate input
-    
     Facade->>Facade: Create Document entity<br/>{<br/>  PatientId: userId,<br/>  Title: "Lab Results",<br/>  DocumentTypeString: "Lab Result",<br/>  FileData: fileData,<br/>  FileSizeBytes: fileData.Length,<br/>  FileName: "blood-test.pdf"<br/>}
     
     Facade->>DocSvc: CreateAsync(document)
@@ -461,8 +531,6 @@ sequenceDiagram
     DB-->>LogSvc: Log created
     
     Facade-->>UI: Document object
-    
-    Note over UI,DB: Without Facade, UI would need to<br/>coordinate document creation and logging manually
 ```
 
 **Medical Records Export Sequence:**
@@ -499,8 +567,6 @@ sequenceDiagram
     Facade-->>UI: byte[] pdfBytes
     
     UI->>UI: Download PDF file
-    
-    Note over UI,DB: Facade coordinates export and logging<br/>UI receives ready-to-download PDF
 ```
 
 ### v. Sample Potential Code
@@ -1135,35 +1201,72 @@ Different AI model processes the request
 
 ```mermaid
 classDiagram
+    %% Client Layer
+    class AiAssistantService {
+        <<Client>>
+        -AiModelContext _context
+        +AnalyzeSymptomsAsync(symptoms)
+        +AnalyzeComplexCaseAsync(case)
+        +CompareModelsAsync(prompt)
+    }
+    
+    %% Context - Maintains reference to strategy
     class AiModelContext {
         <<Context>>
-        +ContextInterface()
+        -IAiModelStrategy _currentStrategy
+        -Dictionary~string,IAiModelStrategy~ _strategies
+        +CurrentStrategy IAiModelStrategy
+        +SetStrategy(strategyKey) void
+        +GenerateResponseAsync(prompt) Task~string~
+        +GetAvailableModels() List~ModelInfo~
     }
     
+    %% Strategy Interface - Defines algorithm interface
     class IAiModelStrategy {
-        <<Strategy>>
-        +AlgorithmInterface()
+        <<Strategy Interface>>
+        +ModelId string
+        +ModelName string
+        +GenerateResponseAsync(prompt, instructions, temp, tokens) Task~string~
     }
     
+    %% Concrete Strategies - Different algorithm implementations
     class OwlAlphaStrategy {
-        <<ConcreteStrategyA>>
-        +AlgorithmInterface()
+        <<ConcreteStrategy A>>
+        +ModelId "openrouter/owl-alpha"
+        +ModelName "Owl Alpha"
+        +GenerateResponseAsync(...) Task~string~
     }
     
     class Gemma4Strategy {
-        <<ConcreteStrategyB>>
-        +AlgorithmInterface()
+        <<ConcreteStrategy B>>
+        +ModelId "google/gemma-4-26b"
+        +ModelName "Gemma 4"
+        +GenerateResponseAsync(...) Task~string~
     }
     
     class MiniMaxStrategy {
-        <<ConcreteStrategyC>>
-        +AlgorithmInterface()
+        <<ConcreteStrategy C>>
+        +ModelId "minimax/minimax-01"
+        +ModelName "MiniMax"
+        +GenerateResponseAsync(...) Task~string~
     }
     
-    AiModelContext o--> IAiModelStrategy : strategy
-    IAiModelStrategy <|.. OwlAlphaStrategy
-    IAiModelStrategy <|.. Gemma4Strategy
-    IAiModelStrategy <|.. MiniMaxStrategy
+    class NemotronStrategy {
+        <<ConcreteStrategy D>>
+        +ModelId "nvidia/nemotron"
+        +ModelName "Nemotron"
+        +GenerateResponseAsync(...) Task~string~
+    }
+    
+    %% Relationships - Strategy Pattern Structure
+    AiAssistantService "1" --> "1" AiModelContext : uses
+    AiModelContext "1" o--> "1" IAiModelStrategy : holds current
+    AiModelContext "1" --> "*" IAiModelStrategy : manages all
+    
+    IAiModelStrategy <|.. OwlAlphaStrategy : implements
+    IAiModelStrategy <|.. Gemma4Strategy : implements
+    IAiModelStrategy <|.. MiniMaxStrategy : implements
+    IAiModelStrategy <|.. NemotronStrategy : implements
 ```
 
 ### iv. Other UML Notations (Sequence Diagram)
@@ -1181,12 +1284,9 @@ sequenceDiagram
     
     Client->>Context: GenerateResponseAsync("Analyze symptoms")
     
-    Note over Context: Uses current strategy<br/>(Owl Alpha by default)
-    
     Context->>Strategy: GenerateResponseAsync(prompt, systemInstructions)
     
     Strategy->>Strategy: PreprocessPrompt(prompt)
-    Note over Strategy: Model-specific preprocessing
     
     Strategy->>Adapter: GenerateResponseAsync(prompt, systemInstructions, 0.7, 1000)
     
@@ -1204,18 +1304,14 @@ sequenceDiagram
     Adapter-->>Strategy: string response
     
     Strategy->>Strategy: PostprocessResponse(response)
-    Note over Strategy: Model-specific postprocessing
     
     Strategy-->>Context: string response
     Context-->>Client: string response
-    
-    Note over Client,External: Strategy can be switched at any time
     
     Client->>Context: SetStrategy("gemma-4")
     Context->>Context: _currentStrategy = _availableStrategies["gemma-4"]
     
     Client->>Context: GenerateResponseAsync("Next prompt")
-    Note over Context: Now uses Gemma4Strategy
     Context->>Strategy: GenerateResponseAsync(...)
 ```
 
@@ -1229,8 +1325,6 @@ sequenceDiagram
     participant NewStrategy as Gemma4Strategy
     participant API as OpenRouter API
     
-    Note over Context: Current strategy: OwlAlphaStrategy
-    
     Client->>Context: GenerateResponseAsync("Hello")
     Context->>OldStrategy: GenerateResponseAsync("Hello")
     OldStrategy->>API: Call with model: "openrouter/owl-alpha"
@@ -1238,13 +1332,9 @@ sequenceDiagram
     OldStrategy-->>Context: Response
     Context-->>Client: Response
     
-    Note over Client: Client decides to switch model
-    
     Client->>Context: SetStrategy("gemma-4")
     Context->>Context: Lookup strategy in dictionary
     Context->>Context: _currentStrategy = Gemma4Strategy
-    
-    Note over Context: Current strategy: Gemma4Strategy
     
     Client->>Context: GenerateResponseAsync("Hello")
     Context->>NewStrategy: GenerateResponseAsync("Hello")
@@ -1252,8 +1342,6 @@ sequenceDiagram
     API-->>NewStrategy: Response from Gemma 4
     NewStrategy-->>Context: Response
     Context-->>Client: Response
-    
-    Note over Client,API: Same interface, different algorithm<br/>No client code changes required
 ```
 
 ### v. Sample Potential Code
@@ -1740,29 +1828,104 @@ Application Layer
 
 ```mermaid
 classDiagram
-    class Client {
+    %% Client Layer
+    class AiAssistantService {
         <<Client>>
+        -IAiModelStrategy _aiStrategy
+        +AnalyzeSymptomsAsync(symptoms)
+        +AnalyzeMedicalImageAsync(...)
     }
     
+    %% Target Interface
     class IAiModelStrategy {
-        <<Target>>
-        +Request()
+        <<Target Interface>>
+        +ModelId string
+        +ModelName string
+        +SupportsVision bool
+        +GenerateResponseAsync(...)
+        +GenerateResponseWithImagesAsync(...)
     }
     
+    %% Adapter
     class BaseAiModelAdapter {
         <<Adapter>>
-        +Request()
+        #OpenRouterApiClient _apiClient
+        +abstract ModelId
+        +abstract ModelName
+        +GenerateResponseAsync(...)
+        +GenerateResponseWithImagesAsync(...)
+        #PreprocessPrompt()
+        #PostprocessResponse()
     }
     
+    %% Concrete Adapters
+    class Gemma4Strategy {
+        +ModelId
+        +ModelName
+        #PreprocessPrompt()
+    }
+    
+    class OwlAlphaStrategy {
+        +ModelId
+        +ModelName
+    }
+    
+    class MiniMaxStrategy {
+        +ModelId
+        +ModelName
+    }
+    
+    %% Adaptee
     class OpenRouterApiClient {
         <<Adaptee>>
-        +SpecificRequest()
+        -HttpClient _httpClient
+        -string _apiKey
+        +CallApiAsync(request)
+        +CallApiStreamingAsync(request)
     }
     
-    Client --> IAiModelStrategy : target
-    IAiModelStrategy <|.. BaseAiModelAdapter
-    BaseAiModelAdapter --> OpenRouterApiClient : adaptee
-    BaseAiModelAdapter ..> OpenRouterApiClient : adaptee.SpecificRequest()
+    %% Adaptee Data Structures
+    class OpenRouterRequest {
+        <<Adaptee DTO>>
+        +Model string
+        +Message[] Messages
+        +Temperature double
+        +MaxTokens int
+    }
+    
+    class OpenRouterResponse {
+        <<Adaptee DTO>>
+        +Id string
+        +Model string
+        +Choice[] Choices
+        +Usage Usage
+    }
+    
+    class Message {
+        +Role string
+        +Content object
+    }
+    
+    class Choice {
+        +Index int
+        +Message Message
+        +FinishReason string
+    }
+    
+    %% Relationships
+    AiAssistantService "1" --> "1" IAiModelStrategy : uses
+    IAiModelStrategy "1" <|.. "*" BaseAiModelAdapter : implements
+    
+    BaseAiModelAdapter <|-- Gemma4Strategy
+    BaseAiModelAdapter <|-- OwlAlphaStrategy
+    BaseAiModelAdapter <|-- MiniMaxStrategy
+    
+    BaseAiModelAdapter "*" --> "1" OpenRouterApiClient : uses
+    OpenRouterApiClient "1" ..> "*" OpenRouterRequest : creates
+    OpenRouterApiClient "1" ..> "*" OpenRouterResponse : returns
+    OpenRouterRequest "1" --> "1..*" Message : contains
+    OpenRouterResponse "1" --> "1..*" Choice : contains
+    Choice "1" --> "1" Message : contains
 ```
 
 ### iv. Other UML Notations (Sequence Diagram)
@@ -1779,11 +1942,7 @@ sequenceDiagram
     
     App->>Target: GenerateResponseAsync(<br/>"Analyze symptoms",<br/>"You are a medical AI",<br/>0.7, 1000)
     
-    Note over Target,Adapter: Target interface provides<br/>simple, clean method signature
-    
     Target->>Adapter: GenerateResponseAsync(prompt, systemInstructions, temperature, maxTokens)
-    
-    Note over Adapter: Adapter converts to<br/>OpenRouter format
     
     Adapter->>Adapter: Build messages array<br/>[{role: "system", content: "..."},<br/>{role: "user", content: "..."}]
     
@@ -1791,15 +1950,11 @@ sequenceDiagram
     
     Adapter->>Adaptee: CallApiAsync(request)
     
-    Note over Adaptee: Adaptee uses its own<br/>complex interface
-    
     Adaptee->>API: HTTP POST /api/v1/chat/completions<br/>with OpenRouter-specific JSON
     
     API-->>Adaptee: OpenRouterResponse<br/>{<br/>  id: "gen-123",<br/>  model: "...",<br/>  choices: [{<br/>    index: 0,<br/>    message: {<br/>      role: "assistant",<br/>      content: "AI response"<br/>    },<br/>    finish_reason: "stop"<br/>  }],<br/>  usage: {...}<br/>}
     
     Adaptee-->>Adapter: OpenRouterResponse
-    
-    Note over Adapter: Adapter extracts and<br/>simplifies response
     
     Adapter->>Adapter: Extract response.Choices[0].Message.Content
     
@@ -1808,8 +1963,6 @@ sequenceDiagram
     Adapter-->>Target: "AI response" (simple string)
     
     Target-->>App: "AI response"
-    
-    Note over App,API: Application only sees simple interface,<br/>unaware of OpenRouter complexity
 ```
 
 **Multimodal Adaptation (Image Support):**
@@ -1822,8 +1975,6 @@ sequenceDiagram
     participant API as OpenRouter API
     
     App->>Adapter: GenerateResponseWithImagesAsync(<br/>"Analyze this X-ray",<br/>[imageBase64],<br/>"You are a radiologist",<br/>0.7, 1000)
-    
-    Note over Adapter: Adapter converts to<br/>multimodal format
     
     Adapter->>Adapter: Build multimodal content<br/>[<br/>  {type: "text", text: "Analyze this X-ray"},<br/>  {type: "image_url", image_url: {<br/>    url: "data:image/jpeg;base64,..."<br/>  }}<br/>]
     
@@ -1840,8 +1991,6 @@ sequenceDiagram
     Adapter->>Adapter: Extract text response
     
     Adapter-->>App: "X-ray analysis result"
-    
-    Note over App,API: Application uses simple interface<br/>for complex multimodal requests
 ```
 
 ### v. Sample Potential Code
