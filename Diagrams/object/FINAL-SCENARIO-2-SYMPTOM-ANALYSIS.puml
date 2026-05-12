@@ -1,0 +1,192 @@
+@startuml Patient Symptom Analysis with AI
+title Object Diagram: Patient Reports Symptoms and AI Analyzes
+note as N1
+  <b>Scenario:</b> Patient Lisa Wong reports skin rash symptoms.
+  AI assistant analyzes symptoms and suggests dermatology specialization.
+  <b>Timestamp:</b> May 8, 2026 - 10:10-10:13 UTC
+  <b>Focus:</b> Patient, conversation, AI messages, symptom analysis
+end note
+
+' ========== PATIENT ==========
+object "<u>patient1 : User</u>" as patient1 {
+  <b>Id</b> = "user3456-789a-bcde-f012-3456789abcde"
+  <b>Email</b> = "lisa.wong@email.com"
+  <b>Role</b> = Patient
+  IsActive = true
+  AiAnalysisEnabled = true
+}
+
+object "<u>patientProfile1 : PatientProfile</u>" as patientProfile1 {
+  <b>Id</b> = "pat23456-789a-bcde-f012-3456789abcde"
+  <b>FullName</b> = "Lisa Wong Mei Ling"
+  Gender = "Female"
+  BloodType = "A+"
+  Allergies = "["Latex"]"
+}
+
+' ========== NEW CONVERSATION ==========
+object "<u>conversation1 : Conversation</u>" as conversation1 {
+  <b>Id</b> = "conv5678-90ab-cdef-1234-567890abcdef"
+  <b>PatientId</b> = "user3456-789a-bcde-f012-3456789abcde"
+  <b>AssignedDoctorId</b> = null
+  Title = "Skin Rash Inquiry"
+  <b>Status</b> = Active
+  InitialSymptoms = "["skin rash", "itching", "redness"]"
+  <b>AiSuggestedSpecialization</b> = "Dermatology"
+  <b>AiConfidenceScore</b> = 0.92
+  ConsultationStatus = "ai_analysis"
+  StartedAt = "2026-05-08 10:10:00"
+}
+
+' ========== MESSAGES ==========
+object "<u>patientMsg1 : Message</u>" as patMsg1 {
+  <b>Id</b> = "patmsg11-2222-3333-4444-555566667777"
+  <b>SenderType</b> = Patient
+  <b>SenderId</b> = "user3456-789a-bcde-f012-3456789abcde"
+  Content = "I have a red, itchy rash on my arms that started 3 days ago. It's getting worse and spreading."
+  CreatedAt = "2026-05-08 10:11:00"
+  IsRead = true
+}
+
+object "<u>aiMsg1 : Message</u>" as aiMsg1 {
+  <b>Id</b> = "aimsg111-2222-3333-4444-555566667777"
+  <b>SenderType</b> = AI
+  SenderId = null
+  Content = "I understand you have a skin rash. Can you describe the exact location, size, and any other symptoms?"
+  <b>AiModelUsed</b> = "google/gemma-2-9b-it"
+  AiConfidenceScore = 0.89
+  CreatedAt = "2026-05-08 10:10:30"
+  IsRead = true
+}
+
+object "<u>patientMsg2 : Message</u>" as patMsg2 {
+  <b>Id</b> = "patmsg22-3333-4444-5555-666677778888"
+  <b>SenderType</b> = Patient
+  <b>SenderId</b> = "user3456-789a-bcde-f012-3456789abcde"
+  Content = "It's on both arms, about 5cm patches. Very itchy, red, slightly raised. No fever."
+  CreatedAt = "2026-05-08 10:12:00"
+  IsRead = true
+}
+
+object "<u>aiMsg2 : Message</u>" as aiMsg2 {
+  <b>Id</b> = "aimsg222-3333-4444-5555-666677778888"
+  <b>SenderType</b> = AI
+  SenderId = null
+  Content = "Based on your symptoms (bilateral arm rash, itching, redness), I recommend consulting a dermatologist. This could be contact dermatitis or an allergic reaction."
+  <b>AiModelUsed</b> = "google/gemma-2-9b-it"
+  <b>AiConfidenceScore</b> = 0.92
+  CreatedAt = "2026-05-08 10:12:45"
+  IsRead = true
+}
+
+' ========== AI STRATEGY OBJECTS ==========
+object "<u>aiContext1 : AiModelContext</u>" as aiContext {
+  <b>CurrentStrategy</b> = "Gemma4Strategy"
+  <b>ModelName</b> = "google/gemma-2-9b-it"
+  IsInitialized = true
+  LastRequestTime = "2026-05-08 10:12:44"
+}
+
+object "<u>gemmaStrategy1 : Gemma4Strategy</u>" as gemmaStrategy {
+  <b>ModelIdentifier</b> = "google/gemma-2-9b-it"
+  MaxTokens = 1000
+  Temperature = 0.7
+  IsAvailable = true
+}
+
+object "<u>apiClient1 : OpenRouterApiClient</u>" as apiClient {
+  <b>BaseUrl</b> = "https://openrouter.ai/api/v1"
+  <b>IsConnected</b> = true
+  LastRequestTime = "2026-05-08 10:12:44"
+  ResponseTime = 1.2
+}
+
+' ========== SYMPTOM ANALYSIS RESULT ==========
+object "<u>symptomAnalysis1 : SymptomAnalysis</u>" as symptomAnalysis {
+  <b>ConversationId</b> = "conv5678-90ab-cdef-1234-567890abcdef"
+  <b>Symptoms</b> = "["skin rash", "itching", "redness", "bilateral", "spreading"]"
+  <b>SuggestedSpecialization</b> = "Dermatology"
+  <b>ConfidenceScore</b> = 0.92
+  PossibleConditions = "["Contact Dermatitis", "Allergic Reaction", "Eczema"]"
+  Urgency = "Medium"
+  AnalyzedAt = "2026-05-08 10:12:45"
+}
+
+' ========== OBJECT LINKS ==========
+
+' Patient and conversation
+patient1 -- patientProfile1
+patient1 -- conversation1
+
+' Conversation and messages
+conversation1 -- patMsg1
+conversation1 -- aiMsg1
+conversation1 -- patMsg2
+conversation1 -- aiMsg2
+
+' AI strategy pattern
+aiContext -- gemmaStrategy
+gemmaStrategy -- apiClient
+
+' AI generates messages and analysis
+aiContext ..> aiMsg1
+aiContext ..> aiMsg2
+aiContext ..> symptomAnalysis
+
+' Analysis linked to conversation
+conversation1 -- symptomAnalysis
+
+note right of conversation1
+  <b>Conversation State:</b>
+  Status: Active
+  Doctor: Not yet assigned
+  
+  <b>AI Analysis Complete:</b>
+  ✓ Symptoms analyzed
+  ✓ Specialization suggested
+  ✓ Confidence: 92%
+  
+  <b>Next Step:</b>
+  Find dermatologist
+end note
+
+note left of aiContext
+  <b>Strategy Pattern:</b>
+  AI model can be switched
+  at runtime
+  
+  <b>Current:</b> Gemma 2 9B
+  <b>Confidence:</b> 92%
+  <b>Response:</b> 1.2s
+end note
+
+note bottom of symptomAnalysis
+  <b>AI Analysis Result:</b>
+  
+  <b>Symptoms Detected:</b>
+  • Bilateral arm rash
+  • Itching (pruritus)
+  • Redness (erythema)
+  • Spreading pattern
+  
+  <b>Recommendation:</b>
+  Dermatology consultation
+  
+  <b>Possible Conditions:</b>
+  1. Contact Dermatitis
+  2. Allergic Reaction
+  3. Eczema
+  
+  <b>Urgency:</b> Medium
+end note
+
+note top of apiClient
+  <b>Adapter Pattern:</b>
+  Adapts external OpenRouter
+  API to internal interface
+  
+  <b>Status:</b> Connected
+  <b>Latency:</b> 1.2s
+end note
+
+@enduml
