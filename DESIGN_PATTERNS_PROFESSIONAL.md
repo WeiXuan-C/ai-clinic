@@ -41,69 +41,18 @@ Service Layer → DbClient.Instance → GetDb() → AiClinicDbContext → SQLite
 
 ```mermaid
 classDiagram
-    %% Singleton
     class DbClient {
         <<Singleton>>
-        -Lazy~DbClient~ _instance$
-        -string _connectionString
+        -instance : Singleton
         -DbClient()
-        +DbClient Instance$
-        +GetDb() AiClinicDbContext
+        +Instance() DbClient
     }
-    
-    %% Database Context
-    class AiClinicDbContext {
-        <<DbContext>>
-        +DbSet~User~ Users
-        +DbSet~PatientProfile~ PatientProfiles
-        +DbSet~DoctorProfile~ DoctorProfiles
-        +DbSet~Conversation~ Conversations
-        +DbSet~Message~ Messages
-        +OnModelCreating(ModelBuilder)
-    }
-    
-    class DbContext {
-        <<Framework>>
-    }
-    
-    %% Service Layer
-    class UserService {
-        <<Service>>
-        +GetByIdAsync(Guid)
-        +CreateAsync(User, string)
-        +AuthenticateAsync(string, string)
-    }
-    
-    class PatientProfileService {
-        <<Service>>
-        +GetByUserIdAsync(Guid)
-        +CreateAsync(PatientProfile)
-        +UpdateAsync(PatientProfile)
-    }
-    
-    class ConversationService {
-        <<Service>>
-        +GetByPatientIdAsync(Guid)
-        +CreateAsync(Conversation)
-    }
-    
-    %% Relationships
-    DbClient "1" --> "0..*" AiClinicDbContext : creates
-    AiClinicDbContext "1" --|> "1" DbContext : inherits
-    
-    UserService "*" ..> "1" DbClient : uses Instance
-    PatientProfileService "*" ..> "1" DbClient : uses Instance
-    ConversationService "*" ..> "1" DbClient : uses Instance
     
     note for DbClient "Singleton Pattern:
     • Private constructor
     • Static instance
     • Thread-safe lazy init
     • Global access point"
-    
-    note for UserService "Services access
-    singleton via
-    DbClient.Instance"
 ```
 
 ### iv. Other UML Notations (Sequence Diagram)
@@ -397,89 +346,44 @@ Service   Service   Record    Service      Service  Log
 
 ```mermaid
 classDiagram
-    direction TB
-    
-    %% Top Layer
-    class PatientRecordsPage {
-        <<UI Layer>>
-        +OnInitializedAsync()
-        +HandleFileUpload()
-    }
-    
     class PatientFacade {
         <<Facade>>
-        +GetDashboardDataAsync()
-        +GetPatientRecordsAsync()
-        +UploadMedicalDocumentAsync()
-        +ExportMedicalRecordsToPdfAsync()
     }
     
-    class PatientDashboardData {
-        <<DTO>>
+    class Subsystem {
+        <<Subsystem>>
     }
     
-    class PatientRecordsData {
-        <<DTO>>
-    }
-    
-    %% Core Services Row
     class PatientProfileService {
-        <<Core Service>>
-        +GetByUserIdAsync()
+        <<Subsystem>>
     }
     
     class ConversationService {
-        <<Core Service>>
-        +GetByPatientIdAsync()
+        <<Subsystem>>
     }
     
     class MedicalRecordService {
-        <<Core Service>>
-        +GetByPatientIdAsync()
+        <<Subsystem>>
     }
     
     class PrescriptionService {
-        <<Core Service>>
-        +GetByPatientIdAsync()
+        <<Subsystem>>
     }
     
-    %% Support Services Row
     class DocumentService {
-        <<Support Service>>
-        +CreateAsync()
+        <<Subsystem>>
     }
     
     class ActivityLogService {
-        <<Support Service>>
-        +LogActivityAsync()
+        <<Subsystem>>
     }
     
-    class ConsultationService {
-        <<Support Service>>
-        +GetByPatientIdAsync()
-    }
-    
-    class MedicalRecordExportService {
-        <<Support Service>>
-        +ExportMedicalRecordsToPdfAsync()
-    }
-    
-    %% Main relationships
-    PatientRecordsPage "1" --> "1" PatientFacade
-    PatientFacade "1" ..> "*" PatientDashboardData
-    PatientFacade "1" ..> "*" PatientRecordsData
-    
-    %% Core Services connections
-    PatientFacade "1" --> "1" PatientProfileService
-    PatientFacade "1" --> "1" ConversationService
-    PatientFacade "1" --> "1" MedicalRecordService
-    PatientFacade "1" --> "1" PrescriptionService
-    
-    %% Support Services connections
-    PatientFacade "1" --> "1" DocumentService
-    PatientFacade "1" --> "1" ActivityLogService
-    PatientFacade "1" --> "1" ConsultationService
-    PatientFacade "1" --> "1" MedicalRecordExportService
+    PatientFacade --> PatientProfileService
+    PatientFacade --> ConversationService
+    PatientFacade --> MedicalRecordService
+    PatientFacade --> PrescriptionService
+    PatientFacade --> DocumentService
+    PatientFacade --> ActivityLogService
 ```
 
 ### iv. Other UML Notations (Sequence Diagram)
@@ -1231,87 +1135,35 @@ Different AI model processes the request
 
 ```mermaid
 classDiagram
-    %% Client Layer
-    class AiAssistantService {
-        <<Client>>
-        -AiModelContext _context
-        +AnalyzeSymptomsAsync(symptoms)
-        +AnalyzeComplexCaseAsync(case)
-        +CompareModelsAsync(prompt)
-    }
-    
-    %% Context - Maintains reference to strategy
     class AiModelContext {
         <<Context>>
-        -IAiModelStrategy _currentStrategy
-        -Dictionary~string,IAiModelStrategy~ _strategies
-        +CurrentStrategy IAiModelStrategy
-        +SetStrategy(strategyKey) void
-        +GenerateResponseAsync(prompt) Task~string~
-        +GetAvailableModels() List~ModelInfo~
+        +ContextInterface()
     }
     
-    %% Strategy Interface - Defines algorithm interface
     class IAiModelStrategy {
-        <<Strategy Interface>>
-        +ModelId string
-        +ModelName string
-        +GenerateResponseAsync(prompt, instructions, temp, tokens) Task~string~
+        <<Strategy>>
+        +AlgorithmInterface()
     }
     
-    %% Concrete Strategies - Different algorithm implementations
     class OwlAlphaStrategy {
-        <<ConcreteStrategy A>>
-        +ModelId "openrouter/owl-alpha"
-        +ModelName "Owl Alpha"
-        +GenerateResponseAsync(...) Task~string~
+        <<ConcreteStrategyA>>
+        +AlgorithmInterface()
     }
     
     class Gemma4Strategy {
-        <<ConcreteStrategy B>>
-        +ModelId "google/gemma-4-26b"
-        +ModelName "Gemma 4"
-        +GenerateResponseAsync(...) Task~string~
+        <<ConcreteStrategyB>>
+        +AlgorithmInterface()
     }
     
     class MiniMaxStrategy {
-        <<ConcreteStrategy C>>
-        +ModelId "minimax/minimax-01"
-        +ModelName "MiniMax"
-        +GenerateResponseAsync(...) Task~string~
+        <<ConcreteStrategyC>>
+        +AlgorithmInterface()
     }
     
-    class NemotronStrategy {
-        <<ConcreteStrategy D>>
-        +ModelId "nvidia/nemotron"
-        +ModelName "Nemotron"
-        +GenerateResponseAsync(...) Task~string~
-    }
-    
-    %% Relationships - Strategy Pattern Structure
-    AiAssistantService "1" --> "1" AiModelContext : uses
-    AiModelContext "1" o--> "1" IAiModelStrategy : holds current
-    AiModelContext "1" --> "*" IAiModelStrategy : manages all
-    
-    IAiModelStrategy <|.. OwlAlphaStrategy : implements
-    IAiModelStrategy <|.. Gemma4Strategy : implements
-    IAiModelStrategy <|.. MiniMaxStrategy : implements
-    IAiModelStrategy <|.. NemotronStrategy : implements
-    
-    note for IAiModelStrategy "Strategy Interface:
-    Defines common algorithm
-    interface for all AI models"
-    
-    note for OwlAlphaStrategy "Concrete Strategies:
-    Different AI model
-    implementations
-    (Algorithm A/B/C/D)"
-    
-    note for AiModelContext "Context:
-    • Holds current strategy
-    • Switches at runtime
-    • Delegates to strategy
-    • Doesn't know implementation"
+    AiModelContext o--> IAiModelStrategy : strategy
+    IAiModelStrategy <|.. OwlAlphaStrategy
+    IAiModelStrategy <|.. Gemma4Strategy
+    IAiModelStrategy <|.. MiniMaxStrategy
 ```
 
 ### iv. Other UML Notations (Sequence Diagram)
@@ -1888,116 +1740,29 @@ Application Layer
 
 ```mermaid
 classDiagram
-    %% Client Layer
-    class AiAssistantService {
+    class Client {
         <<Client>>
-        -IAiModelStrategy _aiStrategy
-        +AnalyzeSymptomsAsync(symptoms)
-        +AnalyzeMedicalImageAsync(...)
     }
     
-    %% Target Interface
     class IAiModelStrategy {
-        <<Target Interface>>
-        +ModelId string
-        +ModelName string
-        +SupportsVision bool
-        +GenerateResponseAsync(...)
-        +GenerateResponseWithImagesAsync(...)
+        <<Target>>
+        +Request()
     }
     
-    %% Adapter
     class BaseAiModelAdapter {
         <<Adapter>>
-        #OpenRouterApiClient _apiClient
-        +abstract ModelId
-        +abstract ModelName
-        +GenerateResponseAsync(...)
-        +GenerateResponseWithImagesAsync(...)
-        #PreprocessPrompt()
-        #PostprocessResponse()
+        +Request()
     }
     
-    %% Concrete Adapters
-    class Gemma4Strategy {
-        +ModelId
-        +ModelName
-        #PreprocessPrompt()
-    }
-    
-    class OwlAlphaStrategy {
-        +ModelId
-        +ModelName
-    }
-    
-    class MiniMaxStrategy {
-        +ModelId
-        +ModelName
-    }
-    
-    %% Adaptee
     class OpenRouterApiClient {
         <<Adaptee>>
-        -HttpClient _httpClient
-        -string _apiKey
-        +CallApiAsync(request)
-        +CallApiStreamingAsync(request)
+        +SpecificRequest()
     }
     
-    %% Adaptee Data Structures
-    class OpenRouterRequest {
-        <<Adaptee DTO>>
-        +Model string
-        +Message[] Messages
-        +Temperature double
-        +MaxTokens int
-    }
-    
-    class OpenRouterResponse {
-        <<Adaptee DTO>>
-        +Id string
-        +Model string
-        +Choice[] Choices
-        +Usage Usage
-    }
-    
-    class Message {
-        +Role string
-        +Content object
-    }
-    
-    class Choice {
-        +Index int
-        +Message Message
-        +FinishReason string
-    }
-    
-    %% Relationships
-    AiAssistantService "1" --> "1" IAiModelStrategy : uses
-    IAiModelStrategy "1" <|.. "*" BaseAiModelAdapter : implements
-    
-    BaseAiModelAdapter <|-- Gemma4Strategy
-    BaseAiModelAdapter <|-- OwlAlphaStrategy
-    BaseAiModelAdapter <|-- MiniMaxStrategy
-    
-    BaseAiModelAdapter "*" --> "1" OpenRouterApiClient : uses
-    OpenRouterApiClient "1" ..> "*" OpenRouterRequest : creates
-    OpenRouterApiClient "1" ..> "*" OpenRouterResponse : returns
-    OpenRouterRequest "1" --> "1..*" Message : contains
-    OpenRouterResponse "1" --> "1..*" Choice : contains
-    Choice "1" --> "1" Message : contains
-    
-    note for IAiModelStrategy "Target:
-    Simple interface
-    our app expects"
-    
-    note for BaseAiModelAdapter "Adapter:
-    Converts between
-    Target and Adaptee"
-    
-    note for OpenRouterApiClient "Adaptee:
-    Complex external API
-    with own interface"
+    Client --> IAiModelStrategy : target
+    IAiModelStrategy <|.. BaseAiModelAdapter
+    BaseAiModelAdapter --> OpenRouterApiClient : adaptee
+    BaseAiModelAdapter ..> OpenRouterApiClient : adaptee.SpecificRequest()
 ```
 
 ### iv. Other UML Notations (Sequence Diagram)
