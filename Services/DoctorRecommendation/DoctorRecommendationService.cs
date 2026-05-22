@@ -106,7 +106,8 @@ public class DoctorRecommendationService
             .Include(d => d.User)
             .Where(d => d.IsActive && 
                        d.IsVerified && 
-                       d.IsAcceptingPatients)
+                       d.IsAcceptingPatients &&
+                       d.AvailabilityStatus == DoctorAvailabilityStatus.Available)
             .ToListAsync();
     }
 

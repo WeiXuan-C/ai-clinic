@@ -86,29 +86,112 @@
 }
 
 <!-- Upload Dialog -->
-<!-- Hidden by default -->
+@if (showUploadModal)
+{
+    <div class="modal-overlay" @onclick="CloseUploadDialog">
+        <div class="modal-content" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3>Upload Medical Document</h3>
+                <button class="icon-btn" @onclick="CloseUploadDialog">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="alert alert-error">
+                        <i data-lucide="alert-circle"></i>
+                        <span>@errorMessage</span>
+                    </div>
+                }
+                <div class="form-group">
+                    <label>Title *</label>
+                    <input class="form-input" @bind="uploadTitle" placeholder="Blood Test Results" />
+                </div>
+                <div class="form-group">
+                    <label>Document Type *</label>
+                    <select class="form-input" @bind="uploadType">
+                        <option value="">Select type...</option>
+                        <option value="Lab Result">Lab Result</option>
+                        <option value="Prescription">Prescription</option>
+                        <option value="Imaging">Imaging</option>
+                        <option value="Visit Note">Visit Note</option>
+                        <option value="Immunization">Immunization</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea class="form-input" rows="3" @bind="uploadDescription"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>File *</label>
+                    <InputFile class="file-input" OnChange="OnFileSelected" />
+                    @if (selectedFile != null)
+                    {
+                        <div class="file-preview">
+                            <i data-lucide="file"></i>
+                            <span>@selectedFile.Name (@FormatFileSize(selectedFile.Size))</span>
+                        </div>
+                    }
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" @onclick="CloseUploadDialog">Cancel</button>
+                <button class="btn btn-primary" @onclick="UploadDocument" disabled="@isUploading">
+                    @if (isUploading)
+                    {
+                        <div class="spinner-sm"></div>
+                        <span>Uploading...</span>
+                    }
+                    else
+                    {
+                        <i data-lucide="upload"></i>
+                        <span>Upload</span>
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+}
 
 <!-- Filter Tabs -->
 <div class="filter-tabs">
-    <button class="tab-btn active">
-        All Records (5)
+    <button class="tab-btn @(selectedFilter == "All" ? "active" : "")" @onclick="@(() => FilterRecords("All"))">
+        All Records (@(recordsData?.Statistics.TotalRecords ?? 0))
     </button>
-    <button class="tab-btn">
-        Lab Results (2)
+    <button class="tab-btn @(selectedFilter == "Lab Results" ? "active" : "")" @onclick="@(() => FilterRecords("Lab Results"))">
+        Lab Results (@(recordsData?.Statistics.LabResults ?? 0))
     </button>
-    <button class="tab-btn">
-        Prescriptions (1)
+    <button class="tab-btn @(selectedFilter == "Prescriptions" ? "active" : "")" @onclick="@(() => FilterRecords("Prescriptions"))">
+        Prescriptions (@(recordsData?.Statistics.Prescriptions ?? 0))
     </button>
-    <button class="tab-btn">
-        Imaging (1)
+    <button class="tab-btn @(selectedFilter == "Imaging" ? "active" : "")" @onclick="@(() => FilterRecords("Imaging"))">
+        Imaging (@(recordsData?.Statistics.ImagingStudies ?? 0))
     </button>
-    <button class="tab-btn">
-        Visit Notes (1)
+    <button class="tab-btn @(selectedFilter == "Visit Notes" ? "active" : "")" @onclick="@(() => FilterRecords("Visit Notes"))">
+        Visit Notes (@(recordsData?.Statistics.VisitNotes ?? 0))
     </button>
-    <button class="tab-btn">
-        Immunizations (0)
+    <button class="tab-btn @(selectedFilter == "Immunizations" ? "active" : "")" @onclick="@(() => FilterRecords("Immunizations"))">
+        Immunizations (@(recordsData?.Statistics.Immunizations ?? 0))
     </button>
 </div>
+
+@if (!string.IsNullOrEmpty(successMessage))
+{
+    <div class="alert alert-success">
+        <i data-lucide="check-circle"></i>
+        <span>@successMessage</span>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(errorMessage) && !showUploadModal)
+{
+    <div class="alert alert-error">
+        <i data-lucide="alert-circle"></i>
+        <span>@errorMessage</span>
+    </div>
+}
 
 <!-- Content Grid -->
 <div class="content-grid">
@@ -118,11 +201,59 @@
             <h2 class="headline-md">All Records</h2>
             <div class="search-box">
                 <i data-lucide="search"></i>
-                <input type="text" placeholder="Search records..." />
+                <input type="text" placeholder="Search records..." value="@searchQuery" @oninput="OnSearchChanged" />
             </div>
         </div>
         
         <div class="records-list">
+            @if (isLoading)
+            {
+                <div class="loading-state">
+                    <div class="spinner"></div>
+                    <p class="body-md">Loading records...</p>
+                </div>
+            }
+            else if (!filteredRecords.Any())
+            {
+                <div class="empty-state">
+                    <i data-lucide="folder-open"></i>
+                    <h3>No records found</h3>
+                    <p>Uploaded documents and consultation records will appear here.</p>
+                </div>
+            }
+            else
+            {
+                @foreach (var record in filteredRecords)
+                {
+                    <div class="record-item">
+                        <div class="record-icon @GetRecordIconClass(record.Type)">
+                            <i data-lucide="file-text"></i>
+                        </div>
+                        <div class="record-info">
+                            <h4 class="headline-sm">@record.Title</h4>
+                            <p class="body-sm">@record.Type - @FormatDate(record.Date)</p>
+                            <p class="body-sm">@record.Description</p>
+                            @if (record.FileSize > 0)
+                            {
+                                <p class="body-sm text-muted">@FormatFileSize(record.FileSize)</p>
+                            }
+                        </div>
+                        <div class="record-actions">
+                            <span class="badge @GetBadgeClass(record.Type)">@record.Type.ToUpperInvariant()</span>
+                            @if (record.RecordCategory == "document")
+                            {
+                                <button class="icon-btn-sm" title="Download" @onclick="@(() => DownloadRecord(record.Id, record.RecordCategory))">
+                                    <i data-lucide="download"></i>
+                                </button>
+                            }
+                            <button class="icon-btn-sm" title="Delete" @onclick="@(() => DeleteRecord(record.Id, record.RecordCategory))">
+                                <i data-lucide="trash-2"></i>
+                            </button>
+                        </div>
+                    </div>
+                }
+            }
+            @*
             <div class="record-item">
                 <div class="record-icon lab">
                     <i data-lucide="flask-conical"></i>
@@ -169,6 +300,7 @@
                     </button>
                 </div>
             </div>
+            *@
         </div>
     </section>
 
@@ -179,28 +311,28 @@
             <div class="stat-item">
                 <i data-lucide="file-text" class="stat-icon"></i>
                 <div class="stat-info">
-                    <h4 class="headline-lg">5</h4>
+                    <h4 class="headline-lg">@(recordsData?.Statistics.TotalRecords ?? 0)</h4>
                     <p class="body-sm">Total Records</p>
                 </div>
             </div>
             <div class="stat-item">
                 <i data-lucide="flask-conical" class="stat-icon"></i>
                 <div class="stat-info">
-                    <h4 class="headline-lg">2</h4>
+                    <h4 class="headline-lg">@(recordsData?.Statistics.LabResults ?? 0)</h4>
                     <p class="body-sm">Lab Results</p>
                 </div>
             </div>
             <div class="stat-item">
                 <i data-lucide="pill" class="stat-icon"></i>
                 <div class="stat-info">
-                    <h4 class="headline-lg">1</h4>
+                    <h4 class="headline-lg">@(recordsData?.Statistics.Prescriptions ?? 0)</h4>
                     <p class="body-sm">Prescriptions</p>
                 </div>
             </div>
             <div class="stat-item">
                 <i data-lucide="scan" class="stat-icon"></i>
                 <div class="stat-info">
-                    <h4 class="headline-lg">1</h4>
+                    <h4 class="headline-lg">@(recordsData?.Statistics.ImagingStudies ?? 0)</h4>
                     <p class="body-sm">Imaging Studies</p>
                 </div>
             </div>
@@ -213,6 +345,17 @@
             <h3 class="headline-md">Medical Timeline</h3>
         </div>
         <div class="timeline">
+            @foreach (var item in timeline.Take(6))
+            {
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-content">
+                        <span class="timeline-date">@FormatDate(item.Date)</span>
+                        <p class="body-md">@item.Title</p>
+                    </div>
+                </div>
+            }
+            @*
             <div class="timeline-item">
                 <div class="timeline-dot"></div>
                 <div class="timeline-content">
@@ -227,6 +370,7 @@
                     <p class="body-md">Prescription - Lisinopril</p>
                 </div>
             </div>
+            *@
         </div>
     </section>
 </div>

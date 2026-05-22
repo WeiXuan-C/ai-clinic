@@ -44,56 +44,12 @@ classDiagram
     %% Singleton
     class DbClient {
         <<Singleton>>
-        -Lazy~DbClient~ _instance$
+        -Lazy~DbClient~ _instance
         -string _connectionString
         -DbClient()
-        +DbClient Instance$
+        +DbClient Instance
         +GetDb() AiClinicDbContext
     }
-    
-    %% Database Context
-    class AiClinicDbContext {
-        <<DbContext>>
-        +DbSet~User~ Users
-        +DbSet~PatientProfile~ PatientProfiles
-        +DbSet~DoctorProfile~ DoctorProfiles
-        +DbSet~Conversation~ Conversations
-        +DbSet~Message~ Messages
-        +OnModelCreating(ModelBuilder)
-    }
-    
-    class DbContext {
-        <<Framework>>
-    }
-    
-    %% Service Layer
-    class UserService {
-        <<Service>>
-        +GetByIdAsync(Guid)
-        +CreateAsync(User, string)
-        +AuthenticateAsync(string, string)
-    }
-    
-    class PatientProfileService {
-        <<Service>>
-        +GetByUserIdAsync(Guid)
-        +CreateAsync(PatientProfile)
-        +UpdateAsync(PatientProfile)
-    }
-    
-    class ConversationService {
-        <<Service>>
-        +GetByPatientIdAsync(Guid)
-        +CreateAsync(Conversation)
-    }
-    
-    %% Relationships
-    DbClient "1" --> "0..*" AiClinicDbContext : creates
-    AiClinicDbContext "1" --|> "1" DbContext : inherits
-    
-    UserService "*" ..> "1" DbClient : uses Instance
-    PatientProfileService "*" ..> "1" DbClient : uses Instance
-    ConversationService "*" ..> "1" DbClient : uses Instance
 ```
 
 ### iv. Other UML Notations (Sequence Diagram)
@@ -106,27 +62,38 @@ sequenceDiagram
     participant DB as SQLite Database
     
     Service->>Singleton: Request Instance
+    activate Singleton
     
     alt First Access
         Singleton->>Singleton: Create new DbClient()
     end
     
     Singleton-->>Service: Return singleton instance
+    deactivate Singleton
     
     Service->>Singleton: GetDb()
+    activate Singleton
     Singleton->>Context: new AiClinicDbContext(options)
+    activate Context
     Context-->>Service: Return context
+    deactivate Singleton
     
     Service->>Context: Users.FindAsync(id)
     Context->>DB: SELECT * FROM Users WHERE Id = ?
+    activate DB
     DB-->>Context: User data
+    deactivate DB
     Context-->>Service: User object
     
     Service->>Context: Dispose()
+    deactivate Context
     
     Service->>Singleton: GetDb() (subsequent call)
+    activate Singleton
     Singleton->>Context: new AiClinicDbContext(options)
+    activate Context
     Context-->>Service: Return new context
+    deactivate Singleton
 ```
 
 ### v. Sample Potential Code
@@ -468,6 +435,12 @@ classDiagram
 
 **Patient Dashboard Data Retrieval Sequence:**
 
+**Patient Dashboard Data Retrieval Sequence:**
+
+The sequence diagram illustrates the implementation of the Facade Design Pattern using the PatientFacade class as a centralized access point for retrieving patient dashboard information. Instead of the Patient Dashboard Page directly interacting with multiple backend services, it only communicates with PatientFacade through a single request, `GetDashboardDataAsync(userId)`. The facade then coordinates the communication with several subsystems, including PatientProfileService, ConversationService, MedicalRecordService, PrescriptionService, ConsultationService, and DocumentService, to retrieve the required patient data in parallel.
+
+After collecting the information from the database, the facade processes and combines the results, such as recent conversations, active prescriptions, upcoming appointments, and recent health metrics, into a single `PatientDashboardData` object. The system also records user activity through ActivityLogService before returning the final result to the dashboard page. By using the Facade Design Pattern, the system reduces coupling between the user interface and backend services, simplifies complex operations, improves code maintainability, and makes the overall system easier to manage and extend.
+
 ```mermaid
 sequenceDiagram
     participant UI as Patient Dashboard Page
@@ -476,35 +449,76 @@ sequenceDiagram
     participant ConvSvc as ConversationService
     participant RecordSvc as MedicalRecordService
     participant PrescSvc as PrescriptionService
+    participant ConsultSvc as ConsultationService
+    participant DocSvc as DocumentService
+    participant ExportSvc as MedicalRecordExportService
     participant LogSvc as ActivityLogService
     participant DB as Database
     
     UI->>Facade: GetDashboardDataAsync(userId)
+    activate Facade
     
     par Parallel Data Retrieval
         Facade->>ProfileSvc: GetByUserIdAsync(userId)
+        activate ProfileSvc
         ProfileSvc->>DB: SELECT * FROM PatientProfiles WHERE UserId = ?
+        activate DB
         DB-->>ProfileSvc: Profile data
+        deactivate DB
+        deactivate ProfileSvc
         
         Facade->>ConvSvc: GetByPatientIdAsync(userId)
+        activate ConvSvc
         ConvSvc->>DB: SELECT * FROM Conversations WHERE PatientId = ?
+        activate DB
         DB-->>ConvSvc: Conversations data
+        deactivate DB
+        deactivate ConvSvc
         
         Facade->>RecordSvc: GetByPatientIdAsync(userId)
+        activate RecordSvc
         RecordSvc->>DB: SELECT * FROM MedicalRecords WHERE PatientId = ?
+        activate DB
         DB-->>RecordSvc: Records data
+        deactivate DB
+        deactivate RecordSvc
         
         Facade->>PrescSvc: GetByPatientIdAsync(userId)
+        activate PrescSvc
         PrescSvc->>DB: SELECT * FROM Prescriptions WHERE PatientId = ?
+        activate DB
         DB-->>PrescSvc: Prescriptions data
+        deactivate DB
+        deactivate PrescSvc
+        
+        Facade->>ConsultSvc: GetByPatientIdAsync(userId)
+        activate ConsultSvc
+        ConsultSvc->>DB: SELECT * FROM Consultations WHERE PatientId = ?
+        activate DB
+        DB-->>ConsultSvc: Consultations data
+        deactivate DB
+        deactivate ConsultSvc
+        
+        Facade->>DocSvc: GetByPatientIdAsync(userId)
+        activate DocSvc
+        DocSvc->>DB: SELECT * FROM Documents WHERE PatientId = ?
+        activate DB
+        DB-->>DocSvc: Documents data
+        deactivate DB
+        deactivate DocSvc
     end
     
     Facade->>Facade: Process and filter data<br/>- Top 3 conversations<br/>- Active prescriptions<br/>- Upcoming appointments<br/>- Recent health metrics
     
     Facade->>LogSvc: LogActivityAsync(userId, "ViewDashboard")
+    activate LogSvc
     LogSvc->>DB: INSERT INTO ActivityLogs
+    activate DB
+    deactivate DB
+    deactivate LogSvc
     
     Facade-->>UI: PatientDashboardData
+    deactivate Facade
 ```
 
 **Medical Document Upload Sequence:**
@@ -518,19 +532,29 @@ sequenceDiagram
     participant DB as Database
     
     UI->>Facade: UploadMedicalDocumentAsync(<br/>userId, "Lab Results",<br/>"Lab Result", fileData,<br/>"blood-test.pdf")
+    activate Facade
     
     Facade->>Facade: Create Document entity<br/>{<br/>  PatientId: userId,<br/>  Title: "Lab Results",<br/>  DocumentTypeString: "Lab Result",<br/>  FileData: fileData,<br/>  FileSizeBytes: fileData.Length,<br/>  FileName: "blood-test.pdf"<br/>}
     
     Facade->>DocSvc: CreateAsync(document)
+    activate DocSvc
     DocSvc->>DB: INSERT INTO Documents
+    activate DB
     DB-->>DocSvc: Document created
+    deactivate DB
     DocSvc-->>Facade: Document object
+    deactivate DocSvc
     
     Facade->>LogSvc: LogActivityAsync(<br/>userId,<br/>"UploadDocument",<br/>'{"document_id": "...", "type": "Lab Result", "title": "Lab Results"}')
+    activate LogSvc
     LogSvc->>DB: INSERT INTO ActivityLogs
+    activate DB
     DB-->>LogSvc: Log created
+    deactivate DB
+    deactivate LogSvc
     
     Facade-->>UI: Document object
+    deactivate Facade
 ```
 
 **Medical Records Export Sequence:**
@@ -546,27 +570,45 @@ sequenceDiagram
     participant DB as Database
     
     UI->>Facade: ExportMedicalRecordsToPdfAsync(<br/>patientId,<br/>startDate: 2024-01-01,<br/>endDate: 2024-12-31)
+    activate Facade
     
     Facade->>ExportSvc: ExportMedicalRecordsToPdfAsync(patientId, startDate, endDate)
+    activate ExportSvc
     
     ExportSvc->>RecordSvc: GetByPatientIdAsync(patientId)
+    activate RecordSvc
     RecordSvc->>DB: SELECT * FROM MedicalRecords WHERE PatientId = ?
+    activate DB
     DB-->>RecordSvc: Records
+    deactivate DB
+    deactivate RecordSvc
     
     ExportSvc->>PrescSvc: GetByPatientIdAsync(patientId)
+    activate PrescSvc
     PrescSvc->>DB: SELECT * FROM Prescriptions WHERE PatientId = ?
+    activate DB
     DB-->>PrescSvc: Prescriptions
+    deactivate DB
+    deactivate PrescSvc
     
     ExportSvc->>ExportSvc: Filter by date range<br/>Generate PDF document<br/>Format data
     
     ExportSvc-->>Facade: byte[] pdfBytes
+    deactivate ExportSvc
     
     Facade->>LogSvc: LogActivityAsync(<br/>patientId,<br/>"ExportMedicalRecords",<br/>'{"start_date": "2024-01-01", "end_date": "2024-12-31", "size_bytes": 45678}')
+    activate LogSvc
     LogSvc->>DB: INSERT INTO ActivityLogs
+    activate DB
+    deactivate DB
+    deactivate LogSvc
     
     Facade-->>UI: byte[] pdfBytes
+    deactivate Facade
     
     UI->>UI: Download PDF file
+    activate UI
+    deactivate UI
 ```
 
 ### v. Sample Potential Code
@@ -1283,36 +1325,52 @@ sequenceDiagram
     participant External as OpenRouter API
     
     Client->>Context: GenerateResponseAsync("Analyze symptoms")
+    activate Context
     
     Context->>Strategy: GenerateResponseAsync(prompt, systemInstructions)
+    activate Strategy
     
     Strategy->>Strategy: PreprocessPrompt(prompt)
     
     Strategy->>Adapter: GenerateResponseAsync(prompt, systemInstructions, 0.7, 1000)
+    activate Adapter
     
     Adapter->>Adapter: Build messages array<br/>[system, user]
     
     Adapter->>Adapter: Create OpenRouterRequest<br/>{model, messages, temperature, maxTokens}
     
     Adapter->>API: CallApiAsync(request)
+    activate API
     API->>External: HTTP POST /api/v1/chat/completions
+    activate External
     External-->>API: OpenRouterResponse
+    deactivate External
     API-->>Adapter: response
+    deactivate API
     
     Adapter->>Adapter: Extract response.Choices[0].Message.Content
     
     Adapter-->>Strategy: string response
+    deactivate Adapter
     
     Strategy->>Strategy: PostprocessResponse(response)
     
     Strategy-->>Context: string response
+    deactivate Strategy
     Context-->>Client: string response
+    deactivate Context
     
     Client->>Context: SetStrategy("gemma-4")
+    activate Context
     Context->>Context: _currentStrategy = _availableStrategies["gemma-4"]
+    deactivate Context
     
     Client->>Context: GenerateResponseAsync("Next prompt")
+    activate Context
     Context->>Strategy: GenerateResponseAsync(...)
+    activate Strategy
+    deactivate Strategy
+    deactivate Context
 ```
 
 **Strategy Switching Sequence:**
@@ -1321,27 +1379,79 @@ sequenceDiagram
 sequenceDiagram
     participant Client as Client Code
     participant Context as AiModelContext
-    participant OldStrategy as OwlAlphaStrategy
-    participant NewStrategy as Gemma4Strategy
+    participant Strategy1 as OwlAlphaStrategy
+    participant Strategy2 as Gemma4Strategy
+    participant Strategy3 as MiniMaxStrategy
+    participant Strategy4 as NemotronStrategy
     participant API as OpenRouter API
     
     Client->>Context: GenerateResponseAsync("Hello")
-    Context->>OldStrategy: GenerateResponseAsync("Hello")
-    OldStrategy->>API: Call with model: "openrouter/owl-alpha"
-    API-->>OldStrategy: Response from Owl Alpha
-    OldStrategy-->>Context: Response
+    activate Context
+    Context->>Strategy1: GenerateResponseAsync("Hello")
+    activate Strategy1
+    Strategy1->>API: Call with model: "openrouter/owl-alpha"
+    activate API
+    API-->>Strategy1: Response from Owl Alpha
+    deactivate API
+    Strategy1-->>Context: Response
+    deactivate Strategy1
     Context-->>Client: Response
+    deactivate Context
     
     Client->>Context: SetStrategy("gemma-4")
+    activate Context
     Context->>Context: Lookup strategy in dictionary
     Context->>Context: _currentStrategy = Gemma4Strategy
+    deactivate Context
     
-    Client->>Context: GenerateResponseAsync("Hello")
-    Context->>NewStrategy: GenerateResponseAsync("Hello")
-    NewStrategy->>API: Call with model: "google/gemma-4-26b-a4b-it:free"
-    API-->>NewStrategy: Response from Gemma 4
-    NewStrategy-->>Context: Response
+    Client->>Context: GenerateResponseAsync("Analyze symptoms")
+    activate Context
+    Context->>Strategy2: GenerateResponseAsync("Analyze symptoms")
+    activate Strategy2
+    Strategy2->>API: Call with model: "google/gemma-4-26b-a4b-it:free"
+    activate API
+    API-->>Strategy2: Response from Gemma 4
+    deactivate API
+    Strategy2-->>Context: Response
+    deactivate Strategy2
     Context-->>Client: Response
+    deactivate Context
+    
+    Client->>Context: SetStrategy("minimax")
+    activate Context
+    Context->>Context: _currentStrategy = MiniMaxStrategy
+    deactivate Context
+    
+    Client->>Context: GenerateResponseAsync("Complex case")
+    activate Context
+    Context->>Strategy3: GenerateResponseAsync("Complex case")
+    activate Strategy3
+    Strategy3->>API: Call with model: "minimax/minimax-01"
+    activate API
+    API-->>Strategy3: Response from MiniMax
+    deactivate API
+    Strategy3-->>Context: Response
+    deactivate Strategy3
+    Context-->>Client: Response
+    deactivate Context
+    
+    Client->>Context: SetStrategy("nemotron")
+    activate Context
+    Context->>Context: _currentStrategy = NemotronStrategy
+    deactivate Context
+    
+    Client->>Context: GenerateResponseAsync("Medical analysis")
+    activate Context
+    Context->>Strategy4: GenerateResponseAsync("Medical analysis")
+    activate Strategy4
+    Strategy4->>API: Call with model: "nvidia/nemotron"
+    activate API
+    API-->>Strategy4: Response from Nemotron
+    deactivate API
+    Strategy4-->>Context: Response
+    deactivate Strategy4
+    Context-->>Client: Response
+    deactivate Context
 ```
 
 ### v. Sample Potential Code
@@ -1858,23 +1968,6 @@ classDiagram
         #PostprocessResponse()
     }
     
-    %% Concrete Adapters
-    class Gemma4Strategy {
-        +ModelId
-        +ModelName
-        #PreprocessPrompt()
-    }
-    
-    class OwlAlphaStrategy {
-        +ModelId
-        +ModelName
-    }
-    
-    class MiniMaxStrategy {
-        +ModelId
-        +ModelName
-    }
-    
     %% Adaptee
     class OpenRouterApiClient {
         <<Adaptee>>
@@ -1916,10 +2009,6 @@ classDiagram
     AiAssistantService "1" --> "1" IAiModelStrategy : uses
     IAiModelStrategy "1" <|.. "*" BaseAiModelAdapter : implements
     
-    BaseAiModelAdapter <|-- Gemma4Strategy
-    BaseAiModelAdapter <|-- OwlAlphaStrategy
-    BaseAiModelAdapter <|-- MiniMaxStrategy
-    
     BaseAiModelAdapter "*" --> "1" OpenRouterApiClient : uses
     OpenRouterApiClient "1" ..> "*" OpenRouterRequest : creates
     OpenRouterApiClient "1" ..> "*" OpenRouterResponse : returns
@@ -1934,35 +2023,43 @@ classDiagram
 
 ```mermaid
 sequenceDiagram
-    participant App as Application
-    participant Target as IAiModelStrategy
-    participant Adapter as BaseAiModelAdapter
-    participant Adaptee as OpenRouterApiClient
-    participant API as OpenRouter API
+    participant App as <client><br/>AiAssistantService
+    participant Target as <target><br/>IAiModelStrategy
+    participant Adapter as <adapter><br/>BaseAiModelAdapter
+    participant Adaptee as <adaptee><br/>OpenRouterApiClient
+    participant API as <external api><br/>OpenRouter API
     
     App->>Target: GenerateResponseAsync(<br/>"Analyze symptoms",<br/>"You are a medical AI",<br/>0.7, 1000)
+    activate Target
     
     Target->>Adapter: GenerateResponseAsync(prompt, systemInstructions, temperature, maxTokens)
+    activate Adapter
     
     Adapter->>Adapter: Build messages array<br/>[{role: "system", content: "..."},<br/>{role: "user", content: "..."}]
     
     Adapter->>Adapter: Create OpenRouterRequest<br/>{<br/>  model: "google/gemma-4-26b-a4b-it:free",<br/>  messages: [...],<br/>  temperature: 0.7,<br/>  max_tokens: 1000,<br/>  stream: false<br/>}
     
     Adapter->>Adaptee: CallApiAsync(request)
+    activate Adaptee
     
     Adaptee->>API: HTTP POST /api/v1/chat/completions<br/>with OpenRouter-specific JSON
+    activate API
     
     API-->>Adaptee: OpenRouterResponse<br/>{<br/>  id: "gen-123",<br/>  model: "...",<br/>  choices: [{<br/>    index: 0,<br/>    message: {<br/>      role: "assistant",<br/>      content: "AI response"<br/>    },<br/>    finish_reason: "stop"<br/>  }],<br/>  usage: {...}<br/>}
+    deactivate API
     
     Adaptee-->>Adapter: OpenRouterResponse
+    deactivate Adaptee
     
     Adapter->>Adapter: Extract response.Choices[0].Message.Content
     
     Adapter->>Adapter: Convert to string
     
     Adapter-->>Target: "AI response" (simple string)
+    deactivate Adapter
     
     Target-->>App: "AI response"
+    deactivate Target
 ```
 
 **Multimodal Adaptation (Image Support):**
@@ -1975,22 +2072,28 @@ sequenceDiagram
     participant API as OpenRouter API
     
     App->>Adapter: GenerateResponseWithImagesAsync(<br/>"Analyze this X-ray",<br/>[imageBase64],<br/>"You are a radiologist",<br/>0.7, 1000)
+    activate Adapter
     
     Adapter->>Adapter: Build multimodal content<br/>[<br/>  {type: "text", text: "Analyze this X-ray"},<br/>  {type: "image_url", image_url: {<br/>    url: "data:image/jpeg;base64,..."<br/>  }}<br/>]
     
     Adapter->>Adapter: Create messages array<br/>[<br/>  {role: "system", content: "You are a radiologist"},<br/>  {role: "user", content: [multimodal content]}<br/>]
     
     Adapter->>Adaptee: CallApiAsync(request)
+    activate Adaptee
     
     Adaptee->>API: HTTP POST with multimodal JSON
+    activate API
     
     API-->>Adaptee: OpenRouterResponse
+    deactivate API
     
     Adaptee-->>Adapter: OpenRouterResponse
+    deactivate Adaptee
     
     Adapter->>Adapter: Extract text response
     
     Adapter-->>App: "X-ray analysis result"
+    deactivate Adapter
 ```
 
 ### v. Sample Potential Code

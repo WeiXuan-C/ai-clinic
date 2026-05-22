@@ -235,6 +235,53 @@
                     </div>
                 }
             </div>
+
+            @if (!string.IsNullOrEmpty(workflowMessage))
+            {
+                <div class="workflow-alert success">@workflowMessage</div>
+            }
+            @if (!string.IsNullOrEmpty(workflowError))
+            {
+                <div class="workflow-alert error">@workflowError</div>
+            }
+
+            <div class="clinical-panel">
+                <h4>Consultation Notes</h4>
+                <label>Symptoms</label>
+                <textarea @bind="noteSymptoms" rows="2" placeholder="Key symptoms"></textarea>
+                <label>Physical Examination</label>
+                <textarea @bind="notePhysicalExam" rows="2" placeholder="Findings or observations"></textarea>
+                <label>Diagnosis *</label>
+                <textarea @bind="noteDiagnosis" rows="2" placeholder="Diagnosis details"></textarea>
+                <label>Treatment Plan</label>
+                <textarea @bind="noteTreatmentPlan" rows="2" placeholder="Treatment plan"></textarea>
+                <label>Follow-up Instructions</label>
+                <textarea @bind="noteFollowUp" rows="2" placeholder="Follow-up instructions"></textarea>
+                <label class="checkbox-row">
+                    <input type="checkbox" @bind="finalizeNote" />
+                    <span>Finalize and close consultation</span>
+                </label>
+                <button class="clinical-btn" @onclick="SaveConsultationNote" disabled="@isSavingNote">
+                    @(isSavingNote ? "Saving..." : "Save Note")
+                </button>
+            </div>
+
+            <div class="clinical-panel">
+                <h4>Prescription</h4>
+                <label>Medication *</label>
+                <input @bind="prescriptionMedication" placeholder="Medication name" />
+                <label>Dosage *</label>
+                <input @bind="prescriptionDosage" placeholder="e.g., 10mg" />
+                <label>Frequency *</label>
+                <input @bind="prescriptionFrequency" placeholder="e.g., twice daily" />
+                <label>Duration</label>
+                <input @bind="prescriptionDuration" placeholder="e.g., 7 days" />
+                <label>Instructions</label>
+                <textarea @bind="prescriptionInstructions" rows="2" placeholder="Additional instructions"></textarea>
+                <button class="clinical-btn" @onclick="CreatePrescription" disabled="@isSavingPrescription">
+                    @(isSavingPrescription ? "Creating..." : "Create Prescription")
+                </button>
+            </div>
         }
         else
         {
@@ -683,5 +730,84 @@
     .empty-state-text {
         font-size: 18px;
         font-weight: 500;
+    }
+
+    .clinical-panel {
+        margin-top: 18px;
+        padding: 14px;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        background: #f9fafb;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .clinical-panel h4 {
+        font-size: 14px;
+        color: #111827;
+        margin: 0 0 4px;
+    }
+
+    .clinical-panel label {
+        font-size: 12px;
+        font-weight: 600;
+        color: #374151;
+    }
+
+    .clinical-panel input,
+    .clinical-panel textarea {
+        width: 100%;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        padding: 8px 10px;
+        font-size: 13px;
+        font-family: inherit;
+        resize: vertical;
+    }
+
+    .checkbox-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 500 !important;
+    }
+
+    .checkbox-row input {
+        width: auto;
+    }
+
+    .clinical-btn {
+        border: none;
+        background: #1e40af;
+        color: white;
+        border-radius: 8px;
+        padding: 10px 12px;
+        cursor: pointer;
+        font-weight: 600;
+    }
+
+    .clinical-btn:disabled {
+        background: #9ca3af;
+        cursor: not-allowed;
+    }
+
+    .workflow-alert {
+        margin-top: 16px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        font-size: 13px;
+    }
+
+    .workflow-alert.success {
+        background: #ecfdf5;
+        color: #047857;
+        border: 1px solid #a7f3d0;
+    }
+
+    .workflow-alert.error {
+        background: #fef2f2;
+        color: #b91c1c;
+        border: 1px solid #fecaca;
     }
 </style>

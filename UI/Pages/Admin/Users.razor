@@ -14,9 +14,14 @@
                 <h1>User Management</h1>
                 <p class="text-muted">Manage all system users</p>
             </div>
-            <button class="btn btn-outline-secondary" @onclick="NavigateBack">
-                <i class="bi bi-arrow-left"></i> Back to Dashboard
-            </button>
+            <div class="header-actions">
+                <button class="btn btn-primary" @onclick="ShowCreateUserModal">
+                    <i class="bi bi-person-plus"></i> Create User
+                </button>
+                <button class="btn btn-outline-secondary" @onclick="NavigateBack">
+                    <i class="bi bi-arrow-left"></i> Back to Dashboard
+                </button>
+            </div>
         </div>
 
         <!-- Filters and Search -->
@@ -140,6 +145,11 @@
                                             <i class="bi bi-trash"></i>
                                         </button>
                                         <button class="btn btn-sm btn-info" 
+                                                @onclick="() => ShowEditUserModal(user)"
+                                                title="Edit User">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-info" 
                                                 @onclick="() => ViewUserDetails(user.Id)"
                                                 title="View Details">
                                             <i class="bi bi-eye"></i>
@@ -182,6 +192,57 @@
                         </li>
                     </ul>
                 </nav>
+            </div>
+        }
+
+        <!-- Create/Edit User Modal -->
+        @if (_showUserModal)
+        {
+            <div class="modal-overlay" @onclick="CloseUserModal">
+                <div class="modal-content" @onclick:stopPropagation="true">
+                    <div class="modal-header">
+                        <h3>@(_editingUserId.HasValue ? "Edit User" : "Create User")</h3>
+                        <button class="btn-close" @onclick="CloseUserModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input class="form-control" type="email" @bind="_userEmail" />
+                        </div>
+                        <div class="form-group">
+                            <label>Full Name</label>
+                            <input class="form-control" @bind="_userFullName" />
+                        </div>
+                        @if (!_editingUserId.HasValue)
+                        {
+                            <div class="form-group">
+                                <label>Role</label>
+                                <select class="form-select" @bind="_userRole">
+                                    <option value="@UserRole.Patient">Patient</option>
+                                    <option value="@UserRole.Doctor">Doctor</option>
+                                    <option value="@UserRole.Admin">Admin</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Temporary Password</label>
+                                <input class="form-control" type="password" @bind="_userPassword" />
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="edit-active" @bind="_userIsActive" />
+                                <label class="form-check-label" for="edit-active">Active account</label>
+                            </div>
+                        }
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" @onclick="CloseUserModal">Cancel</button>
+                        <button class="btn btn-primary" @onclick="SaveUser" disabled="@_isSavingUser">
+                            @(_isSavingUser ? "Saving..." : "Save")
+                        </button>
+                    </div>
+                </div>
             </div>
         }
         else
@@ -289,9 +350,17 @@
 
     private bool _showSuspendModal = false;
     private bool _showDeleteModal = false;
+    private bool _showUserModal = false;
+    private bool _isSavingUser = false;
     private User? _selectedUser;
     private string _suspendReason = "";
     private string _deleteReason = "";
+    private Guid? _editingUserId;
+    private string _userEmail = "";
+    private string _userFullName = "";
+    private string _userPassword = "";
+    private UserRole _userRole = UserRole.Patient;
+    private bool _userIsActive = true;
 
     protected override async Task OnInitializedAsync()
     {
@@ -360,6 +429,96 @@
         _selectedUser = user;
         _suspendReason = "";
         _showSuspendModal = true;
+    }
+
+    private void ShowCreateUserModal()
+    {
+        _editingUserId = null;
+        _userEmail = "";
+        _userFullName = "";
+        _userPassword = "";
+        _userRole = UserRole.Patient;
+        _userIsActive = true;
+        _showUserModal = true;
+    }
+
+    private void ShowEditUserModal(User user)
+    {
+        _editingUserId = user.Id;
+        _userEmail = user.Email;
+        _userFullName = GetUserFullName(user);
+        _userPassword = "";
+        _userRole = user.Role;
+        _userIsActive = user.IsActive && !user.IsDeactivated;
+        _showUserModal = true;
+    }
+
+    private void CloseUserModal()
+    {
+        _showUserModal = false;
+        _editingUserId = null;
+    }
+
+    private async Task SaveUser()
+    {
+        try
+        {
+            _isSavingUser = true;
+            _errorMessage = null;
+
+            var currentUser = AuthFacade.CurrentUser;
+            if (currentUser == null)
+            {
+                _errorMessage = "You must be logged in to perform this action.";
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(_userEmail))
+            {
+                _errorMessage = "Email is required.";
+                return;
+            }
+
+            if (_editingUserId.HasValue)
+            {
+                await AdminFacade.UpdateUserAccountAsync(
+                    currentUser.Id,
+                    _editingUserId.Value,
+                    _userEmail,
+                    _userFullName,
+                    _userIsActive);
+
+                _successMessage = "User updated successfully.";
+            }
+            else
+            {
+                if (string.IsNullOrWhiteSpace(_userPassword) || _userPassword.Length < 8)
+                {
+                    _errorMessage = "Temporary password must be at least 8 characters.";
+                    return;
+                }
+
+                await AdminFacade.CreateUserAsync(
+                    currentUser.Id,
+                    _userEmail,
+                    _userPassword,
+                    _userRole,
+                    _userFullName);
+
+                _successMessage = "User created successfully.";
+            }
+
+            CloseUserModal();
+            await LoadUsers();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            _isSavingUser = false;
+        }
     }
 
     private void CloseSuspendModal()
@@ -481,11 +640,11 @@
     private string GetUserFullName(User user)
     {
         if (user.PatientProfile != null)
-            return user.PatientProfile.FullName;
+            return user.PatientProfile.FullName ?? user.Email;
         if (user.DoctorProfile != null)
-            return user.DoctorProfile.FullName;
+            return string.IsNullOrWhiteSpace(user.DoctorProfile.FullName) ? user.Email : user.DoctorProfile.FullName;
         if (user.AdminProfile != null)
-            return user.AdminProfile.FullName;
+            return string.IsNullOrWhiteSpace(user.AdminProfile.FullName) ? user.Email : user.AdminProfile.FullName;
         return user.Email;
     }
 

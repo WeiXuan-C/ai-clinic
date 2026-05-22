@@ -93,6 +93,14 @@
                                 <span class="value">@(doctor.YearsOfExperience ?? 0) years</span>
                             </div>
                             <div class="detail-row">
+                                <span class="label">Availability:</span>
+                                <span class="value">@doctor.AvailabilityStatus</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="label">Accepting Patients:</span>
+                                <span class="value">@(doctor.IsAcceptingPatients ? "Yes" : "No")</span>
+                            </div>
+                            <div class="detail-row">
                                 <span class="label">Registered:</span>
                                 <span class="value">@doctor.CreatedAt.ToString("MMM dd, yyyy")</span>
                             </div>
@@ -128,12 +136,68 @@
                                 </button>
                             }
                             <button class="btn btn-outline-primary" 
+                                    @onclick="() => ShowEditDoctorModal(doctor)">
+                                <i class="bi bi-pencil-square"></i> Manage Profile
+                            </button>
+                            <button class="btn btn-outline-primary" 
                                     @onclick="() => ViewDoctorDetails(doctor.UserId)">
                                 <i class="bi bi-eye"></i> View Details
                             </button>
                         </div>
                     </div>
                 }
+            </div>
+        }
+
+        @if (_showEditDoctorModal)
+        {
+            <div class="modal-overlay" @onclick="CloseEditDoctorModal">
+                <div class="modal-content" @onclick:stopPropagation="true">
+                    <div class="modal-header">
+                        <h3>Manage Doctor Profile</h3>
+                        <button class="btn-close" @onclick="CloseEditDoctorModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label>Full Name</label>
+                            <input class="form-control" @bind="_doctorFullName" />
+                        </div>
+                        <div class="form-group">
+                            <label>License Number</label>
+                            <input class="form-control" @bind="_doctorLicenseNumber" />
+                        </div>
+                        <div class="form-group">
+                            <label>Primary Specialization</label>
+                            <input class="form-control" @bind="_doctorSpecialization" />
+                        </div>
+                        <div class="form-group">
+                            <label>Years of Experience</label>
+                            <input class="form-control" type="number" @bind="_doctorYearsOfExperience" />
+                        </div>
+                        <div class="form-group">
+                            <label>Availability</label>
+                            <select class="form-select" @bind="_doctorAvailability">
+                                <option value="@DoctorAvailabilityStatus.Available">Available</option>
+                                <option value="@DoctorAvailabilityStatus.Busy">Busy</option>
+                                <option value="@DoctorAvailabilityStatus.Offline">Offline</option>
+                            </select>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="doctor-active" @bind="_doctorIsActive" />
+                            <label class="form-check-label" for="doctor-active">Active profile</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="doctor-accepting" @bind="_doctorAcceptingPatients" />
+                            <label class="form-check-label" for="doctor-accepting">Accepting patients</label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" @onclick="CloseEditDoctorModal">Cancel</button>
+                        <button class="btn btn-primary" @onclick="SaveDoctorProfile" disabled="@_isProcessing">
+                            Save Doctor Profile
+                        </button>
+                    </div>
+                </div>
             </div>
         }
 
@@ -164,6 +228,15 @@
     private int _pendingCount = 0;
     private int _verifiedCount = 0;
     private int _allCount = 0;
+    private bool _showEditDoctorModal = false;
+    private Guid? _editingDoctorUserId;
+    private string _doctorFullName = "";
+    private string _doctorLicenseNumber = "";
+    private string _doctorSpecialization = "";
+    private int? _doctorYearsOfExperience;
+    private DoctorAvailabilityStatus _doctorAvailability = DoctorAvailabilityStatus.Offline;
+    private bool _doctorAcceptingPatients = true;
+    private bool _doctorIsActive = true;
 
     protected override async Task OnInitializedAsync()
     {
@@ -292,6 +365,67 @@
                 false);
 
             _successMessage = "Doctor verification revoked.";
+            await LoadDoctors();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+
+    private void ShowEditDoctorModal(DoctorProfile doctor)
+    {
+        _editingDoctorUserId = doctor.UserId;
+        _doctorFullName = doctor.FullName;
+        _doctorLicenseNumber = doctor.LicenseNumber;
+        _doctorSpecialization = doctor.PrimarySpecialization;
+        _doctorYearsOfExperience = doctor.YearsOfExperience;
+        _doctorAvailability = doctor.AvailabilityStatus;
+        _doctorAcceptingPatients = doctor.IsAcceptingPatients;
+        _doctorIsActive = doctor.IsActive;
+        _showEditDoctorModal = true;
+    }
+
+    private void CloseEditDoctorModal()
+    {
+        _showEditDoctorModal = false;
+        _editingDoctorUserId = null;
+    }
+
+    private async Task SaveDoctorProfile()
+    {
+        if (!_editingDoctorUserId.HasValue)
+            return;
+
+        try
+        {
+            _isProcessing = true;
+            _errorMessage = null;
+
+            var currentUser = AuthFacade.CurrentUser;
+            if (currentUser == null)
+            {
+                _errorMessage = "You must be logged in to perform this action.";
+                return;
+            }
+
+            await AdminFacade.UpdateDoctorProfileAsync(
+                currentUser.Id,
+                _editingDoctorUserId.Value,
+                _doctorFullName,
+                _doctorLicenseNumber,
+                _doctorSpecialization,
+                _doctorYearsOfExperience,
+                _doctorAvailability,
+                _doctorAcceptingPatients,
+                _doctorIsActive);
+
+            _successMessage = "Doctor profile updated successfully.";
+            CloseEditDoctorModal();
             await LoadDoctors();
         }
         catch (Exception ex)

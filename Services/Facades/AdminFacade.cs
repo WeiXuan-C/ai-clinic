@@ -68,6 +68,7 @@ public class AdminFacade
         if (doctor != null)
         {
             doctor.IsVerified = isVerified;
+            doctor.IsActive = isVerified;
             await _doctorProfileService.UpdateAsync(doctor);
 
             await _activityLogService.LogActivityAsync(
@@ -125,7 +126,7 @@ public class AdminFacade
         Guid ticketId, 
         Guid adminId, 
         string responseMessage,
-        string newStatus = "In Progress")
+        string newStatus = "in_progress")
     {
         var response = new SupportTicketResponse
         {
@@ -153,12 +154,154 @@ public class AdminFacade
     }
 
     /// <summary>
+    /// Create a user account and matching role profile.
+    /// </summary>
+    public async Task<User> CreateUserAsync(
+        Guid adminId,
+        string email,
+        string password,
+        UserRole role,
+        string? fullName = null)
+    {
+        var existing = await _userService.GetByEmailAsync(email);
+        if (existing != null)
+        {
+            throw new InvalidOperationException("A user with this email already exists.");
+        }
+
+        var user = await _userService.CreateAsync(new User
+        {
+            Email = email,
+            Role = role,
+            IsActive = true,
+            IsDeactivated = false
+        }, password);
+
+        if (role == UserRole.Patient)
+        {
+            await _patientProfileService.CreateAsync(new PatientProfile
+            {
+                UserId = user.Id,
+                FullName = fullName
+            });
+        }
+        else if (role == UserRole.Doctor)
+        {
+            await _doctorProfileService.CreateAsync(new DoctorProfile
+            {
+                UserId = user.Id,
+                FullName = fullName ?? string.Empty,
+                LicenseNumber = $"PENDING-{user.Id.ToString()[..8]}",
+                PrimarySpecialization = "General Medicine",
+                IsActive = true,
+                IsVerified = false,
+                AvailabilityStatus = DoctorAvailabilityStatus.Offline
+            });
+        }
+        else if (role == UserRole.Admin)
+        {
+            using var db = ai_clinic.Data.DbClient.Instance.GetDb();
+            db.AdminProfiles.Add(new AdminProfile
+            {
+                UserId = user.Id,
+                FullName = fullName ?? email,
+                ManageUsers = true,
+                ManageDoctors = true,
+                ManageTickets = true
+            });
+            await db.SaveChangesAsync();
+        }
+
+        await _activityLogService.LogActivityAsync(
+            adminId,
+            "CreateUser",
+            $"Created {role} account: {email}");
+
+        return user;
+    }
+
+    /// <summary>
+    /// Update account fields and the role-specific display name.
+    /// </summary>
+    public async Task<User> UpdateUserAccountAsync(
+        Guid adminId,
+        Guid userId,
+        string email,
+        string? fullName,
+        bool isActive)
+    {
+        var user = await _userService.GetByIdAsync(userId)
+            ?? throw new InvalidOperationException("User not found.");
+
+        user.Email = email;
+        user.IsActive = isActive;
+        if (isActive)
+        {
+            user.IsDeactivated = false;
+            user.DeactivatedAt = null;
+        }
+
+        if (user.PatientProfile != null)
+        {
+            user.PatientProfile.FullName = fullName;
+            await _patientProfileService.UpdateAsync(user.PatientProfile);
+        }
+        else if (user.DoctorProfile != null)
+        {
+            user.DoctorProfile.FullName = fullName ?? string.Empty;
+            await _doctorProfileService.UpdateAsync(user.DoctorProfile);
+        }
+
+        await _userService.UpdateAsync(user);
+
+        await _activityLogService.LogActivityAsync(
+            adminId,
+            "UpdateUser",
+            $"Updated user: {userId}");
+
+        return user;
+    }
+
+    /// <summary>
     /// Get doctors for verification
     /// Simplified interface for UI layer
     /// </summary>
     public async Task<List<DoctorProfile>> GetDoctorsForVerificationAsync()
     {
         return await _doctorProfileService.GetAllAsync();
+    }
+
+    /// <summary>
+    /// Update doctor profile and availability from the admin panel.
+    /// </summary>
+    public async Task UpdateDoctorProfileAsync(
+        Guid adminId,
+        Guid doctorUserId,
+        string fullName,
+        string licenseNumber,
+        string primarySpecialization,
+        int? yearsOfExperience,
+        DoctorAvailabilityStatus availabilityStatus,
+        bool isAcceptingPatients,
+        bool isActive)
+    {
+        var doctor = await _doctorProfileService.GetByUserIdAsync(doctorUserId)
+            ?? throw new InvalidOperationException("Doctor profile not found.");
+
+        doctor.FullName = fullName;
+        doctor.LicenseNumber = licenseNumber;
+        doctor.PrimarySpecialization = primarySpecialization;
+        doctor.YearsOfExperience = yearsOfExperience;
+        doctor.AvailabilityStatus = availabilityStatus;
+        doctor.IsAcceptingPatients = isAcceptingPatients;
+        doctor.IsActive = isActive;
+
+        await _doctorProfileService.UpdateAsync(doctor);
+
+        await _activityLogService.LogActivityAsync(
+            adminId,
+            "UpdateDoctorProfile",
+            $"Doctor ID: {doctorUserId}");
     }
 
     /// <summary>
@@ -213,7 +356,11 @@ public class AdminFacade
     /// </summary>
     public async Task UnsuspendUserAsync(Guid userId, Guid adminId)
     {
-        await _userService.ActivateAsync(userId);
+        var lifted = await _suspensionService.LiftSuspensionAsync(userId, adminId);
+        if (!lifted)
+        {
+            await _userService.ActivateAsync(userId);
+        }
 
         await _activityLogService.LogActivityAsync(
             adminId,
@@ -244,6 +391,7 @@ public class AdminFacade
         var userCounts = await _statisticsService.GetUserCountByRoleAsync();
         var conversationStats = await _statisticsService.GetConversationStatsAsync();
         var allDoctors = await _doctorProfileService.GetAllAsync();
+        var allTickets = await _supportTicketService.GetAllAsync();
 
         return new AdminDashboardStats
         {
@@ -254,8 +402,8 @@ public class AdminFacade
             PendingVerifications = allDoctors.Count(d => !d.IsVerified),
             ActiveConversations = conversationStats.ActiveConversations,
             TotalConversations = conversationStats.TotalConversations,
-            OpenSupportTickets = 0, // TODO: Get from support ticket service
-            TotalSupportTickets = 0, // TODO: Get from support ticket service
+            OpenSupportTickets = allTickets.Count(t => t.Status == "open" || t.Status == "in_progress"),
+            TotalSupportTickets = allTickets.Count,
             RecentRegistrations = 0 // TODO: Calculate recent registrations
         };
     }
@@ -316,7 +464,10 @@ public class AdminFacade
     {
         if (suspend)
         {
-            await SuspendUserAsync(userId, adminId, reason);
+            if (!await _suspensionService.IsUserSuspendedAsync(userId))
+            {
+                await _suspensionService.SuspendUserAsync(userId, adminId, reason, DateTime.UtcNow.AddDays(7));
+            }
         }
         else
         {

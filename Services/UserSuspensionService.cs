@@ -55,6 +55,7 @@ public class UserSuspensionService
         var user = await db.Users.FindAsync(userId);
         if (user != null)
         {
+            user.IsActive = false;
             user.IsDeactivated = true;
             user.DeactivatedAt = DateTime.UtcNow;
             user.UpdatedAt = DateTime.UtcNow;
@@ -98,6 +99,7 @@ public class UserSuspensionService
         var user = await db.Users.FindAsync(userId);
         if (user != null)
         {
+            user.IsActive = true;
             user.IsDeactivated = false;
             user.DeactivatedAt = null;
             user.UpdatedAt = DateTime.UtcNow;

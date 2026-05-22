@@ -99,7 +99,7 @@ public class AdminService
         using var db = DbClient.Instance.GetDb();
         return await db.DoctorProfiles
             .Include(d => d.User)
-            .Where(d => !d.IsVerified && d.IsActive)
+            .Where(d => !d.IsVerified)
             .OrderBy(d => d.CreatedAt)
             .ToListAsync();
     }
@@ -119,6 +119,7 @@ public class AdminService
         }
 
         doctor.IsVerified = isVerified;
+        doctor.IsActive = isVerified;
         doctor.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
 
@@ -285,11 +286,11 @@ public class AdminService
         var totalUsers = await db.Users.CountAsync(u => u.IsActive);
         var totalDoctors = await db.DoctorProfiles.CountAsync(d => d.IsActive);
         var verifiedDoctors = await db.DoctorProfiles.CountAsync(d => d.IsVerified && d.IsActive);
-        var pendingVerifications = await db.DoctorProfiles.CountAsync(d => !d.IsVerified && d.IsActive);
+        var pendingVerifications = await db.DoctorProfiles.CountAsync(d => !d.IsVerified);
         var totalPatients = await db.PatientProfiles.CountAsync();
         var activeConversations = await db.Conversations.CountAsync(c => c.Status == ConversationStatus.Active);
         var totalConversations = await db.Conversations.CountAsync();
-        var openTickets = await db.SupportTickets.CountAsync(t => t.Status == "Open" || t.Status == "In Progress");
+        var openTickets = await db.SupportTickets.CountAsync(t => t.Status == "open" || t.Status == "in_progress");
         var totalTickets = await db.SupportTickets.CountAsync();
 
         // Get recent registrations (last 7 days)

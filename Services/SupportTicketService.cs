@@ -63,6 +63,14 @@ public class SupportTicketService
         {
             ticket.Status = status;
             ticket.UpdatedAt = DateTime.UtcNow;
+            if (status == "resolved")
+            {
+                ticket.ResolvedAt = DateTime.UtcNow;
+            }
+            else if (status == "closed")
+            {
+                ticket.ClosedAt = DateTime.UtcNow;
+            }
             await db.SaveChangesAsync();
         }
     }
@@ -72,7 +80,7 @@ public class SupportTicketService
         using var db = DbClient.Instance.GetDb();
         return await db.SupportTickets
             .Include(st => st.User)
-            .Where(st => st.Status == "Open" || st.Status == "In Progress")
+            .Where(st => st.Status == "open" || st.Status == "in_progress")
             .OrderByDescending(st => st.CreatedAt)
             .ToListAsync();
     }

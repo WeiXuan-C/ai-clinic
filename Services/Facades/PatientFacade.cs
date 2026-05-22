@@ -150,12 +150,15 @@ public class PatientFacade
     /// </summary>
     public async Task SavePatientProfileAsync(PatientProfile profile)
     {
-        if (profile.Id == Guid.Empty)
+        var existingProfile = await _patientProfileService.GetByUserIdAsync(profile.UserId);
+
+        if (existingProfile == null)
         {
             await _patientProfileService.CreateAsync(profile);
         }
         else
         {
+            profile.Id = existingProfile.Id;
             await _patientProfileService.UpdateAsync(profile);
         }
 

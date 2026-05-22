@@ -1,5 +1,11 @@
 @page "/patient/support"
 @layout Components.Layout.SidebarLayout
+@using ai_clinic.Models
+@using ai_clinic.Services
+@using ai_clinic.Services.Facades
+@inject AuthFacade AuthFacade
+@inject SupportTicketService SupportTicketService
+@inject NavigationManager Navigation
 
 <PageTitle>Support - AI Medical Clinic</PageTitle>
 
@@ -17,7 +23,7 @@
     <div class="header-right">
         <button class="btn btn-primary">
             <i data-lucide="ticket"></i>
-            My Tickets (3)
+            My Tickets (@tickets.Count)
         </button>
     </div>
 </header>
@@ -132,18 +138,35 @@
         </div>
         
         <!-- Create Ticket Form -->
-        <form class="contact-form">
+        @if (!string.IsNullOrEmpty(successMessage))
+        {
+            <div class="alert alert-success">
+                <i data-lucide="check-circle"></i>
+                <span>@successMessage</span>
+            </div>
+        }
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-error">
+                <i data-lucide="alert-circle"></i>
+                <span>@errorMessage</span>
+            </div>
+        }
+
+        <EditForm Model="newTicket" OnValidSubmit="CreateTicket" class="contact-form">
+            <DataAnnotationsValidator />
             <div class="form-group">
                 <label class="body-sm">Subject *</label>
                 <input type="text" 
                        class="form-input" 
                        placeholder="Brief description of your issue"
+                       @bind="newTicket.Subject"
                        required />
             </div>
 
             <div class="form-group">
                 <label class="body-sm">Category</label>
-                <select class="form-input">
+                <select class="form-input" @bind="newTicket.Category">
                     <option value="">Select a category...</option>
                     <option value="technical">Technical Support</option>
                     <option value="billing">Billing Question</option>
@@ -158,19 +181,19 @@
                 <label class="body-sm">Priority *</label>
                 <div class="priority-options">
                     <label class="radio-option">
-                        <input type="radio" name="priority" value="low" checked />
+                        <input type="radio" name="priority" value="low" checked="@(newTicket.Priority == "low")" @onchange="@(() => newTicket.Priority = "low")" />
                         <span>Low</span>
                     </label>
                     <label class="radio-option">
-                        <input type="radio" name="priority" value="medium" />
+                        <input type="radio" name="priority" value="medium" checked="@(newTicket.Priority == "medium")" @onchange="@(() => newTicket.Priority = "medium")" />
                         <span>Medium</span>
                     </label>
                     <label class="radio-option">
-                        <input type="radio" name="priority" value="high" />
+                        <input type="radio" name="priority" value="high" checked="@(newTicket.Priority == "high")" @onchange="@(() => newTicket.Priority = "high")" />
                         <span>High</span>
                     </label>
                     <label class="radio-option">
-                        <input type="radio" name="priority" value="urgent" />
+                        <input type="radio" name="priority" value="urgent" checked="@(newTicket.Priority == "urgent")" @onchange="@(() => newTicket.Priority = "urgent")" />
                         <span>Urgent</span>
                     </label>
                 </div>
@@ -181,14 +204,78 @@
                 <textarea class="form-input" 
                           rows="6" 
                           placeholder="Describe your issue or question in detail..."
+                          @bind="newTicket.Description"
                           required></textarea>
             </div>
 
-            <button type="submit" class="btn btn-primary">
+            <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
                 <i data-lucide="send"></i>
-                <span>Create Ticket</span>
+                <span>@(isSubmitting ? "Creating..." : "Create Ticket")</span>
             </button>
-        </form>
+        </EditForm>
+    </section>
+
+    <section class="resources-section">
+        <h2 class="headline-md">My Support Tickets</h2>
+        @if (isLoadingTickets)
+        {
+            <div class="loading-state">
+                <div class="spinner"></div>
+                <p class="body-md">Loading tickets...</p>
+            </div>
+        }
+        else if (!tickets.Any())
+        {
+            <div class="empty-state">
+                <i data-lucide="ticket"></i>
+                <h3>No tickets yet</h3>
+                <p>Your submitted support requests will appear here.</p>
+            </div>
+        }
+        else
+        {
+            <div class="ticket-list">
+                @foreach (var ticket in tickets)
+                {
+                    <div class="ticket-card status-@ticket.Status.Replace("_", "-")">
+                        <div class="ticket-header">
+                            <div class="ticket-info">
+                                <h4>@ticket.Subject</h4>
+                                <span class="ticket-id">@ticket.Id.ToString()[..8]</span>
+                            </div>
+                            <div class="ticket-badges">
+                                <span class="badge badge-@ticket.Priority">@ticket.Priority</span>
+                                <span class="badge badge-@ticket.Status">@ticket.Status.Replace("_", " ")</span>
+                            </div>
+                        </div>
+                        <p class="ticket-description">@ticket.Description</p>
+                        @if (ticket.Responses.Any(r => !r.IsInternalNote))
+                        {
+                            <div class="ticket-responses">
+                                <h4>Support Feedback</h4>
+                                @foreach (var response in ticket.Responses.Where(r => !r.IsInternalNote).OrderBy(r => r.CreatedAt))
+                                {
+                                    <div class="response-item">
+                                        <div class="response-header">
+                                            <strong>Support Team</strong>
+                                            <span class="response-time">@response.CreatedAt.ToString("MMM dd, HH:mm")</span>
+                                        </div>
+                                        <p>@response.Message</p>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        <div class="ticket-footer">
+                            <span class="ticket-date">
+                                <i data-lucide="calendar"></i>
+                                @ticket.CreatedAt.ToString("MMM dd, yyyy")
+                            </span>
+                            <span class="body-sm">@ticket.Category</span>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
     </section>
 
     <!-- Support Resources -->
@@ -260,6 +347,80 @@
         </div>
     </section>
 </div>
+
+@code {
+    private List<SupportTicket> tickets = new();
+    private SupportTicket newTicket = new() { Priority = "medium" };
+    private bool isSubmitting;
+    private bool isLoadingTickets = true;
+    private string? errorMessage;
+    private string? successMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthFacade.IsAuthenticated || AuthFacade.CurrentUser?.Role != UserRole.Patient)
+        {
+            Navigation.NavigateTo("/auth/signin");
+            return;
+        }
+
+        await LoadTickets();
+        ResetForm();
+    }
+
+    private async Task LoadTickets()
+    {
+        isLoadingTickets = true;
+        try
+        {
+            tickets = await SupportTicketService.GetByUserIdAsync(AuthFacade.CurrentUser!.Id);
+        }
+        finally
+        {
+            isLoadingTickets = false;
+        }
+    }
+
+    private async Task CreateTicket()
+    {
+        errorMessage = null;
+        successMessage = null;
+
+        if (string.IsNullOrWhiteSpace(newTicket.Subject) || string.IsNullOrWhiteSpace(newTicket.Description))
+        {
+            errorMessage = "Subject and description are required.";
+            return;
+        }
+
+        isSubmitting = true;
+        try
+        {
+            newTicket.UserId = AuthFacade.CurrentUser!.Id;
+            newTicket.Status = "open";
+            await SupportTicketService.CreateAsync(newTicket);
+            successMessage = "Support ticket created successfully.";
+            ResetForm();
+            await LoadTickets();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to create ticket: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private void ResetForm()
+    {
+        newTicket = new SupportTicket
+        {
+            Priority = "medium",
+            Category = "technical"
+        };
+    }
+}
 
 <style>
     .content-header {

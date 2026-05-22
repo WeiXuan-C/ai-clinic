@@ -28,6 +28,22 @@ public partial class Consultation : ComponentBase, IAsyncDisposable
     private string? doctorPhotoUrl = null;
     private string? patientPhotoUrl = null;
     private Guid currentDoctorId;
+    private Guid? lastConsultationNoteId;
+    private string noteSymptoms = "";
+    private string notePhysicalExam = "";
+    private string noteDiagnosis = "";
+    private string noteTreatmentPlan = "";
+    private string noteFollowUp = "";
+    private bool finalizeNote = false;
+    private bool isSavingNote = false;
+    private string prescriptionMedication = "";
+    private string prescriptionDosage = "";
+    private string prescriptionFrequency = "";
+    private string prescriptionDuration = "";
+    private string prescriptionInstructions = "";
+    private bool isSavingPrescription = false;
+    private string? workflowMessage;
+    private string? workflowError;
     private bool _signalRInitialized = false;
     private Dictionary<Guid, List<Document>> messageDocuments = new();
 
@@ -260,6 +276,7 @@ public partial class Consultation : ComponentBase, IAsyncDisposable
             messages = [];
             isTyping = false;
             patientPhotoUrl = null;
+            ClearClinicalForms();
 
             await InvokeAsync(StateHasChanged);
             await Task.Delay(50);
@@ -362,6 +379,121 @@ public partial class Consultation : ComponentBase, IAsyncDisposable
         {
             Console.WriteLine($"Error sending message: {ex.Message}");
         }
+    }
+
+    private async Task SaveConsultationNote()
+    {
+        workflowMessage = null;
+        workflowError = null;
+
+        if (currentConversation == null)
+            return;
+
+        if (string.IsNullOrWhiteSpace(noteDiagnosis))
+        {
+            workflowError = "Diagnosis is required before saving consultation notes.";
+            return;
+        }
+
+        isSavingNote = true;
+
+        try
+        {
+            var note = await DoctorFacade.SaveConsultationNoteAsync(
+                currentConversation.Id,
+                currentDoctorId,
+                currentConversation.PatientId,
+                noteDiagnosis,
+                noteSymptoms,
+                notePhysicalExam,
+                noteTreatmentPlan,
+                noteFollowUp,
+                finalizeNote);
+
+            lastConsultationNoteId = note.Id;
+            workflowMessage = finalizeNote
+                ? "Consultation note saved and consultation closed."
+                : "Consultation note saved.";
+
+            if (finalizeNote)
+            {
+                await LoadConversations();
+            }
+        }
+        catch (Exception ex)
+        {
+            workflowError = $"Failed to save consultation note: {ex.Message}";
+        }
+        finally
+        {
+            isSavingNote = false;
+        }
+    }
+
+    private async Task CreatePrescription()
+    {
+        workflowMessage = null;
+        workflowError = null;
+
+        if (currentConversation == null)
+            return;
+
+        if (string.IsNullOrWhiteSpace(prescriptionMedication) ||
+            string.IsNullOrWhiteSpace(prescriptionDosage) ||
+            string.IsNullOrWhiteSpace(prescriptionFrequency))
+        {
+            workflowError = "Medication, dosage, and frequency are required to create a prescription.";
+            return;
+        }
+
+        isSavingPrescription = true;
+
+        try
+        {
+            await DoctorFacade.CreatePrescriptionAsync(
+                currentConversation.Id,
+                currentDoctorId,
+                currentConversation.PatientId,
+                lastConsultationNoteId,
+                prescriptionMedication,
+                prescriptionDosage,
+                prescriptionFrequency,
+                prescriptionDuration,
+                prescriptionInstructions);
+
+            workflowMessage = "Prescription created and stored.";
+            prescriptionMedication = "";
+            prescriptionDosage = "";
+            prescriptionFrequency = "";
+            prescriptionDuration = "";
+            prescriptionInstructions = "";
+        }
+        catch (Exception ex)
+        {
+            workflowError = $"Failed to create prescription: {ex.Message}";
+        }
+        finally
+        {
+            isSavingPrescription = false;
+        }
+    }
+
+    private void ClearClinicalForms()
+    {
+        lastConsultationNoteId = null;
+        noteSymptoms = "";
+        notePhysicalExam = "";
+        noteDiagnosis = "";
+        noteTreatmentPlan = "";
+        noteFollowUp = "";
+        finalizeNote = false;
+        prescriptionMedication = "";
+        prescriptionDosage = "";
+        prescriptionFrequency = "";
+        prescriptionDuration = "";
+        prescriptionInstructions = "";
+        workflowMessage = null;
+        workflowError = null;
     }
 
     private async Task HandleKeyPress(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)

@@ -203,12 +203,15 @@ public class DoctorFacade
     /// </summary>
     public async Task SaveDoctorProfileAsync(DoctorProfile profile)
     {
-        if (profile.Id == Guid.Empty)
+        var existingProfile = await _doctorProfileService.GetByUserIdAsync(profile.UserId);
+
+        if (existingProfile == null)
         {
             await _doctorProfileService.CreateAsync(profile);
         }
         else
         {
+            profile.Id = existingProfile.Id;
             await _doctorProfileService.UpdateAsync(profile);
         }
 
@@ -435,6 +438,113 @@ public class DoctorFacade
             $"Conversation ID: {conversationId}");
 
         return message;
+    }
+
+    /// <summary>
+    /// Record consultation details without closing the conversation.
+    /// </summary>
+    public async Task<ConsultationNote> SaveConsultationNoteAsync(
+        Guid conversationId,
+        Guid doctorId,
+        Guid patientId,
+        string diagnosis,
+        string? symptoms,
+        string? physicalExamination,
+        string? treatmentPlan,
+        string? followUpInstructions,
+        bool finalize)
+    {
+        var note = new ConsultationNote
+        {
+            ConversationId = conversationId,
+            DoctorId = doctorId,
+            PatientId = patientId,
+            Symptoms = symptoms,
+            PhysicalExamination = physicalExamination,
+            Diagnosis = diagnosis,
+            TreatmentPlan = treatmentPlan,
+            FollowUpInstructions = followUpInstructions,
+            IsFinalized = finalize,
+            FinalizedAt = finalize ? DateTime.UtcNow : null
+        };
+
+        note = await _consultationService.CreateAsync(note);
+
+        var medicalRecord = new MedicalRecord
+        {
+            PatientId = patientId,
+            ConversationId = conversationId,
+            CreatedByDoctorId = doctorId,
+            RecordType = "Consultation Note",
+            Title = $"Consultation Note - {DateTime.UtcNow:yyyy-MM-dd}",
+            Content = $"Diagnosis: {diagnosis}\nSymptoms: {symptoms}\nPhysical Examination: {physicalExamination}\nTreatment Plan: {treatmentPlan}\nFollow-up: {followUpInstructions}",
+            DiagnosisDescription = diagnosis,
+            RecordDate = DateTime.UtcNow
+        };
+
+        await _medicalRecordService.CreateAsync(medicalRecord);
+
+        if (finalize)
+        {
+            await _conversationService.UpdateStatusAsync(conversationId, ConversationStatus.Closed);
+        }
+
+        await _activityLogService.LogActivityAsync(
+            doctorId,
+            "SaveConsultationNote",
+            $"Conversation ID: {conversationId}");
+
+        return note;
+    }
+
+    /// <summary>
+    /// Generate and store a prescription for a patient.
+    /// </summary>
+    public async Task<Prescription> CreatePrescriptionAsync(
+        Guid conversationId,
+        Guid doctorId,
+        Guid patientId,
+        Guid? consultationNoteId,
+        string medicationName,
+        string dosage,
+        string frequency,
+        string? duration,
+        string? instructions)
+    {
+        var prescription = new Prescription
+        {
+            ConsultationNoteId = consultationNoteId,
+            PatientId = patientId,
+            DoctorId = doctorId,
+            MedicationName = medicationName,
+            Dosage = dosage,
+            Frequency = frequency,
+            Duration = duration,
+            Instructions = instructions
+        };
+
+        prescription = await _prescriptionService.CreateAsync(prescription);
+
+        var medicalRecord = new MedicalRecord
+        {
+            PatientId = patientId,
+            ConversationId = conversationId,
+            CreatedByDoctorId = doctorId,
+            RecordType = "Prescription",
+            Title = $"Prescription - {medicationName}",
+            Content = $"Medication: {medicationName}\nDosage: {dosage}\nFrequency: {frequency}\nDuration: {duration}\nInstructions: {instructions}",
+            Medications = medicationName,
+            RecordDate = DateTime.UtcNow
+        };
+
+        await _medicalRecordService.CreateAsync(medicalRecord);
+
+        await _activityLogService.LogActivityAsync(
+            doctorId,
+            "CreatePrescription",
+            $"Conversation ID: {conversationId}, Medication: {medicationName}");
+
+        return prescription;
     }
 
     /// <summary>

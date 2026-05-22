@@ -136,7 +136,11 @@ public class UserService
     public async Task<List<User>> GetAllUsersAsync()
     {
         using var db = DbClient.Instance.GetDb();
-        return await db.Users.ToListAsync();
+        return await db.Users
+            .Include(u => u.PatientProfile)
+            .Include(u => u.DoctorProfile)
+            .Include(u => u.AdminProfile)
+            .ToListAsync();
     }
 
     /// <summary>
