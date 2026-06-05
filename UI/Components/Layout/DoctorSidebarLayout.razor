@@ -15,8 +15,9 @@
     private string? userInitials = null;
     private string? userPhotoUrl = null;
     private string currentPath = "";
+    private bool isSidebarCollapsed = false;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         // Subscribe to auth state changes
         AuthFacade.OnAuthStateChanged += UpdateUserInfo;
@@ -27,6 +28,31 @@
         // Subscribe to navigation changes
         Navigation.LocationChanged += OnLocationChanged;
         currentPath = Navigation.Uri;
+
+        // Check screen size on initialization
+        await CheckScreenSize();
+    }
+
+    private async Task CheckScreenSize()
+    {
+        try
+        {
+            // Check if screen is mobile size (less than 768px)
+            var isMobile = await JSRuntime.InvokeAsync<bool>("eval", "window.innerWidth < 768");
+            // On mobile: sidebar is closed by default (isSidebarCollapsed = false means closed)
+            // On desktop: sidebar is always open (isSidebarCollapsed = false means open)
+            isSidebarCollapsed = false; // Always start closed/normal
+        }
+        catch
+        {
+            isSidebarCollapsed = false; // Default to closed
+        }
+    }
+
+    private void ToggleSidebar()
+    {
+        isSidebarCollapsed = !isSidebarCollapsed;
+        StateHasChanged();
     }
 
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
@@ -109,8 +135,19 @@
 <AuthGuard RequiredRole="Doctor">
 
 <div class="dashboard-layout">
+    <!-- Overlay for mobile -->
+    @if (isSidebarCollapsed)
+    {
+        <div class="sidebar-overlay" @onclick="ToggleSidebar"></div>
+    }
+
+    <!-- Toggle Button (visible on all screens) -->
+    <button class="sidebar-toggle-btn-main @(isSidebarCollapsed ? "sidebar-open" : "")" @onclick="ToggleSidebar" type="button">
+        <i data-lucide="menu" class="toggle-icon"></i>
+    </button>
+
     <!-- Left Sidebar -->
-    <aside class="sidebar doctor-sidebar">
+    <aside class="sidebar doctor-sidebar @(isSidebarCollapsed ? "open" : "")">
         <div class="sidebar-header">
             <a href="/doctor/profile" class="profile-section-link">
                 <div class="profile-section">
@@ -195,9 +232,10 @@
         display: flex;
         background: #f7f9fb;
         font-family: 'Inter', sans-serif;
+        position: relative;
     }
 
-    /* Doctor Sidebar - Different color scheme */
+    /* Doctor Sidebar - Desktop */
     .sidebar.doctor-sidebar {
         width: 280px;
         min-height: 100vh;
@@ -209,6 +247,48 @@
         position: fixed;
         left: 0;
         top: 0;
+        transition: transform 0.3s ease;
+        z-index: 1000;
+    }
+
+    /* Main toggle button */
+    .sidebar-toggle-btn-main {
+        display: none; /* Hidden on desktop */
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        background: white;
+        border: none;
+        cursor: pointer;
+        z-index: 1001;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+    }
+
+    .sidebar-toggle-btn-main:hover {
+        background: #f3f4f6;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+        transform: scale(1.05);
+    }
+
+    .sidebar-toggle-btn-main:active {
+        transform: scale(0.95);
+    }
+
+    .sidebar-toggle-btn-main .toggle-icon {
+        width: 24px;
+        height: 24px;
+        color: #1e3a8a;
+    }
+
+    /* Overlay for mobile */
+    .sidebar-overlay {
+        display: none;
     }
 
     .sidebar-header {
@@ -386,22 +466,95 @@
         margin-left: 280px;
         padding: 2.5rem 3rem;
         overflow-y: auto;
+        transition: margin-left 0.3s ease;
     }
 
-    /* Responsive */
+    /* Responsive - Tablet and Mobile */
     @@media (max-width: 768px) {
-        .dashboard-layout {
-            flex-direction: column;
+        /* Show toggle button on mobile */
+        .sidebar-toggle-btn-main {
+            display: flex;
         }
 
+        .sidebar-toggle-btn-main.sidebar-open {
+            left: calc(85vw - 308px); /* Position near the right edge of sidebar */
+        }
+
+        /* Sidebar hidden by default on mobile */
         .sidebar.doctor-sidebar {
-            width: 100%;
-            position: relative;
+            width: 85vw; /* Only 85% of screen width */
+            max-width: 320px; /* Max 320px on larger phones */
+            transform: translateX(-100%);
+        }
+
+        /* Sidebar visible when open */
+        .sidebar.doctor-sidebar.open {
+            transform: translateX(0);
+            box-shadow: 4px 0 12px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Overlay when sidebar is open */
+        .sidebar-overlay {
+            display: block;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @@keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        /* Main content takes full width on mobile */
+        .main-content {
+            margin-left: 0;
+            padding: 5rem 1.5rem 1.5rem; /* Extra top padding for toggle button */
+        }
+
+        /* Adjust sidebar header for mobile */
+        .sidebar-header {
+            padding: 24px 20px 20px;
+        }
+
+        .profile-section {
+            flex-direction: column;
+            text-align: center;
+        }
+
+        .profile-info {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+    }
+
+    /* Small mobile adjustments */
+    @@media (max-width: 480px) {
+        .sidebar.doctor-sidebar {
+            width: 90vw; /* 90% on very small screens */
+            max-width: 300px;
+        }
+
+        .sidebar-toggle-btn-main.sidebar-open {
+            left: calc(90vw - 68px); /* Adjust for smaller screens */
         }
 
         .main-content {
-            margin-left: 0;
-            padding: 1.5rem;
+            padding: 5rem 1rem 1rem;
+        }
+
+        .sidebar-header {
+            padding: 20px 16px 16px;
         }
     }
 </style>
