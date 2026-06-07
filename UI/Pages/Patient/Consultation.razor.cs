@@ -21,6 +21,8 @@ public partial class Consultation : ComponentBase, IAsyncDisposable
     [Inject] private DocumentService DocumentService { get; set; } = null!;
     [Inject] private NavigationManager NavigationManager { get; set; } = null!;
     [Inject] private SignalRConsultationService SignalRService { get; set; } = null!;
+    [Inject] private PrescriptionService PrescriptionService { get; set; } = null!;
+    [Inject] private ConsultationService ConsultationService { get; set; } = null!;
 
     private List<ConversationListItem> conversationList = [];
     private List<Message> messages = [];
@@ -42,13 +44,30 @@ public partial class Consultation : ComponentBase, IAsyncDisposable
     private bool isLoadingRecommendations = false;
     private bool showAllRecommendedDoctorsModal = false;
     private Guid? selectedRecommendedDoctorId = null;
+    private bool isSaving = false;
+    private string? errorMessage;
+    private string? successMessage;
+
+#pragma warning disable CS0414
     private bool _iconsInitialized = false;
+#pragma warning restore CS0414
     private string? patientPhotoUrl = null;
     private List<AttachmentFile> attachments = new();
     private bool isUploadingFile = false;
     private Dictionary<Guid, List<Document>> messageDocuments = new();
     private Guid currentPatientId;
     private bool _signalRInitialized = false;
+    
+    // Medical Records state for patient view
+    private List<Prescription> relatedPrescriptions = [];
+    private List<ConsultationNote> relatedConsultationNotes = [];
+    private bool isLoadingRecords = false;
+    
+    // Preview state (read-only for patients)
+    private bool showNotePreviewModal = false;
+    private bool showPrescriptionPreviewModal = false;
+    private ConsultationNote? selectedNote = null;
+    private Prescription? selectedPrescription = null;
     
     private string DoctorSearchQuery
     {
@@ -354,6 +373,9 @@ public partial class Consultation : ComponentBase, IAsyncDisposable
             
             // Load attachments for all messages
             await LoadMessageAttachments();
+            
+            // Load related medical records
+            await LoadRelatedMedicalRecords();
             
             await InvokeAsync(StateHasChanged);
             
@@ -1061,6 +1083,131 @@ public partial class Consultation : ComponentBase, IAsyncDisposable
             len = len / 1024;
         }
         return $"{len:0.##} {sizes[order]}";
+    }
+
+    /// <summary>
+    /// Load related medical records for the current patient
+    /// Shows consultation notes and prescriptions (read-only for patients)
+    /// </summary>
+    private async Task LoadRelatedMedicalRecords()
+    {
+        if (currentConversation == null)
+            return;
+
+        isLoadingRecords = true;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            var patientId = currentConversation.PatientId;
+
+            // Load medical data for this patient in parallel
+            var consultationNotesTask = ConsultationService.GetByPatientIdAsync(patientId);
+            var prescriptionsTask = PrescriptionService.GetByPatientIdAsync(patientId);
+
+            await Task.WhenAll(consultationNotesTask, prescriptionsTask);
+
+            // Get results
+            var allConsultationNotes = await consultationNotesTask;
+            var allPrescriptions = await prescriptionsTask;
+
+            // Show only records related to this conversation
+            relatedConsultationNotes = allConsultationNotes
+                .Where(n => n.ConversationId == currentConversation.Id)
+                .OrderByDescending(n => n.CreatedAt)
+                .ToList();
+
+            relatedPrescriptions = allPrescriptions
+                .Where(p => p.ConsultationNoteId != null && 
+                           relatedConsultationNotes.Any(n => n.Id == p.ConsultationNoteId))
+                .OrderByDescending(p => p.CreatedAt)
+                .ToList();
+
+            Console.WriteLine($"[Medical Records] Loaded {relatedConsultationNotes.Count} notes, {relatedPrescriptions.Count} prescriptions");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Error] Failed to load medical records: {ex.Message}");
+        }
+        finally
+        {
+            isLoadingRecords = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    /// <summary>
+    /// Truncate text for display in cards
+    /// </summary>
+    private string TruncateText(string? text, int maxLength)
+    {
+        if (string.IsNullOrEmpty(text))
+            return "";
+
+        if (text.Length <= maxLength)
+            return text;
+
+        return text.Substring(0, maxLength) + "...";
+    }
+
+    /// <summary>
+    /// Preview consultation note (read-only for patients)
+    /// </summary>
+    private async Task PreviewConsultationNote(ConsultationNote note)
+    {
+        selectedNote = note;
+        showNotePreviewModal = true;
+        await InvokeAsync(StateHasChanged);
+        
+        // Re-initialize Lucide icons for modal
+        await Task.Delay(100);
+        try
+        {
+            await JS.InvokeVoidAsync("initializeLucide");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DEBUG] Lucide initialization warning: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Close consultation note preview
+    /// </summary>
+    private void CloseNotePreview()
+    {
+        showNotePreviewModal = false;
+        selectedNote = null;
+    }
+
+    /// <summary>
+    /// Preview prescription (read-only for patients)
+    /// </summary>
+    private async Task PreviewPrescription(Prescription prescription)
+    {
+        selectedPrescription = prescription;
+        showPrescriptionPreviewModal = true;
+        await InvokeAsync(StateHasChanged);
+        
+        // Re-initialize Lucide icons for modal
+        await Task.Delay(100);
+        try
+        {
+            await JS.InvokeVoidAsync("initializeLucide");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DEBUG] Lucide initialization warning: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Close prescription preview
+    /// </summary>
+    private void ClosePrescriptionPreview()
+    {
+        showPrescriptionPreviewModal = false;
+        selectedPrescription = null;
     }
 
     /// <summary>

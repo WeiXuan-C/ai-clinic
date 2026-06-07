@@ -129,8 +129,29 @@
         // Download file function for medical records
         window.downloadFile = function(filename, content) {
             try {
-                // Create blob from content
-                const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+                let blob;
+                
+                // Determine content type based on file extension
+                const extension = filename.split('.').pop().toLowerCase();
+                
+                if (extension === 'pdf') {
+                    // For PDF, content is base64 encoded
+                    const binaryString = window.atob(content);
+                    const bytes = new Uint8Array(binaryString.length);
+                    for (let i = 0; i < binaryString.length; i++) {
+                        bytes[i] = binaryString.charCodeAt(i);
+                    }
+                    blob = new Blob([bytes], { type: 'application/pdf' });
+                } else if (extension === 'csv') {
+                    // For CSV
+                    blob = new Blob([content], { type: 'text/csv;charset=utf-8' });
+                } else if (extension === 'json') {
+                    // For JSON
+                    blob = new Blob([content], { type: 'application/json;charset=utf-8' });
+                } else {
+                    // Default to plain text
+                    blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+                }
                 
                 // Create download link
                 const link = document.createElement('a');
@@ -146,6 +167,36 @@
                 window.URL.revokeObjectURL(link.href);
             } catch (e) {
                 console.error('Download failed:', e);
+                alert('Failed to download file. Please try again.');
+            }
+        };
+
+        // Download file from byte array (for PDF export from C#)
+        window.downloadFileFromBytes = function(fileName, contentType, byteArray) {
+            try {
+                // Convert byte array to Uint8Array
+                const bytes = new Uint8Array(byteArray);
+                
+                // Create blob with specified content type
+                const blob = new Blob([bytes], { type: contentType });
+                
+                // Create object URL
+                const url = URL.createObjectURL(blob);
+                
+                // Create temporary download link
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = fileName;
+                
+                // Trigger download
+                document.body.appendChild(link);
+                link.click();
+                
+                // Cleanup
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            } catch (e) {
+                console.error('Download from bytes failed:', e);
                 alert('Failed to download file. Please try again.');
             }
         };

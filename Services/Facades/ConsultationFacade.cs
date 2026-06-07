@@ -359,18 +359,20 @@ public class ConsultationFacade
 
         // 1. Save patient message first
         Message patientMessage;
-        Conversation conversation;
+        Guid? assignedDoctorId;
         
         using (var db = DbClient.Instance.GetDb())
         {
             var transaction = await db.Database.BeginTransactionAsync();
 
-            conversation = await db.Conversations.FindAsync(conversationId);
+            var conversation = await db.Conversations.FindAsync(conversationId);
             if (conversation == null)
             {
                 await transaction.RollbackAsync();
                 throw new InvalidOperationException("Conversation not found");
             }
+
+            assignedDoctorId = conversation.AssignedDoctorId;
 
             patientMessage = new Message
             {
@@ -400,7 +402,7 @@ public class ConsultationFacade
         };
 
         // 2. Generate AI response if needed
-        if (conversation.AssignedDoctorId == null)
+        if (assignedDoctorId == null)
         {
             _logger.LogInformation("[FACADE] AI conversation detected, generating streaming response...");
 
@@ -626,19 +628,21 @@ public class ConsultationFacade
 
         // 1. Save patient message first
         Message patientMessage;
-        Conversation conversation;
+        Guid? assignedDoctorId;
         string? attachmentContext = null;
         
         using (var db = DbClient.Instance.GetDb())
         {
             var transaction = await db.Database.BeginTransactionAsync();
 
-            conversation = await db.Conversations.FindAsync(conversationId);
+            var conversation = await db.Conversations.FindAsync(conversationId);
             if (conversation == null)
             {
                 await transaction.RollbackAsync();
                 throw new InvalidOperationException("Conversation not found");
             }
+
+            assignedDoctorId = conversation.AssignedDoctorId;
 
             // Store document references in message
             var documentReferences = documentIds.Count > 0 
@@ -724,7 +728,7 @@ public class ConsultationFacade
         };
 
         // 2. Generate AI response if needed
-        if (conversation.AssignedDoctorId == null)
+        if (assignedDoctorId == null)
         {
             _logger.LogInformation("[FACADE] AI conversation detected, generating streaming response with attachments...");
 

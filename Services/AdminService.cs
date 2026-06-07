@@ -47,11 +47,12 @@ public class AdminService
 
         if (!string.IsNullOrWhiteSpace(searchTerm))
         {
+            var search = searchTerm.ToLower();
             query = query.Where(u =>
-                u.Email.Contains(searchTerm) ||
-                (u.PatientProfile != null && u.PatientProfile.FullName.Contains(searchTerm)) ||
-                (u.DoctorProfile != null && u.DoctorProfile.FullName.Contains(searchTerm)) ||
-                (u.AdminProfile != null && u.AdminProfile.FullName.Contains(searchTerm)));
+                u.Email.ToLower().Contains(search) ||
+                (u.PatientProfile != null && u.PatientProfile.FullName.ToLower().Contains(search)) ||
+                (u.DoctorProfile != null && u.DoctorProfile.FullName.ToLower().Contains(search)) ||
+                (u.AdminProfile != null && u.AdminProfile.FullName.ToLower().Contains(search)));
         }
 
         var totalCount = await query.CountAsync();

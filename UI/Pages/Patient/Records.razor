@@ -240,12 +240,12 @@
                         </div>
                         <div class="record-actions">
                             <span class="badge @GetBadgeClass(record.Type)">@record.Type.ToUpperInvariant()</span>
-                            @if (record.RecordCategory == "document")
-                            {
-                                <button class="icon-btn-sm" title="Download" @onclick="@(() => DownloadRecord(record.Id, record.RecordCategory))">
-                                    <i data-lucide="download"></i>
-                                </button>
-                            }
+                            <button class="icon-btn-sm" title="Preview" @onclick="@(() => PreviewRecord(record.Id, record.RecordCategory))">
+                                <i data-lucide="eye"></i>
+                            </button>
+                            <button class="icon-btn-sm" title="Download" @onclick="@(() => DownloadRecord(record.Id, record.RecordCategory))">
+                                <i data-lucide="download"></i>
+                            </button>
                             <button class="icon-btn-sm" title="Delete" @onclick="@(() => DeleteRecord(record.Id, record.RecordCategory))">
                                 <i data-lucide="trash-2"></i>
                             </button>
@@ -1032,5 +1032,175 @@
         .header-right {
             flex-direction: column;
         }
+    }
+</style>
+
+
+<!-- Preview Modal -->
+@if (showPreviewModal && previewRecord != null)
+{
+    <div class="modal-overlay" @onclick="ClosePreviewModal">
+        <div class="modal-content preview-modal-large" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <div>
+                    <h3>@previewRecord.Title</h3>
+                    <p style="font-size: 0.875rem; color: #434654; margin-top: 0.25rem;">
+                        @previewRecord.Type • @FormatDate(previewRecord.Date)
+                    </p>
+                </div>
+                <button class="icon-btn" @onclick="ClosePreviewModal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                @if (previewRecord.RecordCategory == "medical_record" && previewMedicalRecord != null)
+                {
+                    <div class="preview-section">
+                        <h4 class="preview-section-title">Record Type</h4>
+                        <p class="preview-section-content">@previewMedicalRecord.RecordType</p>
+                    </div>
+                    <div class="preview-section">
+                        <h4 class="preview-section-title">Content</h4>
+                        <p class="preview-section-content">@previewMedicalRecord.Content</p>
+                    </div>
+                    @if (!string.IsNullOrEmpty(previewMedicalRecord.DiagnosisDescription))
+                    {
+                        <div class="preview-section">
+                            <h4 class="preview-section-title">Diagnosis</h4>
+                            <p class="preview-section-content">
+                                @if (!string.IsNullOrEmpty(previewMedicalRecord.DiagnosisCode))
+                                {
+                                    <strong>Code:</strong> @previewMedicalRecord.DiagnosisCode <br/>
+                                }
+                                @previewMedicalRecord.DiagnosisDescription
+                            </p>
+                        </div>
+                    }
+                    @if (!string.IsNullOrEmpty(previewMedicalRecord.Medications))
+                    {
+                        <div class="preview-section">
+                            <h4 class="preview-section-title">Medications</h4>
+                            <p class="preview-section-content">@previewMedicalRecord.Medications</p>
+                        </div>
+                    }
+                }
+                else if (previewRecord.RecordCategory == "prescription" && previewPrescription != null)
+                {
+                    <div class="preview-section">
+                        <h4 class="preview-section-title">Medication</h4>
+                        <p class="preview-section-content">@previewPrescription.MedicationName</p>
+                    </div>
+                    <div class="preview-section">
+                        <h4 class="preview-section-title">Dosage</h4>
+                        <p class="preview-section-content">@previewPrescription.Dosage</p>
+                    </div>
+                    <div class="preview-section">
+                        <h4 class="preview-section-title">Frequency</h4>
+                        <p class="preview-section-content">@previewPrescription.Frequency</p>
+                    </div>
+                    @if (!string.IsNullOrEmpty(previewPrescription.Duration))
+                    {
+                        <div class="preview-section">
+                            <h4 class="preview-section-title">Duration</h4>
+                            <p class="preview-section-content">@previewPrescription.Duration</p>
+                        </div>
+                    }
+                    @if (!string.IsNullOrEmpty(previewPrescription.Instructions))
+                    {
+                        <div class="preview-section">
+                            <h4 class="preview-section-title">Instructions</h4>
+                            <p class="preview-section-content">@previewPrescription.Instructions</p>
+                        </div>
+                    }
+                    <div class="preview-section">
+                        <h4 class="preview-section-title">Status</h4>
+                        <p class="preview-section-content">
+                            <span class="badge @(previewPrescription.IsActive ? "badge-visit" : "badge-other")">
+                                @(previewPrescription.IsActive ? "ACTIVE" : "INACTIVE")
+                            </span>
+                        </p>
+                    </div>
+                }
+                else if (previewRecord.RecordCategory == "document" && previewDocument != null)
+                {
+                    <div class="preview-section">
+                        <h4 class="preview-section-title">File Information</h4>
+                        <p class="preview-section-content">
+                            <strong>Filename:</strong> @previewDocument.FileName<br/>
+                            <strong>Type:</strong> @previewDocument.FileType<br/>
+                            <strong>Size:</strong> @FormatFileSize(previewDocument.FileSizeBytes)<br/>
+                            @if (!string.IsNullOrEmpty(previewDocument.MimeType))
+                            {
+                                <strong>Format:</strong> @previewDocument.MimeType <br/>
+                            }
+                        </p>
+                    </div>
+                    @if (!string.IsNullOrEmpty(previewDocument.Description))
+                    {
+                        <div class="preview-section">
+                            <h4 class="preview-section-title">Description</h4>
+                            <p class="preview-section-content">@previewDocument.Description</p>
+                        </div>
+                    }
+                    @if (!string.IsNullOrEmpty(previewDocument.ExtractedText))
+                    {
+                        <div class="preview-section">
+                            <h4 class="preview-section-title">Extracted Text</h4>
+                            <p class="preview-section-content">@previewDocument.ExtractedText</p>
+                        </div>
+                    }
+                    @if (IsImageDocument(previewDocument))
+                    {
+                        <div class="preview-section">
+                            <h4 class="preview-section-title">Image Preview</h4>
+                            <img src="@GetDocumentDataUrl(previewDocument)" alt="@previewDocument.FileName" 
+                                 style="max-width: 100%; border-radius: 8px; margin-top: 0.5rem;" />
+                        </div>
+                    }
+                }
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" @onclick="ClosePreviewModal">Close</button>
+                <button class="btn btn-primary" @onclick="@(() => DownloadRecord(previewRecord.Id, previewRecord.RecordCategory))">
+                    <i data-lucide="download"></i>
+                    Download
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    /* Preview Modal Styles */
+    .preview-modal-large {
+        max-width: 800px;
+    }
+
+    .preview-section {
+        margin-bottom: 1.5rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid #e6e8ea;
+    }
+
+    .preview-section:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+    }
+
+    .preview-section-title {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #434654;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.75rem;
+    }
+
+    .preview-section-content {
+        font-size: 1rem;
+        color: #191c1e;
+        line-height: 1.6;
+        white-space: pre-wrap;
     }
 </style>

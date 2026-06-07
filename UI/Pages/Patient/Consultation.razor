@@ -739,6 +739,215 @@
     .recommended-doctor-card button:hover {
         background: #0284c7;
     }
+
+    /* Medical Records Styles */
+    .record-section {
+        margin-bottom: 16px;
+    }
+
+    .record-section:last-child {
+        margin-bottom: 0;
+    }
+
+    .record-section-header {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 10px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .record-card {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 10px;
+        transition: all 0.2s;
+        cursor: pointer;
+        position: relative;
+    }
+
+    .record-card::after {
+        content: "›";
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 20px;
+        color: #9ca3af;
+        opacity: 0;
+        transition: all 0.2s;
+    }
+
+    .record-card:hover {
+        border-color: #0ea5e9;
+        box-shadow: 0 4px 8px rgba(14, 165, 233, 0.15);
+        transform: translateY(-2px);
+    }
+
+    .record-card:hover::after {
+        opacity: 1;
+        right: 8px;
+    }
+
+    .record-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+
+    .record-badge {
+        font-size: 10px;
+        font-weight: 600;
+        padding: 3px 8px;
+        border-radius: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    .record-badge.note {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+
+    .record-badge.active {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .record-badge.inactive {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .record-date {
+        font-size: 11px;
+        color: #6b7280;
+    }
+
+    .record-card-body {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .record-diagnosis,
+    .record-medication {
+        font-size: 13px;
+        font-weight: 600;
+        color: #111827;
+        margin: 0;
+        line-height: 1.4;
+    }
+
+    .record-detail {
+        font-size: 11px;
+        color: #6b7280;
+        margin: 0;
+        line-height: 1.4;
+    }
+
+    .finalized-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 10px;
+        font-weight: 600;
+        color: #065f46;
+        background: #d1fae5;
+        padding: 2px 6px;
+        border-radius: 4px;
+        width: fit-content;
+    }
+
+    .last-updated-text {
+        font-size: 10px;
+        color: #9ca3af;
+        font-style: italic;
+    }
+
+    /* Preview Modal Styles */
+    .preview-modal {
+        max-width: 600px;
+        width: 90%;
+    }
+
+    .modal-header-flex {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 20px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid #e5e7eb;
+    }
+
+    .preview-modal-title {
+        font-size: 20px;
+        font-weight: 600;
+        color: #111827;
+        margin: 0 0 4px 0;
+    }
+
+    .last-updated-info {
+        font-size: 12px;
+        color: #6b7280;
+        margin: 0;
+    }
+
+    .close-btn {
+        background: transparent;
+        border: none;
+        color: #6b7280;
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 6px;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .close-btn:hover {
+        background: #f3f4f6;
+        color: #111827;
+    }
+
+    .preview-content {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .preview-field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .preview-field-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .preview-field-value {
+        font-size: 14px;
+        color: #111827;
+        line-height: 1.6;
+        white-space: pre-wrap;
+        padding: 10px 12px;
+        background: #f9fafb;
+        border-radius: 6px;
+        border: 1px solid #e5e7eb;
+    }
 </style>
 
 <div class="consultation-container">
@@ -1155,6 +1364,120 @@
                     </div>
                 </div>
             }
+
+            <!-- Medical Records Section (Patient View) -->
+            @if (currentConversation != null)
+            {
+                <div style="margin-top: 24px; padding-top: 20px; border-top: 2px solid #e5e7eb;">
+                    <h3 style="font-size: 16px; font-weight: 600; color: #111827; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+                        <i data-lucide="file-text" style="width: 18px; height: 18px; color: #8b5cf6;"></i>
+                        Medical Records
+                    </h3>
+                    <p style="font-size: 12px; color: #6b7280; margin-bottom: 16px;">
+                        Click any record to view details
+                    </p>
+                    
+                    @if (isLoadingRecords)
+                    {
+                        <div style="text-align: center; padding: 16px; color: #6b7280;">
+                            <p style="font-size: 12px;">Loading records...</p>
+                        </div>
+                    }
+                    else if (relatedPrescriptions.Any() || relatedConsultationNotes.Any())
+                    {
+                        <!-- Consultation Notes -->
+                        @if (relatedConsultationNotes.Any())
+                        {
+                            <div class="record-section">
+                                <div class="record-section-header">
+                                    <i data-lucide="stethoscope" style="width: 14px; height: 14px;"></i>
+                                    <span>Consultation Notes (@relatedConsultationNotes.Count)</span>
+                                </div>
+                                @foreach (var note in relatedConsultationNotes.Take(3))
+                                {
+                                    <div class="record-card" @onclick="@(() => PreviewConsultationNote(note))">
+                                        <div class="record-card-header">
+                                            <span class="record-badge note">NOTE</span>
+                                            <span class="record-date">@note.CreatedAt.ToString("MMM dd")</span>
+                                        </div>
+                                        <div class="record-card-body">
+                                            <p class="record-diagnosis">@note.Diagnosis</p>
+                                            @if (!string.IsNullOrEmpty(note.TreatmentPlan))
+                                            {
+                                                <p class="record-detail">Plan: @TruncateText(note.TreatmentPlan, 60)</p>
+                                            }
+                                            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+                                                @if (note.IsFinalized)
+                                                {
+                                                    <span class="finalized-badge">
+                                                        <i data-lucide="check-circle" style="width: 10px; height: 10px;"></i>
+                                                        Finalized
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    <span></span>
+                                                }
+                                                <span class="last-updated-text">Updated @note.UpdatedAt.ToString("MMM dd, HH:mm")</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                                @if (relatedConsultationNotes.Count > 3)
+                                {
+                                    <p style="font-size: 11px; color: #6b7280; text-align: center; margin-top: 8px;">
+                                        +@(relatedConsultationNotes.Count - 3) more notes
+                                    </p>
+                                }
+                            </div>
+                        }
+
+                        <!-- Prescriptions -->
+                        @if (relatedPrescriptions.Any())
+                        {
+                            <div class="record-section">
+                                <div class="record-section-header">
+                                    <i data-lucide="pill" style="width: 14px; height: 14px;"></i>
+                                    <span>Prescriptions (@relatedPrescriptions.Count)</span>
+                                </div>
+                                @foreach (var rx in relatedPrescriptions.Take(3))
+                                {
+                                    <div class="record-card" @onclick="@(() => PreviewPrescription(rx))">
+                                        <div class="record-card-header">
+                                            <span class="record-badge @(rx.IsActive ? "active" : "inactive")">
+                                                @(rx.IsActive ? "ACTIVE" : "INACTIVE")
+                                            </span>
+                                            <span class="record-date">@rx.CreatedAt.ToString("MMM dd")</span>
+                                        </div>
+                                        <div class="record-card-body">
+                                            <p class="record-medication">@rx.MedicationName</p>
+                                            <p class="record-detail">@rx.Dosage • @rx.Frequency</p>
+                                            @if (!string.IsNullOrEmpty(rx.Duration))
+                                            {
+                                                <p class="record-detail">Duration: @rx.Duration</p>
+                                            }
+                                            <span class="last-updated-text" style="margin-top: 6px; display: block;">Updated @rx.UpdatedAt.ToString("MMM dd, HH:mm")</span>
+                                        </div>
+                                    </div>
+                                }
+                                @if (relatedPrescriptions.Count > 3)
+                                {
+                                    <p style="font-size: 11px; color: #6b7280; text-align: center; margin-top: 8px;">
+                                        +@(relatedPrescriptions.Count - 3) more prescriptions
+                                    </p>
+                                }
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div style="text-align: center; padding: 16px; color: #9ca3af;">
+                            <i data-lucide="inbox" style="width: 32px; height: 32px; margin-bottom: 8px; opacity: 0.5;"></i>
+                            <p style="font-size: 12px;">No medical records yet</p>
+                        </div>
+                    }
+                </div>
+            }
         }
         else
         {
@@ -1162,6 +1485,101 @@
         }
     </div>
 </div>
+
+<!-- Preview Modal for Consultation Note (Patient View) -->
+@if (showNotePreviewModal && selectedNote != null)
+{
+    <div class="modal-overlay" @onclick="CloseNotePreview">
+        <div class="modal-content preview-modal" @onclick:stopPropagation="true">
+            <div class="modal-header-flex">
+                <div>
+                    <h3 class="preview-modal-title">Consultation Note</h3>
+                    <p class="last-updated-info">Last updated: @selectedNote.UpdatedAt.ToString("MMM dd, yyyy HH:mm")</p>
+                </div>
+                <button @onclick="CloseNotePreview" class="close-btn">
+                    <i data-lucide="x" style="width: 20px; height: 20px;"></i>
+                </button>
+            </div>
+            <div class="preview-content">
+                <div class="preview-field">
+                    <div class="preview-field-label">Symptoms</div>
+                    <div class="preview-field-value">@(string.IsNullOrWhiteSpace(selectedNote.Symptoms) ? "—" : selectedNote.Symptoms)</div>
+                </div>
+                <div class="preview-field">
+                    <div class="preview-field-label">Physical Examination</div>
+                    <div class="preview-field-value">@(string.IsNullOrWhiteSpace(selectedNote.PhysicalExamination) ? "—" : selectedNote.PhysicalExamination)</div>
+                </div>
+                <div class="preview-field">
+                    <div class="preview-field-label">Diagnosis</div>
+                    <div class="preview-field-value">@selectedNote.Diagnosis</div>
+                </div>
+                <div class="preview-field">
+                    <div class="preview-field-label">Treatment Plan</div>
+                    <div class="preview-field-value">@(string.IsNullOrWhiteSpace(selectedNote.TreatmentPlan) ? "—" : selectedNote.TreatmentPlan)</div>
+                </div>
+                <div class="preview-field">
+                    <div class="preview-field-label">Follow-up Instructions</div>
+                    <div class="preview-field-value">@(string.IsNullOrWhiteSpace(selectedNote.FollowUpInstructions) ? "—" : selectedNote.FollowUpInstructions)</div>
+                </div>
+                @if (selectedNote.IsFinalized)
+                {
+                    <div class="finalized-badge" style="width: fit-content; margin-top: 12px;">
+                        <i data-lucide="check-circle" style="width: 12px; height: 12px;"></i>
+                        Finalized
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Preview Modal for Prescription (Patient View) -->
+@if (showPrescriptionPreviewModal && selectedPrescription != null)
+{
+    <div class="modal-overlay" @onclick="ClosePrescriptionPreview">
+        <div class="modal-content preview-modal" @onclick:stopPropagation="true">
+            <div class="modal-header-flex">
+                <div>
+                    <h3 class="preview-modal-title">Prescription</h3>
+                    <p class="last-updated-info">Last updated: @selectedPrescription.UpdatedAt.ToString("MMM dd, yyyy HH:mm")</p>
+                </div>
+                <button @onclick="ClosePrescriptionPreview" class="close-btn">
+                    <i data-lucide="x" style="width: 20px; height: 20px;"></i>
+                </button>
+            </div>
+            <div class="preview-content">
+                <div class="preview-field">
+                    <div class="preview-field-label">Medication</div>
+                    <div class="preview-field-value">@selectedPrescription.MedicationName</div>
+                </div>
+                <div class="preview-field">
+                    <div class="preview-field-label">Dosage</div>
+                    <div class="preview-field-value">@selectedPrescription.Dosage</div>
+                </div>
+                <div class="preview-field">
+                    <div class="preview-field-label">Frequency</div>
+                    <div class="preview-field-value">@selectedPrescription.Frequency</div>
+                </div>
+                <div class="preview-field">
+                    <div class="preview-field-label">Duration</div>
+                    <div class="preview-field-value">@(string.IsNullOrWhiteSpace(selectedPrescription.Duration) ? "—" : selectedPrescription.Duration)</div>
+                </div>
+                <div class="preview-field">
+                    <div class="preview-field-label">Instructions</div>
+                    <div class="preview-field-value">@(string.IsNullOrWhiteSpace(selectedPrescription.Instructions) ? "—" : selectedPrescription.Instructions)</div>
+                </div>
+                <div class="preview-field">
+                    <div class="preview-field-label">Status</div>
+                    <div class="preview-field-value">
+                        <span class="record-badge @(selectedPrescription.IsActive ? "active" : "inactive")">
+                            @(selectedPrescription.IsActive ? "ACTIVE" : "INACTIVE")
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
 <!-- New Conversation Modal -->
 @if (showNewConversationModal)

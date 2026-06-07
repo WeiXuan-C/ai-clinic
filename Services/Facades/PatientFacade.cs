@@ -1,5 +1,9 @@
 using ai_clinic.Models;
 using ai_clinic.Services.DoctorRecommendation;
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
+using PdfDocument = QuestPDF.Fluent.Document;
 
 namespace ai_clinic.Services.Facades;
 
@@ -16,6 +20,7 @@ public class PatientFacade
     private readonly ConsultationService _consultationService;
     private readonly ActivityLogService _activityLogService;
     private readonly DocumentService _documentService;
+    private readonly UserService _userService;
     // private readonly PatientConsultationWorkflowService _workflowService;
     private readonly MedicalRecordExportService _exportService;
 
@@ -27,6 +32,7 @@ public class PatientFacade
         ConsultationService consultationService,
         ActivityLogService activityLogService,
         DocumentService documentService,
+        UserService userService,
         // PatientConsultationWorkflowService workflowService,
         MedicalRecordExportService exportService)
     {
@@ -37,6 +43,7 @@ public class PatientFacade
         _consultationService = consultationService;
         _activityLogService = activityLogService;
         _documentService = documentService;
+        _userService = userService;
         // _workflowService = workflowService;
         _exportService = exportService;
     }
@@ -174,6 +181,11 @@ public class PatientFacade
     /// </summary>
     public async Task<bool> UpdatePatientProfilePhotoAsync(Guid userId, byte[]? photoData)
     {
+        if (photoData == null)
+        {
+            return false;
+        }
+        
         var success = await _patientProfileService.UpdateProfilePhotoAsync(userId, photoData);
         
         if (success)
@@ -242,7 +254,7 @@ public class PatientFacade
     /// Upload a new medical document
     /// Coordinates document creation and activity logging
     /// </summary>
-    public async Task<Document> UploadMedicalDocumentAsync(
+    public async Task<Models.Document> UploadMedicalDocumentAsync(
         Guid userId,
         string title,
         string documentType,
@@ -250,7 +262,7 @@ public class PatientFacade
         string fileName,
         string? description = null)
     {
-        var document = new Document
+        var document = new Models.Document
         {
             PatientId = userId,
             Title = title,
@@ -509,6 +521,202 @@ public class PatientFacade
 
         return pdfBytes;
     }
+
+    /// <summary>
+    /// Export a single prescription as PDF
+    /// </summary>
+    public async Task<byte[]> ExportSinglePrescriptionToPdfAsync(Guid patientId, Guid prescriptionId)
+    {
+        var prescription = await _prescriptionService.GetByIdAsync(prescriptionId);
+        if (prescription == null || prescription.PatientId != patientId)
+        {
+            throw new Exception("Prescription not found or access denied");
+        }
+
+        var patient = await _userService.GetByIdAsync(patientId);
+        var patientProfile = await _patientProfileService.GetByUserIdAsync(patientId);
+
+        var document = PdfDocument.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Size(PageSizes.A4);
+                page.Margin(2, Unit.Centimetre);
+                page.PageColor(Colors.White);
+                page.DefaultTextStyle(x => x.FontSize(11).FontFamily("Arial"));
+
+                page.Header()
+                    .Height(80)
+                    .Background(Colors.Blue.Lighten3)
+                    .Padding(20)
+                    .Column(column =>
+                    {
+                        column.Item().Text("AI Clinic - Prescription")
+                            .FontSize(20)
+                            .Bold()
+                            .FontColor(Colors.Blue.Darken2);
+                        
+                        column.Item().Text($"Date: {prescription.CreatedAt:yyyy-MM-dd}")
+                            .FontSize(10)
+                            .FontColor(Colors.Grey.Darken1);
+                    });
+
+                page.Content()
+                    .PaddingVertical(1, Unit.Centimetre)
+                    .Column(column =>
+                    {
+                        // Patient Info
+                        column.Item().Text("Patient Information")
+                            .FontSize(14).Bold().FontColor(Colors.Blue.Darken1);
+                        column.Item().PaddingTop(10).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
+                        column.Item().PaddingTop(10).Text($"Name: {patientProfile?.FullName ?? "N/A"}");
+                        column.Item().Text($"Date of Birth: {patientProfile?.DateOfBirth?.ToString("yyyy-MM-dd") ?? "N/A"}");
+                        
+                        column.Item().PaddingTop(20);
+
+                        // Prescription Details
+                        column.Item().Text("Prescription Details")
+                            .FontSize(14).Bold().FontColor(Colors.Blue.Darken1);
+                        column.Item().PaddingTop(10).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
+                        
+                        column.Item().PaddingTop(15).Text($"Medication: {prescription.MedicationName}")
+                            .FontSize(13).Bold();
+                        column.Item().PaddingTop(10).Text($"Dosage: {prescription.Dosage}");
+                        column.Item().Text($"Frequency: {prescription.Frequency}");
+                        column.Item().Text($"Duration: {prescription.Duration ?? "Ongoing"}");
+                        
+                        if (!string.IsNullOrEmpty(prescription.Instructions))
+                        {
+                            column.Item().PaddingTop(10).Text("Instructions:")
+                                .FontSize(12).Bold();
+                            column.Item().Text(prescription.Instructions);
+                        }
+
+                        column.Item().PaddingTop(15).Text($"Status: {(prescription.IsActive ? "Active" : "Inactive")}")
+                            .FontColor(prescription.IsActive ? Colors.Green.Darken1 : Colors.Red.Darken1);
+                    });
+
+                page.Footer()
+                    .AlignCenter()
+                    .Text(x =>
+                    {
+                        x.Span("Page ");
+                        x.CurrentPageNumber();
+                    });
+            });
+        });
+
+        await _activityLogService.LogActivityAsync(
+            patientId,
+            "ExportPrescription",
+            $"{{\"prescription_id\": \"{prescriptionId}\"}}");
+
+        return document.GeneratePdf();
+    }
+
+    /// <summary>
+    /// Export a single medical record as PDF
+    /// </summary>
+    public async Task<byte[]> ExportSingleMedicalRecordToPdfAsync(Guid patientId, Guid recordId)
+    {
+        var record = await _medicalRecordService.GetByIdAsync(recordId);
+        if (record == null || record.PatientId != patientId)
+        {
+            throw new Exception("Medical record not found or access denied");
+        }
+
+        var patient = await _userService.GetByIdAsync(patientId);
+        var patientProfile = await _patientProfileService.GetByUserIdAsync(patientId);
+
+        var document = PdfDocument.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Size(PageSizes.A4);
+                page.Margin(2, Unit.Centimetre);
+                page.PageColor(Colors.White);
+                page.DefaultTextStyle(x => x.FontSize(11).FontFamily("Arial"));
+
+                page.Header()
+                    .Height(80)
+                    .Background(Colors.Blue.Lighten3)
+                    .Padding(20)
+                    .Column(column =>
+                    {
+                        column.Item().Text("AI Clinic - Medical Record")
+                            .FontSize(20)
+                            .Bold()
+                            .FontColor(Colors.Blue.Darken2);
+                        
+                        column.Item().Text($"Date: {record.RecordDate:yyyy-MM-dd}")
+                            .FontSize(10)
+                            .FontColor(Colors.Grey.Darken1);
+                    });
+
+                page.Content()
+                    .PaddingVertical(1, Unit.Centimetre)
+                    .Column(column =>
+                    {
+                        // Patient Info
+                        column.Item().Text("Patient Information")
+                            .FontSize(14).Bold().FontColor(Colors.Blue.Darken1);
+                        column.Item().PaddingTop(10).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
+                        column.Item().PaddingTop(10).Text($"Name: {patientProfile?.FullName ?? "N/A"}");
+                        column.Item().Text($"Date of Birth: {patientProfile?.DateOfBirth?.ToString("yyyy-MM-dd") ?? "N/A"}");
+                        
+                        column.Item().PaddingTop(20);
+
+                        // Record Details
+                        column.Item().Text(record.Title)
+                            .FontSize(16).Bold().FontColor(Colors.Blue.Darken1);
+                        column.Item().PaddingTop(10).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
+                        
+                        column.Item().PaddingTop(15).Text($"Record Type: {record.RecordType}")
+                            .FontSize(11).FontColor(Colors.Grey.Darken1);
+                        
+                        if (!string.IsNullOrEmpty(record.DiagnosisCode))
+                        {
+                            column.Item().PaddingTop(10).Text($"Diagnosis Code: {record.DiagnosisCode}");
+                        }
+                        
+                        if (!string.IsNullOrEmpty(record.DiagnosisDescription))
+                        {
+                            column.Item().PaddingTop(10).Text("Diagnosis:")
+                                .FontSize(12).Bold();
+                            column.Item().Text(record.DiagnosisDescription);
+                        }
+
+                        column.Item().PaddingTop(15).Text("Content:")
+                            .FontSize(12).Bold();
+                        column.Item().Text(record.Content);
+
+                        if (!string.IsNullOrEmpty(record.Medications))
+                        {
+                            column.Item().PaddingTop(15).Text("Medications:")
+                                .FontSize(12).Bold();
+                            column.Item().Text(record.Medications);
+                        }
+                    });
+
+                page.Footer()
+                    .AlignCenter()
+                    .Text(x =>
+                    {
+                        x.Span("Page ");
+                        x.CurrentPageNumber();
+                    });
+            });
+        });
+
+        await _medicalRecordService.UpdateExportStatisticsAsync(recordId);
+        
+        await _activityLogService.LogActivityAsync(
+            patientId,
+            "ExportMedicalRecord",
+            $"{{\"record_id\": \"{recordId}\"}}");
+
+        return document.GeneratePdf();
+    }
 }
 
 // DTOs for Facade responses
@@ -534,7 +742,7 @@ public class PatientRecordsData
 {
     public List<MedicalRecord> MedicalRecords { get; set; } = new();
     public List<Prescription> Prescriptions { get; set; } = new();
-    public List<Document> Documents { get; set; } = new();
+    public List<Models.Document> Documents { get; set; } = new();
     public RecordStatistics Statistics { get; set; } = new();
 }
 

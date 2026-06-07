@@ -199,7 +199,7 @@ CREATE TABLE messages (
 
 CREATE TABLE documents (
     id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
-    conversation_id TEXT REFERENCES conversations(id) ON DELETE CASCADE,
+    conversation_id TEXT NULL REFERENCES conversations(id) ON DELETE CASCADE,
     uploaded_by_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     
     file_name TEXT NOT NULL,

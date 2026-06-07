@@ -227,6 +227,11 @@ public class DoctorFacade
     /// </summary>
     public async Task<bool> UpdateDoctorProfilePhotoAsync(Guid userId, byte[]? photoData)
     {
+        if (photoData == null)
+        {
+            return false;
+        }
+
         var success = await _doctorProfileService.UpdateProfilePhotoAsync(userId, photoData);
         
         if (success)

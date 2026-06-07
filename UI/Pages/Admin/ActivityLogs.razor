@@ -95,7 +95,7 @@
                                         <i class="bi bi-hash"></i> @(log.Id.ToString().Length > 8 ? log.Id.ToString().Substring(0, 8) : log.Id.ToString())
                                     </span>
                                     <span class="log-user">
-                                        <i class="bi bi-person"></i> User ID: @(log.UserId.ToString().Length > 8 ? log.UserId.ToString().Substring(0, 8) : log.UserId.ToString())
+                                        <i class="bi bi-person"></i> User ID: @(log.UserId.HasValue ? (log.UserId.Value.ToString().Length > 8 ? log.UserId.Value.ToString().Substring(0, 8) : log.UserId.Value.ToString()) : "N/A")
                                     </span>
                                 </div>
                             </div>

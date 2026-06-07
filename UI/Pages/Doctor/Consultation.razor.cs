@@ -19,6 +19,9 @@ public partial class Consultation : ComponentBase, IAsyncDisposable
     [Inject] private SignalRConsultationService SignalRService { get; set; } = null!;
     [Inject] private IConfiguration Configuration { get; set; } = null!;
     [Inject] private DocumentService DocumentService { get; set; } = null!;
+    [Inject] private MedicalRecordService MedicalRecordService { get; set; } = null!;
+    [Inject] private PrescriptionService PrescriptionService { get; set; } = null!;
+    [Inject] private ConsultationService ConsultationService { get; set; } = null!;
 
     private List<ConversationListItem> conversationList = [];
     private List<Message> messages = [];
@@ -29,6 +32,25 @@ public partial class Consultation : ComponentBase, IAsyncDisposable
     private string? patientPhotoUrl = null;
     private Guid currentDoctorId;
     private Guid? lastConsultationNoteId;
+    
+    // Medical Records state
+    private List<Prescription> relatedPrescriptions = [];
+    private List<ConsultationNote> relatedConsultationNotes = [];
+    private bool isLoadingRecords = false;
+    
+    // Preview/Edit state
+    private bool showNotePreviewModal = false;
+    private bool showPrescriptionPreviewModal = false;
+    private ConsultationNote? selectedNote = null;
+    private Prescription? selectedPrescription = null;
+    private bool isEditingNote = false;
+    private string editNoteSymptoms = "";
+    private string editNotePhysicalExam = "";
+    private string editNoteDiagnosis = "";
+    private string editNoteTreatmentPlan = "";
+    private string editNoteFollowUp = "";
+    
+    // Consultation Note form state
     private string noteSymptoms = "";
     private string notePhysicalExam = "";
     private string noteDiagnosis = "";
@@ -36,12 +58,15 @@ public partial class Consultation : ComponentBase, IAsyncDisposable
     private string noteFollowUp = "";
     private bool finalizeNote = false;
     private bool isSavingNote = false;
+    
+    // Prescription form state
     private string prescriptionMedication = "";
     private string prescriptionDosage = "";
     private string prescriptionFrequency = "";
     private string prescriptionDuration = "";
     private string prescriptionInstructions = "";
     private bool isSavingPrescription = false;
+    
     private string? workflowMessage;
     private string? workflowError;
     private bool _signalRInitialized = false;
@@ -277,6 +302,7 @@ public partial class Consultation : ComponentBase, IAsyncDisposable
             isTyping = false;
             patientPhotoUrl = null;
             ClearClinicalForms();
+            ClearMedicalRecords();
 
             await InvokeAsync(StateHasChanged);
             await Task.Delay(50);
@@ -298,6 +324,9 @@ public partial class Consultation : ComponentBase, IAsyncDisposable
 
             // Load attachments for all messages
             await LoadMessageAttachments();
+
+            // Load related medical records
+            await LoadRelatedMedicalRecords();
 
             await InvokeAsync(StateHasChanged);
 
@@ -494,6 +523,225 @@ public partial class Consultation : ComponentBase, IAsyncDisposable
         prescriptionInstructions = "";
         workflowMessage = null;
         workflowError = null;
+    }
+
+    /// <summary>
+    /// Clear medical records state
+    /// </summary>
+    private void ClearMedicalRecords()
+    {
+        relatedPrescriptions.Clear();
+        relatedConsultationNotes.Clear();
+        isLoadingRecords = false;
+    }
+
+    /// <summary>
+    /// Load related medical records for the current patient
+    /// Shows consultation notes and prescriptions associated with this conversation
+    /// </summary>
+    private async Task LoadRelatedMedicalRecords()
+    {
+        if (currentConversation == null)
+            return;
+
+        isLoadingRecords = true;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            var patientId = currentConversation.PatientId;
+
+            // Load medical data for this patient in parallel
+            var consultationNotesTask = ConsultationService.GetByPatientIdAsync(patientId);
+            var prescriptionsTask = PrescriptionService.GetByPatientIdAsync(patientId);
+
+            await Task.WhenAll(consultationNotesTask, prescriptionsTask);
+
+            // Get results and filter if needed
+            var allConsultationNotes = await consultationNotesTask;
+            var allPrescriptions = await prescriptionsTask;
+
+            // Filter to show only records related to this conversation or created by this doctor
+            relatedConsultationNotes = allConsultationNotes
+                .Where(n => n.ConversationId == currentConversation.Id || n.DoctorId == currentDoctorId)
+                .OrderByDescending(n => n.CreatedAt)
+                .ToList();
+
+            relatedPrescriptions = allPrescriptions
+                .Where(p => p.ConsultationNoteId != null && 
+                           relatedConsultationNotes.Any(n => n.Id == p.ConsultationNoteId) || 
+                           p.DoctorId == currentDoctorId)
+                .OrderByDescending(p => p.CreatedAt)
+                .ToList();
+
+            Console.WriteLine($"[Medical Records] Loaded {relatedConsultationNotes.Count} notes, {relatedPrescriptions.Count} prescriptions");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Error] Failed to load medical records: {ex.Message}");
+        }
+        finally
+        {
+            isLoadingRecords = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    /// <summary>
+    /// Truncate text for display in cards
+    /// </summary>
+    private string TruncateText(string? text, int maxLength)
+    {
+        if (string.IsNullOrEmpty(text))
+            return "";
+
+        if (text.Length <= maxLength)
+            return text;
+
+        return text.Substring(0, maxLength) + "...";
+    }
+
+    /// <summary>
+    /// Preview consultation note
+    /// </summary>
+    private async Task PreviewConsultationNote(ConsultationNote note)
+    {
+        selectedNote = note;
+        showNotePreviewModal = true;
+        isEditingNote = false;
+        await InvokeAsync(StateHasChanged);
+        
+        // Re-initialize Lucide icons for modal
+        await Task.Delay(100);
+        try
+        {
+            await JS.InvokeVoidAsync("initializeLucide");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DEBUG] Lucide initialization warning: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Close consultation note preview
+    /// </summary>
+    private void CloseNotePreview()
+    {
+        showNotePreviewModal = false;
+        selectedNote = null;
+        isEditingNote = false;
+        editNoteSymptoms = "";
+        editNotePhysicalExam = "";
+        editNoteDiagnosis = "";
+        editNoteTreatmentPlan = "";
+        editNoteFollowUp = "";
+    }
+
+    /// <summary>
+    /// Start editing consultation note (Doctor only)
+    /// </summary>
+    private void StartEditNote()
+    {
+        if (selectedNote == null || selectedNote.IsFinalized)
+            return;
+
+        editNoteSymptoms = selectedNote.Symptoms ?? "";
+        editNotePhysicalExam = selectedNote.PhysicalExamination ?? "";
+        editNoteDiagnosis = selectedNote.Diagnosis ?? "";
+        editNoteTreatmentPlan = selectedNote.TreatmentPlan ?? "";
+        editNoteFollowUp = selectedNote.FollowUpInstructions ?? "";
+        isEditingNote = true;
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Cancel editing consultation note
+    /// </summary>
+    private void CancelEditNote()
+    {
+        isEditingNote = false;
+        editNoteSymptoms = "";
+        editNotePhysicalExam = "";
+        editNoteDiagnosis = "";
+        editNoteTreatmentPlan = "";
+        editNoteFollowUp = "";
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Save edited consultation note
+    /// </summary>
+    private async Task SaveEditedNote()
+    {
+        if (selectedNote == null || string.IsNullOrWhiteSpace(editNoteDiagnosis))
+            return;
+
+        isSavingNote = true;
+        workflowMessage = null;
+        workflowError = null;
+
+        try
+        {
+            // Update note properties
+            selectedNote.Symptoms = editNoteSymptoms;
+            selectedNote.PhysicalExamination = editNotePhysicalExam;
+            selectedNote.Diagnosis = editNoteDiagnosis;
+            selectedNote.TreatmentPlan = editNoteTreatmentPlan;
+            selectedNote.FollowUpInstructions = editNoteFollowUp;
+            selectedNote.UpdatedAt = DateTime.UtcNow;
+
+            // Save via service
+            await ConsultationService.UpdateAsync(selectedNote);
+
+            // Reload medical records to reflect changes
+            await LoadRelatedMedicalRecords();
+
+            workflowMessage = "Consultation note updated successfully.";
+            isEditingNote = false;
+            showNotePreviewModal = false;
+            selectedNote = null;
+        }
+        catch (Exception ex)
+        {
+            workflowError = $"Failed to update consultation note: {ex.Message}";
+            Console.WriteLine($"[Error] Failed to update note: {ex.Message}");
+        }
+        finally
+        {
+            isSavingNote = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    /// <summary>
+    /// Preview prescription
+    /// </summary>
+    private async Task PreviewPrescription(Prescription prescription)
+    {
+        selectedPrescription = prescription;
+        showPrescriptionPreviewModal = true;
+        await InvokeAsync(StateHasChanged);
+        
+        // Re-initialize Lucide icons for modal
+        await Task.Delay(100);
+        try
+        {
+            await JS.InvokeVoidAsync("initializeLucide");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DEBUG] Lucide initialization warning: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Close prescription preview
+    /// </summary>
+    private void ClosePrescriptionPreview()
+    {
+        showPrescriptionPreviewModal = false;
+        selectedPrescription = null;
     }
 
     private async Task HandleKeyPress(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs e)

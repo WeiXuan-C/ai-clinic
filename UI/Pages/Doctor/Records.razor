@@ -16,11 +16,11 @@
         </p>
     </div>
     <div class="header-right">
-        <button class="btn btn-secondary">
+        <button class="btn btn-secondary" @onclick="OpenExportModal">
             <i data-lucide="download"></i>
             Export
         </button>
-        <button class="btn btn-primary">
+        <button class="btn btn-primary" @onclick="OpenNewRecordModal">
             <i data-lucide="file-plus"></i>
             New Record
         </button>
@@ -868,3 +868,207 @@
         border: 1px solid #bbf7d0;
     }
 </style>
+
+<!-- Export Modal -->
+@if (showExportModal)
+{
+    <div class="modal-overlay" @onclick="CloseModals">
+        <div class="modal-content" @onclick:stopPropagation>
+            <div class="modal-header">
+                <h2 class="headline-lg">Export Medical Records</h2>
+                <button class="btn-icon" @onclick="CloseModals">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Export Format</label>
+                    <select class="form-input" @bind="exportFormat">
+                        <option value="pdf">PDF Document</option>
+                        <option value="csv">CSV Spreadsheet</option>
+                        <option value="json">JSON Data</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Date Range (Optional)</label>
+                    <div style="display: flex; gap: 1rem;">
+                        <input type="date" class="form-input" @bind="exportStartDate" placeholder="Start Date" />
+                        <input type="date" class="form-input" @bind="exportEndDate" placeholder="End Date" />
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Record Types to Include</label>
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                        <label class="checkbox-label">
+                            <input type="checkbox" @bind="exportIncludeMedicalRecords" />
+                            <span>Medical Records</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" @bind="exportIncludePrescriptions" />
+                            <span>Prescriptions</span>
+                        </label>
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrEmpty(exportMessage))
+                {
+                    <div class="alert @(exportSuccess ? "alert-success" : "alert-error")">
+                        <i data-lucide="@(exportSuccess ? "check-circle" : "alert-circle")"></i>
+                        @exportMessage
+                    </div>
+                }
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" @onclick="CloseModals" disabled="@isExporting">Cancel</button>
+                <button class="btn btn-primary" @onclick="ExportRecords" disabled="@isExporting">
+                    @if (isExporting)
+                    {
+                        <span>Exporting...</span>
+                    }
+                    else
+                    {
+                        <i data-lucide="download"></i>
+                        <span>Export</span>
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- New Record Modal -->
+@if (showNewRecordModal)
+{
+    <div class="modal-overlay" @onclick="CloseModals">
+        <div class="modal-content modal-large" @onclick:stopPropagation>
+            <div class="modal-header">
+                <h2 class="headline-lg">Create New Medical Record</h2>
+                <button class="btn-icon" @onclick="CloseModals">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Record Type</label>
+                    <select class="form-input" @bind="newRecordType">
+                        <option value="">Select Type</option>
+                        <option value="medical_record">Medical Record</option>
+                        <option value="prescription">Prescription</option>
+                    </select>
+                </div>
+
+                @if (newRecordType == "medical_record")
+                {
+                    <div class="form-group">
+                        <label>Patient ID</label>
+                        <input type="text" class="form-input" @bind="newMedicalRecord.PatientId" placeholder="Enter Patient ID" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Title</label>
+                        <input type="text" class="form-input" @bind="newMedicalRecord.Title" placeholder="e.g., Annual Check-up" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Record Type</label>
+                        <select class="form-input" @bind="newMedicalRecord.RecordType">
+                            <option value="Lab Result">Lab Result</option>
+                            <option value="Imaging">Imaging</option>
+                            <option value="Visit Note">Visit Note</option>
+                            <option value="Consultation">Consultation</option>
+                            <option value="Prescription">Prescription</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Diagnosis</label>
+                        <input type="text" class="form-input" @bind="newMedicalRecord.DiagnosisDescription" placeholder="Primary diagnosis" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Diagnosis Code (ICD-10)</label>
+                        <input type="text" class="form-input" @bind="newMedicalRecord.DiagnosisCode" placeholder="e.g., J00" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Content</label>
+                        <textarea class="form-textarea" rows="8" @bind="newMedicalRecord.Content" placeholder="Detailed notes, findings, observations..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Medications</label>
+                        <input type="text" class="form-input" @bind="newMedicalRecord.Medications" placeholder="List of medications" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Record Date</label>
+                        <input type="date" class="form-input" @bind="newMedicalRecordDate" />
+                    </div>
+                }
+                else if (newRecordType == "prescription")
+                {
+                    <div class="form-group">
+                        <label>Patient ID</label>
+                        <input type="text" class="form-input" @bind="newPrescription.PatientId" placeholder="Enter Patient ID" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Medication Name</label>
+                        <input type="text" class="form-input" @bind="newPrescription.MedicationName" placeholder="e.g., Amoxicillin" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Dosage</label>
+                        <input type="text" class="form-input" @bind="newPrescription.Dosage" placeholder="e.g., 500mg" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Frequency</label>
+                        <input type="text" class="form-input" @bind="newPrescription.Frequency" placeholder="e.g., 3 times daily" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Duration</label>
+                        <input type="text" class="form-input" @bind="newPrescription.Duration" placeholder="e.g., 7 days" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Instructions</label>
+                        <textarea class="form-textarea" rows="4" @bind="newPrescription.Instructions" placeholder="Special instructions for the patient..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" @bind="newPrescription.IsActive" />
+                            <span>Active Prescription</span>
+                        </label>
+                    </div>
+                }
+
+                @if (!string.IsNullOrEmpty(newRecordErrorMessage))
+                {
+                    <div class="alert alert-error">
+                        <i data-lucide="alert-circle"></i>
+                        @newRecordErrorMessage
+                    </div>
+                }
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" @onclick="CloseModals" disabled="@isCreatingRecord">Cancel</button>
+                <button class="btn btn-primary" @onclick="CreateNewRecord" disabled="@isCreatingRecord || string.IsNullOrEmpty(newRecordType)">
+                    @if (isCreatingRecord)
+                    {
+                        <span>Creating...</span>
+                    }
+                    else
+                    {
+                        <i data-lucide="plus"></i>
+                        <span>Create Record</span>
+                    }
+                </button>
+            </div>
+        </div>
+    </div>
+}

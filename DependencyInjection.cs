@@ -39,6 +39,8 @@ public static class DependencyInjectionExtensions
         services.AddScoped<AdminService>(); // Admin operations service
         services.AddScoped<UserSuspensionService>(); // User suspension management
         services.AddScoped<MedicalRecordExportService>(); // Medical record PDF export
+        services.AddScoped<DoctorRecordExportService>(); // Doctor record export service (PDF, CSV, JSON)
+        services.AddScoped<DoctorReportExportService>(); // Doctor analytics report service
 
         // 🔔 Real-time Services - SignalR for live messaging
         // Scoped lifetime ensures proper lifecycle management in Blazor Server

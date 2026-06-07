@@ -213,4 +213,112 @@ public static class DatabaseMigrationHelper
             }
         }
     }
+
+    /// <summary>
+    /// Fix documents table to make conversation_id nullable
+    /// This allows medical documents to be uploaded without a conversation
+    /// </summary>
+    public static async Task MakeDocumentsConversationIdNullableAsync(string connectionString)
+    {
+        using var connection = new SqliteConnection(connectionString);
+        await connection.OpenAsync();
+
+        // Check if the migration is needed by checking table structure
+        var checkCommand = connection.CreateCommand();
+        checkCommand.CommandText = @"
+            SELECT sql 
+            FROM sqlite_master 
+            WHERE type='table' AND name='documents'";
+        
+        var tableSql = await checkCommand.ExecuteScalarAsync() as string;
+        
+        // Check if conversation_id is currently NOT NULL
+        if (!string.IsNullOrEmpty(tableSql) && tableSql.Contains("conversation_id TEXT NOT NULL"))
+        {
+            Console.WriteLine("🔧 Migrating documents table to make conversation_id nullable...");
+            
+            using var transaction = connection.BeginTransaction();
+            try
+            {
+                // Step 1: Create new table with correct schema
+                var createNewTable = connection.CreateCommand();
+                createNewTable.Transaction = transaction;
+                createNewTable.CommandText = @"
+                    CREATE TABLE documents_new (
+                        id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+                        conversation_id TEXT REFERENCES conversations(id) ON DELETE CASCADE,
+                        uploaded_by_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                        
+                        file_name TEXT NOT NULL,
+                        file_type TEXT NOT NULL CHECK (file_type IN ('medical_record', 'lab_result', 'prescription', 'image', 'other')),
+                        file_size_bytes INTEGER NOT NULL,
+                        file_url TEXT NOT NULL,
+                        mime_type TEXT,
+                        
+                        is_processed INTEGER DEFAULT 0,
+                        extracted_text TEXT,
+                        
+                        description TEXT,
+                        tags TEXT,
+                        
+                        patient_id TEXT REFERENCES patient_profiles(user_id) ON DELETE CASCADE,
+                        title TEXT,
+                        document_type_string TEXT,
+                        file_data BLOB,
+                        
+                        created_at TEXT DEFAULT (datetime('now')),
+                        CONSTRAINT file_size_positive CHECK (file_size_bytes > 0)
+                    )";
+                await createNewTable.ExecuteNonQueryAsync();
+                Console.WriteLine("✅ Created documents_new table with nullable conversation_id");
+
+                // Step 2: Copy all data
+                var copyData = connection.CreateCommand();
+                copyData.Transaction = transaction;
+                copyData.CommandText = @"
+                    INSERT INTO documents_new 
+                    SELECT * FROM documents";
+                await copyData.ExecuteNonQueryAsync();
+                Console.WriteLine("✅ Copied all data to documents_new");
+
+                // Step 3: Drop old table
+                var dropOld = connection.CreateCommand();
+                dropOld.Transaction = transaction;
+                dropOld.CommandText = "DROP TABLE documents";
+                await dropOld.ExecuteNonQueryAsync();
+                Console.WriteLine("✅ Dropped old documents table");
+
+                // Step 4: Rename new table
+                var rename = connection.CreateCommand();
+                rename.Transaction = transaction;
+                rename.CommandText = "ALTER TABLE documents_new RENAME TO documents";
+                await rename.ExecuteNonQueryAsync();
+                Console.WriteLine("✅ Renamed documents_new to documents");
+
+                // Step 5: Recreate indexes
+                var createIndexes = connection.CreateCommand();
+                createIndexes.Transaction = transaction;
+                createIndexes.CommandText = @"
+                    CREATE INDEX IF NOT EXISTS idx_documents_conversation_id ON documents(conversation_id);
+                    CREATE INDEX IF NOT EXISTS idx_documents_patient_id ON documents(patient_id);
+                    CREATE INDEX IF NOT EXISTS idx_documents_uploaded_by ON documents(uploaded_by_user_id);
+                    CREATE INDEX IF NOT EXISTS idx_documents_created_at ON documents(created_at);";
+                await createIndexes.ExecuteNonQueryAsync();
+                Console.WriteLine("✅ Recreated indexes");
+
+                transaction.Commit();
+                Console.WriteLine("✅ Migration completed: conversation_id is now nullable in documents table");
+            }
+            catch (Exception ex)
+            {
+                transaction.Rollback();
+                Console.WriteLine($"❌ Migration failed: {ex.Message}");
+                throw;
+            }
+        }
+        else
+        {
+            Console.WriteLine("ℹ️ Documents table already has nullable conversation_id or table doesn't exist");
+        }
+    }
 }

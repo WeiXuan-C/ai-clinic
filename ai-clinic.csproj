@@ -29,6 +29,8 @@
   <ItemGroup>
     <Compile Remove="StitchMcpServer/**" />
     <Content Remove="StitchMcpServer/**" />
+    <Compile Remove="codeExample/**" />
+    <Content Remove="codeExample/**" />
   </ItemGroup>
 
 </Project>

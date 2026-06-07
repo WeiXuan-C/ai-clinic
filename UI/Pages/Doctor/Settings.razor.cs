@@ -11,9 +11,7 @@ public partial class Settings : ComponentBase
     [Inject] private DoctorFacade DoctorFacade { get; set; } = null!;
 
     private bool isLoading = true;
-    private bool isSaving = false;
     private string? errorMessage;
-    private string? successMessage;
 
     private DoctorSettingsData settings = new();
 
@@ -50,23 +48,16 @@ public partial class Settings : ComponentBase
 
     private async Task SaveSettings()
     {
-        isSaving = true;
         errorMessage = null;
-        successMessage = null;
 
         try
         {
             var userId = AuthFacade.CurrentUser!.Id;
             await DoctorFacade.SaveDoctorSettingsAsync(userId, settings);
-            successMessage = "Settings saved successfully!";
         }
         catch (Exception ex)
         {
             errorMessage = $"Failed to save settings: {ex.Message}";
-        }
-        finally
-        {
-            isSaving = false;
         }
     }
 

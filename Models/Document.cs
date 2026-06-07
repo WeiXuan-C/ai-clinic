@@ -74,7 +74,7 @@ public class Document
 
     // Navigation properties
     [ForeignKey("ConversationId")]
-    public Conversation Conversation { get; set; } = null!;
+    public Conversation? Conversation { get; set; }
 
     [ForeignKey("UploadedByUserId")]
     public User UploadedByUser { get; set; } = null!;

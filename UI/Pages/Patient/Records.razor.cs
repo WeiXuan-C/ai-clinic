@@ -45,6 +45,12 @@ public partial class Records : ComponentBase
     private DateTime? exportStartDate;
     private DateTime? exportEndDate;
 
+    private bool showPreviewModal = false;
+    private RecordItem? previewRecord;
+    private MedicalRecord? previewMedicalRecord;
+    private Prescription? previewPrescription;
+    private Document? previewDocument;
+
     protected override async Task OnInitializedAsync()
     {
         if (!AuthFacade.IsAuthenticated || AuthFacade.CurrentUser?.Role != UserRole.Patient)
@@ -297,22 +303,153 @@ public partial class Records : ComponentBase
     }
 
     /// <summary>
+    /// Preview record (show detailed modal)
+    /// </summary>
+    private async Task PreviewRecord(Guid recordId, string recordCategory)
+    {
+        try
+        {
+            // Find the record in the list
+            previewRecord = allRecords.FirstOrDefault(r => r.Id == recordId);
+            if (previewRecord == null)
+            {
+                errorMessage = "Record not found";
+                return;
+            }
+
+            // Load the full record details based on category
+            if (recordCategory == "medical_record")
+            {
+                previewMedicalRecord = recordsData?.MedicalRecords.FirstOrDefault(r => r.Id == recordId);
+                previewPrescription = null;
+                previewDocument = null;
+            }
+            else if (recordCategory == "prescription")
+            {
+                previewPrescription = recordsData?.Prescriptions.FirstOrDefault(r => r.Id == recordId);
+                previewMedicalRecord = null;
+                previewDocument = null;
+            }
+            else if (recordCategory == "document")
+            {
+                // Load document from the existing data (it already has file data from initial load)
+                previewDocument = recordsData?.Documents.FirstOrDefault(d => d.Id == recordId);
+                previewMedicalRecord = null;
+                previewPrescription = null;
+            }
+
+            showPreviewModal = true;
+            StateHasChanged();
+            
+            // Re-initialize Lucide icons for modal
+            await Task.Delay(100);
+            try
+            {
+                await JS.InvokeVoidAsync("lucide.createIcons");
+            }
+            catch
+            {
+                // Ignore if lucide is not available
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading record details: {ex.Message}";
+            Console.WriteLine($"[ERROR] {ex}");
+        }
+    }
+
+    /// <summary>
+    /// Close preview modal
+    /// </summary>
+    private void ClosePreviewModal()
+    {
+        showPreviewModal = false;
+        previewRecord = null;
+        previewMedicalRecord = null;
+        previewPrescription = null;
+        previewDocument = null;
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Check if document is an image
+    /// </summary>
+    private static bool IsImageDocument(Document doc)
+    {
+        return doc.MimeType?.StartsWith("image/") == true;
+    }
+
+    /// <summary>
+    /// Get data URL for document (for image preview)
+    /// </summary>
+    private static string GetDocumentDataUrl(Document doc)
+    {
+        if (doc.FileData != null && doc.FileData.Length > 0)
+        {
+            var base64 = Convert.ToBase64String(doc.FileData);
+            return $"data:{doc.MimeType};base64,{base64}";
+        }
+        return string.Empty;
+    }
+
+    /// <summary>
     /// Download record through Facade
     /// </summary>
     private async Task DownloadRecord(Guid recordId, string recordCategory)
     {
         try
         {
+            byte[]? fileData = null;
+            string fileName = "record";
+
             if (recordCategory == "document")
             {
-                var fileData = await PatientFacade.DownloadMedicalDocumentAsync(AuthFacade.CurrentUser!.Id, recordId);
-                if (fileData != null)
+                // Download document
+                fileData = await PatientFacade.DownloadMedicalDocumentAsync(AuthFacade.CurrentUser!.Id, recordId);
+                var record = allRecords.FirstOrDefault(r => r.Id == recordId);
+                fileName = record?.Title ?? "document";
+                
+                // Preserve original file extension if available
+                var doc = recordsData?.Documents.FirstOrDefault(d => d.Id == recordId);
+                if (doc != null && !string.IsNullOrEmpty(doc.FileName))
                 {
-                    // Trigger browser download
-                    var record = allRecords.FirstOrDefault(r => r.Id == recordId);
-                    var fileName = record?.Title ?? "document";
-                    await JS.InvokeVoidAsync("downloadFile", fileName, Convert.ToBase64String(fileData));
+                    var ext = Path.GetExtension(doc.FileName);
+                    if (!string.IsNullOrEmpty(ext))
+                    {
+                        fileName += ext;
+                    }
                 }
+            }
+            else if (recordCategory == "prescription")
+            {
+                // Export prescription as PDF
+                fileData = await PatientFacade.ExportSinglePrescriptionToPdfAsync(AuthFacade.CurrentUser!.Id, recordId);
+                var record = allRecords.FirstOrDefault(r => r.Id == recordId);
+                fileName = (record?.Title ?? "prescription") + ".pdf";
+            }
+            else if (recordCategory == "medical_record")
+            {
+                // Export medical record as PDF
+                fileData = await PatientFacade.ExportSingleMedicalRecordToPdfAsync(AuthFacade.CurrentUser!.Id, recordId);
+                var record = allRecords.FirstOrDefault(r => r.Id == recordId);
+                fileName = (record?.Title ?? "medical_record") + ".pdf";
+            }
+
+            if (fileData != null && fileData.Length > 0)
+            {
+                // Trigger browser download
+                await JS.InvokeVoidAsync("downloadFile", fileName, Convert.ToBase64String(fileData));
+                successMessage = "Download started successfully!";
+                
+                // Clear success message after 3 seconds
+                await Task.Delay(3000);
+                successMessage = null;
+                StateHasChanged();
+            }
+            else
+            {
+                errorMessage = "No data available to download.";
             }
         }
         catch (Exception ex)
@@ -321,6 +458,7 @@ public partial class Records : ComponentBase
             Console.WriteLine($"[ERROR] {ex}");
         }
     }
+
 
     /// <summary>
     /// Delete record through Facade
