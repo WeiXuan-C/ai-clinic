@@ -3,9 +3,11 @@
 @using ai_clinic.Models
 @using ai_clinic.Services
 @using ai_clinic.Services.Facades
+@using Microsoft.JSInterop
 @inject AuthFacade AuthFacade
 @inject SupportTicketService SupportTicketService
 @inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
 
 <PageTitle>Support - AI Medical Clinic</PageTitle>
 
@@ -21,7 +23,7 @@
         </p>
     </div>
     <div class="header-right">
-        <button class="btn btn-primary">
+        <button class="btn btn-primary" @onclick="ScrollToTickets">
             <i data-lucide="ticket"></i>
             My Tickets (@tickets.Count)
         </button>
@@ -68,8 +70,8 @@
         </div>
         
         <div class="faq-list">
-            <div class="faq-item">
-                <div class="faq-question">
+            <div class="faq-item @(faqStates[0] ? "" : "collapsed")">
+                <div class="faq-question" @onclick="() => ToggleFaq(0)">
                     <h4 class="headline-sm">How do I schedule an appointment?</h4>
                     <i data-lucide="chevron-down" class="faq-icon"></i>
                 </div>
@@ -78,8 +80,8 @@
                 </div>
             </div>
 
-            <div class="faq-item">
-                <div class="faq-question">
+            <div class="faq-item @(faqStates[1] ? "" : "collapsed")">
+                <div class="faq-question" @onclick="() => ToggleFaq(1)">
                     <h4 class="headline-sm">How do I access my medical records?</h4>
                     <i data-lucide="chevron-down" class="faq-icon"></i>
                 </div>
@@ -88,8 +90,8 @@
                 </div>
             </div>
 
-            <div class="faq-item">
-                <div class="faq-question">
+            <div class="faq-item @(faqStates[2] ? "" : "collapsed")">
+                <div class="faq-question" @onclick="() => ToggleFaq(2)">
                     <h4 class="headline-sm">Is my health data secure?</h4>
                     <i data-lucide="chevron-down" class="faq-icon"></i>
                 </div>
@@ -98,8 +100,8 @@
                 </div>
             </div>
 
-            <div class="faq-item">
-                <div class="faq-question">
+            <div class="faq-item @(faqStates[3] ? "" : "collapsed")">
+                <div class="faq-question" @onclick="() => ToggleFaq(3)">
                     <h4 class="headline-sm">How does the AI assistant work?</h4>
                     <i data-lucide="chevron-down" class="faq-icon"></i>
                 </div>
@@ -108,8 +110,8 @@
                 </div>
             </div>
 
-            <div class="faq-item">
-                <div class="faq-question">
+            <div class="faq-item @(faqStates[4] ? "" : "collapsed")">
+                <div class="faq-question" @onclick="() => ToggleFaq(4)">
                     <h4 class="headline-sm">Can I connect my wearable devices?</h4>
                     <i data-lucide="chevron-down" class="faq-icon"></i>
                 </div>
@@ -118,8 +120,8 @@
                 </div>
             </div>
 
-            <div class="faq-item">
-                <div class="faq-question">
+            <div class="faq-item @(faqStates[5] ? "" : "collapsed")">
+                <div class="faq-question" @onclick="() => ToggleFaq(5)">
                     <h4 class="headline-sm">What insurance plans do you accept?</h4>
                     <i data-lucide="chevron-down" class="faq-icon"></i>
                 </div>
@@ -215,7 +217,7 @@
         </EditForm>
     </section>
 
-    <section class="resources-section">
+    <section class="resources-section" id="tickets-section">
         <h2 class="headline-md">My Support Tickets</h2>
         @if (isLoadingTickets)
         {
@@ -237,9 +239,9 @@
             <div class="ticket-list">
                 @foreach (var ticket in tickets)
                 {
-                    <div class="ticket-card status-@ticket.Status.Replace("_", "-")">
-                        <div class="ticket-header">
-                            <div class="ticket-info">
+                    <div class="ticket-card-compact status-@ticket.Status.Replace("_", "-")" @onclick="() => OpenTicketDetails(ticket)">
+                        <div class="ticket-compact-header">
+                            <div class="ticket-compact-info">
                                 <h4>@ticket.Subject</h4>
                                 <span class="ticket-id">@ticket.Id.ToString()[..8]</span>
                             </div>
@@ -248,29 +250,19 @@
                                 <span class="badge badge-@ticket.Status">@ticket.Status.Replace("_", " ")</span>
                             </div>
                         </div>
-                        <p class="ticket-description">@ticket.Description</p>
-                        @if (ticket.Responses.Any(r => !r.IsInternalNote))
-                        {
-                            <div class="ticket-responses">
-                                <h4>Support Feedback</h4>
-                                @foreach (var response in ticket.Responses.Where(r => !r.IsInternalNote).OrderBy(r => r.CreatedAt))
-                                {
-                                    <div class="response-item">
-                                        <div class="response-header">
-                                            <strong>Support Team</strong>
-                                            <span class="response-time">@response.CreatedAt.ToString("MMM dd, HH:mm")</span>
-                                        </div>
-                                        <p>@response.Message</p>
-                                    </div>
-                                }
-                            </div>
-                        }
-                        <div class="ticket-footer">
+                        <div class="ticket-compact-footer">
                             <span class="ticket-date">
                                 <i data-lucide="calendar"></i>
                                 @ticket.CreatedAt.ToString("MMM dd, yyyy")
                             </span>
                             <span class="body-sm">@ticket.Category</span>
+                            @if (ticket.Responses.Any(r => !r.IsInternalNote))
+                            {
+                                <span class="response-indicator">
+                                    <i data-lucide="message-circle"></i>
+                                    @ticket.Responses.Count(r => !r.IsInternalNote) response(s)
+                                </span>
+                            }
                         </div>
                     </div>
                 }
@@ -278,44 +270,84 @@
         }
     </section>
 
-    <!-- Support Resources -->
-    <section class="resources-section">
-        <h2 class="headline-md">Support Resources</h2>
-        <div class="resources-list">
-            <a href="#" class="resource-item">
-                <i data-lucide="book" class="resource-icon"></i>
-                <div class="resource-info">
-                    <h4 class="headline-sm">User Guide</h4>
-                    <p class="body-sm">Complete guide to using the platform</p>
+    <!-- Ticket Details Dialog -->
+    @if (selectedTicket != null)
+    {
+        <div class="modal-overlay" @onclick="CloseTicketDetails">
+            <div class="modal-dialog" @onclick:stopPropagation="true">
+                <div class="modal-header">
+                    <h2>Ticket Details</h2>
+                    <button class="btn-close" @onclick="CloseTicketDetails">
+                        <i data-lucide="x"></i>
+                    </button>
                 </div>
-                <i data-lucide="arrow-right" class="arrow-icon"></i>
-            </a>
-            <a href="#" class="resource-item">
-                <i data-lucide="video" class="resource-icon"></i>
-                <div class="resource-info">
-                    <h4 class="headline-sm">Video Tutorials</h4>
-                    <p class="body-sm">Step-by-step video instructions</p>
+                <div class="modal-body">
+                    <div class="ticket-detail-header">
+                        <div class="ticket-detail-title">
+                            <h3>@selectedTicket.Subject</h3>
+                            <span class="ticket-id">ID: @selectedTicket.Id.ToString()[..8]</span>
+                        </div>
+                        <div class="ticket-badges">
+                            <span class="badge badge-@selectedTicket.Priority">@selectedTicket.Priority</span>
+                            <span class="badge badge-@selectedTicket.Status">@selectedTicket.Status.Replace("_", " ")</span>
+                        </div>
+                    </div>
+
+                    <div class="ticket-detail-meta">
+                        <div class="meta-item">
+                            <i data-lucide="calendar"></i>
+                            <span>Created: @selectedTicket.CreatedAt.ToString("MMM dd, yyyy HH:mm")</span>
+                        </div>
+                        <div class="meta-item">
+                            <i data-lucide="tag"></i>
+                            <span>Category: @selectedTicket.Category</span>
+                        </div>
+                    </div>
+
+                    <div class="ticket-detail-description">
+                        <h4>Description</h4>
+                        <p>@selectedTicket.Description</p>
+                    </div>
+
+                    @if (selectedTicket.Responses.Any(r => !r.IsInternalNote))
+                    {
+                        <div class="ticket-detail-responses">
+                            <h4>Support Responses (@selectedTicket.Responses.Count(r => !r.IsInternalNote))</h4>
+                            <div class="responses-timeline">
+                                @foreach (var response in selectedTicket.Responses.Where(r => !r.IsInternalNote).OrderBy(r => r.CreatedAt))
+                                {
+                                    <div class="response-card">
+                                        <div class="response-card-header">
+                                            <div class="response-avatar">
+                                                <i data-lucide="user-check"></i>
+                                            </div>
+                                            <div class="response-info">
+                                                <strong>Support Team</strong>
+                                                <span class="response-time">@response.CreatedAt.ToString("MMM dd, yyyy HH:mm")</span>
+                                            </div>
+                                        </div>
+                                        <div class="response-card-body">
+                                            <p>@response.Message</p>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="empty-responses">
+                            <i data-lucide="clock"></i>
+                            <p>No responses yet. Our support team will respond within 24 hours.</p>
+                        </div>
+                    }
                 </div>
-                <i data-lucide="arrow-right" class="arrow-icon"></i>
-            </a>
-            <a href="#" class="resource-item">
-                <i data-lucide="shield-check" class="resource-icon"></i>
-                <div class="resource-info">
-                    <h4 class="headline-sm">Privacy & Security</h4>
-                    <p class="body-sm">Learn about data protection</p>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CloseTicketDetails">Close</button>
                 </div>
-                <i data-lucide="arrow-right" class="arrow-icon"></i>
-            </a>
-            <a href="#" class="resource-item">
-                <i data-lucide="file-text" class="resource-icon"></i>
-                <div class="resource-info">
-                    <h4 class="headline-sm">Terms of Service</h4>
-                    <p class="body-sm">Read our terms and conditions</p>
-                </div>
-                <i data-lucide="arrow-right" class="arrow-icon"></i>
-            </a>
+            </div>
         </div>
-    </section>
+    }
 
     <!-- System Status -->
     <section class="status-section">
@@ -351,10 +383,14 @@
 @code {
     private List<SupportTicket> tickets = new();
     private SupportTicket newTicket = new() { Priority = "medium" };
+    private SupportTicket? selectedTicket = null;
     private bool isSubmitting;
     private bool isLoadingTickets = true;
     private string? errorMessage;
     private string? successMessage;
+    
+    // FAQ states - true means expanded, false means collapsed
+    private bool[] faqStates = new bool[6]; // Start all collapsed (false)
 
     protected override async Task OnInitializedAsync()
     {
@@ -366,6 +402,36 @@
 
         await LoadTickets();
         ResetForm();
+    }
+
+    private void ToggleFaq(int index)
+    {
+        if (index >= 0 && index < faqStates.Length)
+        {
+            faqStates[index] = !faqStates[index];
+        }
+    }
+
+    private async Task ScrollToTickets()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("scrollToElement", "tickets-section");
+        }
+        catch (Exception)
+        {
+            // Fallback: if JS fails, just continue
+        }
+    }
+
+    private void OpenTicketDetails(SupportTicket ticket)
+    {
+        selectedTicket = ticket;
+    }
+
+    private void CloseTicketDetails()
+    {
+        selectedTicket = null;
     }
 
     private async Task LoadTickets()
@@ -601,10 +667,25 @@
         transition: transform 0.3s;
     }
 
+    .faq-item.collapsed .faq-icon {
+        transform: rotate(-90deg);
+    }
+
     .faq-answer {
         padding: 1.25rem;
         background: white;
         border-top: 1px solid #e6e8ea;
+        max-height: 500px;
+        opacity: 1;
+        overflow: hidden;
+        transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
+    }
+
+    .faq-item.collapsed .faq-answer {
+        max-height: 0;
+        opacity: 0;
+        padding: 0 1.25rem;
+        border-top: none;
     }
 
     .faq-answer p {
@@ -983,54 +1064,56 @@
         font-size: 1.25rem;
     }
 
-    /* Ticket List */
+    /* Ticket List - Compact Style */
     .ticket-list {
         display: flex;
         flex-direction: column;
         gap: 1rem;
     }
 
-    .ticket-card {
-        padding: 1.5rem;
+    .ticket-card-compact {
+        padding: 1.25rem;
         background: #f7f9fb;
         border-radius: 12px;
         border-left: 4px solid #e6e8ea;
         transition: all 0.2s;
+        cursor: pointer;
     }
 
-    .ticket-card:hover {
+    .ticket-card-compact:hover {
         background: #eceef0;
         transform: translateX(4px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     }
 
-    .ticket-card.status-open {
+    .ticket-card-compact.status-open {
         border-left-color: #0052cc;
     }
 
-    .ticket-card.status-progress {
+    .ticket-card-compact.status-in_progress {
         border-left-color: #ff9800;
     }
 
-    .ticket-card.status-resolved {
+    .ticket-card-compact.status-resolved {
         border-left-color: #4caf50;
     }
 
-    .ticket-card.status-closed {
+    .ticket-card-compact.status-closed {
         border-left-color: #9e9e9e;
     }
 
-    .ticket-header {
+    .ticket-compact-header {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
         margin-bottom: 0.75rem;
     }
 
-    .ticket-info {
+    .ticket-compact-info {
         flex: 1;
     }
 
-    .ticket-info h4 {
+    .ticket-compact-info h4 {
         font-size: 1rem;
         font-weight: 600;
         color: #191c1e;
@@ -1046,6 +1129,292 @@
     .ticket-badges {
         display: flex;
         gap: 0.5rem;
+        flex-shrink: 0;
+    }
+
+    .ticket-compact-footer {
+        display: flex;
+        gap: 1.5rem;
+        align-items: center;
+        padding-top: 0.75rem;
+        border-top: 1px solid #e6e8ea;
+        font-size: 0.8125rem;
+        color: #434654;
+    }
+
+    .ticket-date {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .ticket-date i {
+        width: 14px;
+        height: 14px;
+    }
+
+    .response-indicator {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #0052cc;
+        font-weight: 500;
+    }
+
+    .response-indicator i {
+        width: 14px;
+        height: 14px;
+    }
+
+    /* Modal Dialog */
+    .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        padding: 1rem;
+        animation: fadeIn 0.2s ease;
+    }
+
+    @@keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+
+    .modal-dialog {
+        background: white;
+        border-radius: 16px;
+        max-width: 700px;
+        width: 100%;
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        animation: slideUp 0.3s ease;
+    }
+
+    @@keyframes slideUp {
+        from {
+            transform: translateY(20px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.5rem 2rem;
+        border-bottom: 1px solid #e6e8ea;
+    }
+
+    .modal-header h2 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #191c1e;
+        margin: 0;
+    }
+
+    .btn-close {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        border: none;
+        background: transparent;
+        color: #434654;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+    }
+
+    .btn-close:hover {
+        background: #f7f9fb;
+        color: #191c1e;
+    }
+
+    .modal-body {
+        padding: 2rem;
+        overflow-y: auto;
+        flex: 1;
+    }
+
+    .ticket-detail-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 2px solid #e6e8ea;
+    }
+
+    .ticket-detail-title h3 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #191c1e;
+        margin-bottom: 0.5rem;
+    }
+
+    .ticket-detail-meta {
+        display: flex;
+        gap: 2rem;
+        margin-bottom: 1.5rem;
+        padding: 1rem;
+        background: #f7f9fb;
+        border-radius: 8px;
+    }
+
+    .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #434654;
+        font-size: 0.875rem;
+    }
+
+    .meta-item i {
+        width: 16px;
+        height: 16px;
+    }
+
+    .ticket-detail-description {
+        margin-bottom: 2rem;
+    }
+
+    .ticket-detail-description h4 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #191c1e;
+        margin-bottom: 0.75rem;
+    }
+
+    .ticket-detail-description p {
+        color: #434654;
+        line-height: 1.6;
+        white-space: pre-wrap;
+    }
+
+    .ticket-detail-responses h4 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #191c1e;
+        margin-bottom: 1rem;
+    }
+
+    .responses-timeline {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .response-card {
+        background: #f7f9fb;
+        border-radius: 12px;
+        padding: 1.25rem;
+        border-left: 3px solid #0052cc;
+    }
+
+    .response-card-header {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .response-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: #0052cc;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .response-avatar i {
+        width: 20px;
+        height: 20px;
+    }
+
+    .response-info {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .response-info strong {
+        font-size: 0.9375rem;
+        color: #191c1e;
+        margin-bottom: 0.25rem;
+    }
+
+    .response-time {
+        font-size: 0.8125rem;
+        color: #434654;
+    }
+
+    .response-card-body p {
+        color: #434654;
+        line-height: 1.6;
+        margin: 0;
+        white-space: pre-wrap;
+    }
+
+    .empty-responses {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 3rem 2rem;
+        text-align: center;
+        background: #f7f9fb;
+        border-radius: 12px;
+    }
+
+    .empty-responses i {
+        width: 48px;
+        height: 48px;
+        color: #434654;
+        margin-bottom: 1rem;
+    }
+
+    .empty-responses p {
+        color: #434654;
+        margin: 0;
+    }
+
+    .modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 1rem;
+        padding: 1.5rem 2rem;
+        border-top: 1px solid #e6e8ea;
+    }
+
+    .ticket-card {
+        padding: 1.5rem;
+        background: #f7f9fb;
+        border-radius: 12px;
+        border-left: 4px solid #e6e8ea;
+        transition: all 0.2s;
+    }
+
+    .ticket-card:hover {
+        background: #eceef0;
+        transform: translateX(4px);
     }
 
     .badge {
@@ -1102,37 +1471,6 @@
         color: #006a65;
     }
 
-    .ticket-description {
-        color: #434654;
-        line-height: 1.6;
-        margin-bottom: 1rem;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-    }
-
-    .ticket-footer {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding-top: 1rem;
-        border-top: 1px solid #e6e8ea;
-    }
-
-    .ticket-date {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-size: 0.8125rem;
-        color: #434654;
-    }
-
-    .ticket-date i {
-        width: 14px;
-        height: 14px;
-    }
-
     /* Responsive */
     @@media (max-width: 1200px) {
         .actions-grid {
@@ -1178,4 +1516,84 @@
             gap: 1rem;
         }
     }
+
+    .ticket-responses {
+        margin-top: 1rem;
+        padding: 1rem;
+        background: white;
+        border-radius: 8px;
+        border: 1px solid #e6e8ea;
+    }
+
+    .ticket-responses h4 {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #191c1e;
+        margin-bottom: 0.75rem;
+    }
+
+    .response-item {
+        padding: 0.75rem;
+        background: #f7f9fb;
+        border-radius: 6px;
+        margin-bottom: 0.5rem;
+    }
+
+    .response-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .response-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+
+    .response-header strong {
+        font-size: 0.8125rem;
+        color: #191c1e;
+    }
+
+    .response-time {
+        font-size: 0.75rem;
+        color: #434654;
+    }
+
+    .response-item p {
+        font-size: 0.875rem;
+        color: #434654;
+        line-height: 1.5;
+    }
 </style>
+
+<script>
+    window.scrollToElement = function(elementId) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            element.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'start' 
+            });
+        }
+    }
+
+    // Re-initialize Lucide icons after Blazor renders
+    const reinitializeLucide = () => {
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    };
+
+    // Initialize on load
+    document.addEventListener('DOMContentLoaded', reinitializeLucide);
+
+    // Re-initialize after Blazor updates
+    if (typeof Blazor !== 'undefined') {
+        Blazor.addEventListener('enhancedload', reinitializeLucide);
+    }
+
+    // Observe DOM changes and reinitialize icons
+    const observer = new MutationObserver(reinitializeLucide);
+    observer.observe(document.body, { childList: true, subtree: true });
+</script>
