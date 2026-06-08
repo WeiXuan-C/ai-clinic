@@ -9,14 +9,10 @@ namespace ai_clinic.UI.Pages.Doctor;
 
 public partial class Records : ComponentBase
 {
+    // Dependency Injection - Facade Pattern: Only inject facade services, not direct services
     [Inject] private NavigationManager Navigation { get; set; } = null!;
     [Inject] private AuthFacade AuthFacade { get; set; } = null!;
     [Inject] private DoctorFacade DoctorFacade { get; set; } = null!;
-    [Inject] private MedicalRecordService MedicalRecordService { get; set; } = null!;
-    [Inject] private PrescriptionService PrescriptionService { get; set; } = null!;
-    [Inject] private MedicalRecordExportService MedicalRecordExportService { get; set; } = null!;
-    [Inject] private DoctorRecordExportService DoctorRecordExportService { get; set; } = null!;
-    [Inject] private DoctorReportExportService DoctorReportExportService { get; set; } = null!;
     [Inject] private IJSRuntime JS { get; set; } = null!;
 
     private bool isLoading = true;
@@ -71,6 +67,10 @@ public partial class Records : ComponentBase
         await LoadRecords();
     }
 
+    /// <summary>
+    /// Load records via DoctorFacade - Facade Pattern
+    /// Coordinates multiple services (MedicalRecordService, PrescriptionService) through facade
+    /// </summary>
     private async Task LoadRecords()
     {
         isLoading = true;
@@ -79,6 +79,9 @@ public partial class Records : ComponentBase
         try
         {
             var userId = AuthFacade.CurrentUser!.Id;
+            
+            // ✅ FACADE PATTERN: Call facade instead of direct services
+            // The facade coordinates MedicalRecordService and PrescriptionService internally
             var recordsData = await DoctorFacade.GetDoctorRecordsAsync(userId, string.IsNullOrEmpty(searchQuery) ? null : searchQuery);
 
             medicalRecords = recordsData.MedicalRecords;
@@ -309,6 +312,7 @@ public partial class Records : ComponentBase
 
     /// <summary>
     /// Save medical record - Single Responsibility
+    /// Uses DoctorFacade instead of direct service call
     /// </summary>
     private async Task SaveMedicalRecord()
     {
@@ -322,12 +326,14 @@ public partial class Records : ComponentBase
         // Update record date from date picker
         editMedicalRecord.RecordDate = editMedicalRecordDate;
 
-        // Update via service (Facade Pattern)
-        await MedicalRecordService.UpdateAsync(editMedicalRecord);
+        // ✅ FACADE PATTERN: Update via DoctorFacade instead of direct service call
+        var doctorId = AuthFacade.CurrentUser!.Id;
+        await DoctorFacade.UpdateMedicalRecordAsync(editMedicalRecord, doctorId);
     }
 
     /// <summary>
     /// Save prescription - Single Responsibility
+    /// Uses DoctorFacade instead of direct service call
     /// </summary>
     private async Task SavePrescription()
     {
@@ -341,8 +347,9 @@ public partial class Records : ComponentBase
         if (string.IsNullOrWhiteSpace(editPrescription.Frequency))
             throw new InvalidOperationException("Frequency is required");
 
-        // Update via service (Facade Pattern)
-        await PrescriptionService.UpdateAsync(editPrescription);
+        // ✅ FACADE PATTERN: Update via DoctorFacade instead of direct service call
+        var doctorId = AuthFacade.CurrentUser!.Id;
+        await DoctorFacade.UpdatePrescriptionAsync(editPrescription, doctorId);
     }
 
     // ============================================
@@ -593,14 +600,14 @@ public partial class Records : ComponentBase
 
     /// <summary>
     /// Export to PDF format
-    /// Uses DoctorReportExportService for comprehensive analytics report
+    /// Uses DoctorFacade instead of direct service call
     /// </summary>
     private async Task ExportToPdf()
     {
         var userId = AuthFacade.CurrentUser!.Id;
         
-        // Use the DoctorReportExportService to generate comprehensive analytics report
-        var pdfBytes = await DoctorReportExportService.GenerateDoctorAnalyticsReportAsync(
+        // ✅ FACADE PATTERN: Use DoctorFacade to export PDF
+        var pdfBytes = await DoctorFacade.ExportDoctorRecordsToPdfAsync(
             userId, 
             exportStartDate, 
             exportEndDate);
@@ -613,14 +620,14 @@ public partial class Records : ComponentBase
 
     /// <summary>
     /// Export to CSV format
-    /// Uses DoctorRecordExportService (Strategy Pattern)
+    /// Uses DoctorFacade instead of direct service call
     /// </summary>
     private async Task ExportToCsv()
     {
         var userId = AuthFacade.CurrentUser!.Id;
         
-        // Use the DoctorRecordExportService to export
-        var csvContent = await DoctorRecordExportService.ExportToCsvAsync(
+        // ✅ FACADE PATTERN: Use DoctorFacade to export CSV
+        var csvContent = await DoctorFacade.ExportDoctorRecordsToCsvAsync(
             userId,
             exportStartDate,
             exportEndDate,
@@ -633,14 +640,14 @@ public partial class Records : ComponentBase
 
     /// <summary>
     /// Export to JSON format
-    /// Uses DoctorRecordExportService (Strategy Pattern)
+    /// Uses DoctorFacade instead of direct service call
     /// </summary>
     private async Task ExportToJson()
     {
         var userId = AuthFacade.CurrentUser!.Id;
         
-        // Use the DoctorRecordExportService to export
-        var jsonContent = await DoctorRecordExportService.ExportToJsonAsync(
+        // ✅ FACADE PATTERN: Use DoctorFacade to export JSON
+        var jsonContent = await DoctorFacade.ExportDoctorRecordsToJsonAsync(
             userId,
             exportStartDate,
             exportEndDate,
@@ -775,7 +782,7 @@ public partial class Records : ComponentBase
 
     /// <summary>
     /// Create new medical record
-    /// Single Responsibility: Medical record creation logic
+    /// Uses DoctorFacade instead of direct service call
     /// </summary>
     private async Task CreateNewMedicalRecord()
     {
@@ -793,13 +800,14 @@ public partial class Records : ComponentBase
         newMedicalRecord.RecordDate = newMedicalRecordDate;
         newMedicalRecord.CreatedByDoctorId = AuthFacade.CurrentUser!.Id;
 
-        // Create via service (Dependency Injection)
-        await MedicalRecordService.CreateAsync(newMedicalRecord);
+        // ✅ FACADE PATTERN: Create via DoctorFacade instead of direct service call
+        var doctorId = AuthFacade.CurrentUser!.Id;
+        await DoctorFacade.CreateMedicalRecordAsync(newMedicalRecord, doctorId);
     }
 
     /// <summary>
     /// Create new prescription
-    /// Single Responsibility: Prescription creation logic
+    /// Uses DoctorFacade instead of direct service call
     /// </summary>
     private async Task CreateNewPrescription()
     {
@@ -819,7 +827,8 @@ public partial class Records : ComponentBase
         // Set additional properties
         newPrescription.DoctorId = AuthFacade.CurrentUser!.Id;
 
-        // Create via service (Dependency Injection)
-        await PrescriptionService.CreateAsync(newPrescription);
+        // ✅ FACADE PATTERN: Create via DoctorFacade instead of direct service call
+        var doctorId = AuthFacade.CurrentUser!.Id;
+        await DoctorFacade.CreatePrescriptionSimpleAsync(newPrescription, doctorId);
     }
 }

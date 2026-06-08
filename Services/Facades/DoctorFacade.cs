@@ -6,7 +6,7 @@ namespace ai_clinic.Services.Facades;
 
 /// <summary>
 /// Facade Pattern: Provides a unified interface for doctor-related operations
-/// Coordinates multiple subsystems: DoctorProfile, Conversation, Consultation, Prescription
+/// Coordinates multiple subsystems: DoctorProfile, Conversation, Consultation, Prescription, Export Services
 /// </summary>
 public class DoctorFacade
 {
@@ -18,6 +18,8 @@ public class DoctorFacade
     private readonly ActivityLogService _activityLogService;
     private readonly StatisticsService _statisticsService;
     private readonly IHubContext<ConsultationHub> _hubContext;
+    private readonly DoctorRecordExportService _doctorRecordExportService;
+    private readonly DoctorReportExportService _doctorReportExportService;
 
     public DoctorFacade(
         DoctorProfileService doctorProfileService,
@@ -27,7 +29,9 @@ public class DoctorFacade
         MedicalRecordService medicalRecordService,
         ActivityLogService activityLogService,
         StatisticsService statisticsService,
-        IHubContext<ConsultationHub> hubContext)
+        IHubContext<ConsultationHub> hubContext,
+        DoctorRecordExportService doctorRecordExportService,
+        DoctorReportExportService doctorReportExportService)
     {
         _doctorProfileService = doctorProfileService;
         _conversationService = conversationService;
@@ -37,6 +41,8 @@ public class DoctorFacade
         _activityLogService = activityLogService;
         _statisticsService = statisticsService;
         _hubContext = hubContext;
+        _doctorRecordExportService = doctorRecordExportService;
+        _doctorReportExportService = doctorReportExportService;
     }
 
     /// <summary>
@@ -601,6 +607,146 @@ public class DoctorFacade
 
             await _activityLogService.LogActivityAsync(userId, "UpdateDoctorSettings");
         }
+    }
+
+    /// <summary>
+    /// Update medical record - Facade Pattern
+    /// Coordinates record update and activity logging
+    /// </summary>
+    public async Task UpdateMedicalRecordAsync(MedicalRecord medicalRecord, Guid doctorId)
+    {
+        await _medicalRecordService.UpdateAsync(medicalRecord);
+        
+        await _activityLogService.LogActivityAsync(
+            doctorId,
+            "UpdateMedicalRecord",
+            $"Medical Record ID: {medicalRecord.Id}");
+    }
+
+    /// <summary>
+    /// Update prescription - Facade Pattern
+    /// Coordinates prescription update and activity logging
+    /// </summary>
+    public async Task UpdatePrescriptionAsync(Prescription prescription, Guid doctorId)
+    {
+        await _prescriptionService.UpdateAsync(prescription);
+        
+        await _activityLogService.LogActivityAsync(
+            doctorId,
+            "UpdatePrescription",
+            $"Prescription ID: {prescription.Id}");
+    }
+
+    /// <summary>
+    /// Create medical record - Facade Pattern
+    /// Coordinates record creation and activity logging
+    /// </summary>
+    public async Task<MedicalRecord> CreateMedicalRecordAsync(MedicalRecord medicalRecord, Guid doctorId)
+    {
+        medicalRecord = await _medicalRecordService.CreateAsync(medicalRecord);
+        
+        await _activityLogService.LogActivityAsync(
+            doctorId,
+            "CreateMedicalRecord",
+            $"Medical Record ID: {medicalRecord.Id}");
+
+        return medicalRecord;
+    }
+
+    /// <summary>
+    /// Create prescription - Facade Pattern
+    /// Coordinates prescription creation and activity logging (simplified version)
+    /// </summary>
+    public async Task<Prescription> CreatePrescriptionSimpleAsync(Prescription prescription, Guid doctorId)
+    {
+        prescription = await _prescriptionService.CreateAsync(prescription);
+        
+        await _activityLogService.LogActivityAsync(
+            doctorId,
+            "CreatePrescription",
+            $"Prescription ID: {prescription.Id}");
+
+        return prescription;
+    }
+
+    /// <summary>
+    /// Export doctor records to PDF format - Facade Pattern
+    /// Coordinates export service and activity logging
+    /// </summary>
+    public async Task<byte[]> ExportDoctorRecordsToPdfAsync(
+        Guid doctorId,
+        DateTime? startDate = null,
+        DateTime? endDate = null)
+    {
+        var pdfBytes = await _doctorReportExportService.GenerateDoctorAnalyticsReportAsync(
+            doctorId,
+            startDate,
+            endDate);
+
+        await _activityLogService.LogActivityAsync(
+            doctorId,
+            "ExportDoctorRecordsPDF",
+            $"{{\"start_date\": \"{startDate?.ToString("yyyy-MM-dd") ?? "all"}\", " +
+            $"\"end_date\": \"{endDate?.ToString("yyyy-MM-dd") ?? "all"}\", " +
+            $"\"size_bytes\": {pdfBytes.Length}}}");
+
+        return pdfBytes;
+    }
+
+    /// <summary>
+    /// Export doctor records to CSV format - Facade Pattern
+    /// Coordinates export service and activity logging
+    /// </summary>
+    public async Task<string> ExportDoctorRecordsToCsvAsync(
+        Guid doctorId,
+        DateTime? startDate = null,
+        DateTime? endDate = null,
+        bool includeMedicalRecords = true,
+        bool includePrescriptions = true)
+    {
+        var csvContent = await _doctorRecordExportService.ExportToCsvAsync(
+            doctorId,
+            startDate,
+            endDate,
+            includeMedicalRecords,
+            includePrescriptions);
+
+        await _activityLogService.LogActivityAsync(
+            doctorId,
+            "ExportDoctorRecordsCSV",
+            $"{{\"start_date\": \"{startDate?.ToString("yyyy-MM-dd") ?? "all"}\", " +
+            $"\"end_date\": \"{endDate?.ToString("yyyy-MM-dd") ?? "all"}\", " +
+            $"\"size_bytes\": {csvContent.Length}}}");
+
+        return csvContent;
+    }
+
+    /// <summary>
+    /// Export doctor records to JSON format - Facade Pattern
+    /// Coordinates export service and activity logging
+    /// </summary>
+    public async Task<string> ExportDoctorRecordsToJsonAsync(
+        Guid doctorId,
+        DateTime? startDate = null,
+        DateTime? endDate = null,
+        bool includeMedicalRecords = true,
+        bool includePrescriptions = true)
+    {
+        var jsonContent = await _doctorRecordExportService.ExportToJsonAsync(
+            doctorId,
+            startDate,
+            endDate,
+            includeMedicalRecords,
+            includePrescriptions);
+
+        await _activityLogService.LogActivityAsync(
+            doctorId,
+            "ExportDoctorRecordsJSON",
+            $"{{\"start_date\": \"{startDate?.ToString("yyyy-MM-dd") ?? "all"}\", " +
+            $"\"end_date\": \"{endDate?.ToString("yyyy-MM-dd") ?? "all"}\", " +
+            $"\"size_bytes\": {jsonContent.Length}}}");
+
+        return jsonContent;
     }
 }
 
