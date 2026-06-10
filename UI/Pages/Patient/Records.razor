@@ -170,7 +170,7 @@
         Imaging (@(recordsData?.Statistics.ImagingStudies ?? 0))
     </button>
     <button class="tab-btn @(selectedFilter == "Visit Notes" ? "active" : "")" @onclick="@(() => FilterRecords("Visit Notes"))">
-        Visit Notes (@(recordsData?.Statistics.VisitNotes ?? 0))
+        Consultation Notes (@(recordsData?.Statistics.VisitNotes ?? 0))
     </button>
     <button class="tab-btn @(selectedFilter == "Immunizations" ? "active" : "")" @onclick="@(() => FilterRecords("Immunizations"))">
         Immunizations (@(recordsData?.Statistics.Immunizations ?? 0))

@@ -227,16 +227,36 @@ public class PatientFacade
         var prescriptions = await prescriptionsTask;
         var documents = await documentsTask;
 
+        // Debug logging
+        Console.WriteLine($"[PATIENT FACADE] Medical Records Count: {medicalRecords.Count}");
+        Console.WriteLine($"[PATIENT FACADE] Prescriptions Count: {prescriptions.Count}");
+        foreach (var p in prescriptions)
+        {
+            Console.WriteLine($"[PATIENT FACADE]   - Prescription ID: {p.Id}, Medication: {p.MedicationName}, IsActive: {p.IsActive}");
+        }
+        Console.WriteLine($"[PATIENT FACADE] Documents Count: {documents.Count}");
+
         // Calculate statistics
         var stats = new RecordStatistics
         {
             TotalRecords = medicalRecords.Count + prescriptions.Count + documents.Count,
-            LabResults = medicalRecords.Count(r => r.RecordType == "Lab Result"),
-            Prescriptions = prescriptions.Count,
-            ImagingStudies = medicalRecords.Count(r => r.RecordType == "Imaging"),
-            VisitNotes = medicalRecords.Count(r => r.RecordType == "Visit Note"),
-            Immunizations = medicalRecords.Count(r => r.RecordType == "Immunization")
+            LabResults = medicalRecords.Count(r => r.RecordType?.Equals("Lab Result", StringComparison.OrdinalIgnoreCase) == true) +
+                        documents.Count(d => d.DocumentTypeString?.Equals("Lab Result", StringComparison.OrdinalIgnoreCase) == true),
+            Prescriptions = prescriptions.Count + 
+                           medicalRecords.Count(r => r.RecordType?.Equals("Prescription", StringComparison.OrdinalIgnoreCase) == true),
+            ImagingStudies = medicalRecords.Count(r => r.RecordType?.Equals("Imaging", StringComparison.OrdinalIgnoreCase) == true) +
+                            documents.Count(d => d.DocumentTypeString?.Equals("Imaging", StringComparison.OrdinalIgnoreCase) == true),
+            VisitNotes = medicalRecords.Count(r => 
+                r.RecordType?.Equals("Visit Note", StringComparison.OrdinalIgnoreCase) == true ||
+                r.RecordType?.Equals("Consultation", StringComparison.OrdinalIgnoreCase) == true ||
+                r.RecordType?.Equals("Consultation Note", StringComparison.OrdinalIgnoreCase) == true ||
+                r.RecordType?.Equals("AI Consultation", StringComparison.OrdinalIgnoreCase) == true) +
+                        documents.Count(d => d.DocumentTypeString?.Equals("Visit Note", StringComparison.OrdinalIgnoreCase) == true),
+            Immunizations = medicalRecords.Count(r => r.RecordType?.Equals("Immunization", StringComparison.OrdinalIgnoreCase) == true) +
+                           documents.Count(d => d.DocumentTypeString?.Equals("Immunization", StringComparison.OrdinalIgnoreCase) == true)
         };
+
+        Console.WriteLine($"[PATIENT FACADE] Statistics - Total: {stats.TotalRecords}, Lab: {stats.LabResults}, Rx: {stats.Prescriptions}, Visit: {stats.VisitNotes}");
 
         // Log activity
         await _activityLogService.LogActivityAsync(userId, "ViewMedicalRecords");

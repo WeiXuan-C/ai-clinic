@@ -117,6 +117,11 @@ public partial class Records : ComponentBase
     {
         var items = new List<RecordItem>();
 
+        Console.WriteLine($"[RECORDS UI] Transforming records...");
+        Console.WriteLine($"[RECORDS UI] MedicalRecords: {data.MedicalRecords.Count}");
+        Console.WriteLine($"[RECORDS UI] Prescriptions: {data.Prescriptions.Count}");
+        Console.WriteLine($"[RECORDS UI] Documents: {data.Documents.Count}");
+
         // Medical Records
         foreach (var record in data.MedicalRecords)
         {
@@ -135,6 +140,7 @@ public partial class Records : ComponentBase
         // Prescriptions
         foreach (var prescription in data.Prescriptions)
         {
+            Console.WriteLine($"[RECORDS UI] Adding prescription: {prescription.MedicationName}, Date: {prescription.CreatedAt}");
             items.Add(new RecordItem
             {
                 Id = prescription.Id,
@@ -161,6 +167,9 @@ public partial class Records : ComponentBase
                 RecordCategory = "document"
             });
         }
+
+        Console.WriteLine($"[RECORDS UI] Total items after transformation: {items.Count}");
+        Console.WriteLine($"[RECORDS UI] Statistics from backend - Total: {data.Statistics.TotalRecords}, Prescriptions: {data.Statistics.Prescriptions}");
 
         return items.OrderByDescending(r => r.Date).ToList();
     }
@@ -192,11 +201,15 @@ public partial class Records : ComponentBase
         {
             // Filter by type
             bool matchesFilter = selectedFilter == "All" ||
-                (selectedFilter == "Lab Results" && r.Type == "Lab Result") ||
-                (selectedFilter == "Prescriptions" && r.Type == "Prescription") ||
-                (selectedFilter == "Imaging" && r.Type == "Imaging") ||
-                (selectedFilter == "Visit Notes" && r.Type == "Visit Note") ||
-                (selectedFilter == "Immunizations" && r.Type == "Immunization");
+                (selectedFilter == "Lab Results" && r.Type?.Equals("Lab Result", StringComparison.OrdinalIgnoreCase) == true) ||
+                (selectedFilter == "Prescriptions" && r.Type?.Equals("Prescription", StringComparison.OrdinalIgnoreCase) == true) ||
+                (selectedFilter == "Imaging" && r.Type?.Equals("Imaging", StringComparison.OrdinalIgnoreCase) == true) ||
+                (selectedFilter == "Visit Notes" && (
+                    r.Type?.Equals("Visit Note", StringComparison.OrdinalIgnoreCase) == true ||
+                    r.Type?.Equals("Consultation", StringComparison.OrdinalIgnoreCase) == true ||
+                    r.Type?.Equals("Consultation Note", StringComparison.OrdinalIgnoreCase) == true ||
+                    r.Type?.Equals("AI Consultation", StringComparison.OrdinalIgnoreCase) == true)) ||
+                (selectedFilter == "Immunizations" && r.Type?.Equals("Immunization", StringComparison.OrdinalIgnoreCase) == true);
 
             // Search query
             bool matchesSearch = string.IsNullOrWhiteSpace(searchQuery) ||
@@ -587,13 +600,18 @@ public partial class Records : ComponentBase
     /// </summary>
     private string GetRecordIconClass(string type)
     {
-        return type switch
+        if (string.IsNullOrEmpty(type)) return "other";
+        
+        return type.ToLower() switch
         {
-            "Lab Result" => "lab",
-            "Prescription" => "prescription",
-            "Visit Note" => "visit",
-            "Imaging" => "imaging",
-            "Immunization" => "immunization",
+            "lab result" => "lab",
+            "prescription" => "prescription",
+            "visit note" => "visit",
+            "consultation" => "visit",
+            "consultation note" => "visit",
+            "ai consultation" => "ai",
+            "imaging" => "imaging",
+            "immunization" => "immunization",
             _ => "other"
         };
     }
@@ -603,13 +621,18 @@ public partial class Records : ComponentBase
     /// </summary>
     private string GetBadgeClass(string type)
     {
-        return type switch
+        if (string.IsNullOrEmpty(type)) return "badge-other";
+        
+        return type.ToLower() switch
         {
-            "Lab Result" => "badge-lab",
-            "Prescription" => "badge-prescription",
-            "Visit Note" => "badge-visit",
-            "Imaging" => "badge-imaging",
-            "Immunization" => "badge-immunization",
+            "lab result" => "badge-lab",
+            "prescription" => "badge-prescription",
+            "visit note" => "badge-visit",
+            "consultation" => "badge-visit",
+            "consultation note" => "badge-visit",
+            "ai consultation" => "badge-ai",
+            "imaging" => "badge-imaging",
+            "immunization" => "badge-immunization",
             _ => "badge-other"
         };
     }
