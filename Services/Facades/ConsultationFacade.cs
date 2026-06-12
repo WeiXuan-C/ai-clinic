@@ -34,6 +34,7 @@ public class ConsultationFacade
     private readonly ActivityLogService _activityLogService;
     private readonly AiAssistantService _aiAssistantService;
     private readonly DoctorRecommendationService _doctorRecommendationService;
+    private readonly DoctorRatingService _doctorRatingService;
     private readonly IHubContext<ConsultationHub> _hubContext;
     private readonly ILogger<ConsultationFacade> _logger;
 
@@ -44,6 +45,7 @@ public class ConsultationFacade
         ActivityLogService activityLogService,
         AiAssistantService aiAssistantService,
         DoctorRecommendationService doctorRecommendationService,
+        DoctorRatingService doctorRatingService,
         IHubContext<ConsultationHub> hubContext,
         ILogger<ConsultationFacade> logger)
     {
@@ -53,6 +55,7 @@ public class ConsultationFacade
         _activityLogService = activityLogService;
         _aiAssistantService = aiAssistantService;
         _doctorRecommendationService = doctorRecommendationService;
+        _doctorRatingService = doctorRatingService;
         _hubContext = hubContext;
         _logger = logger;
     }
@@ -1371,6 +1374,54 @@ Generate the summary in a clear, structured format suitable for a doctor to quic
             _ => "AI model for medical consultation"
         };
     }
+
+    #region Doctor Rating Methods
+
+    /// <summary>
+    /// Check if a patient has rated a conversation
+    /// </summary>
+    public async Task<DoctorRating?> GetConversationRatingAsync(Guid conversationId, Guid patientId)
+    {
+        return await _doctorRatingService.GetRatingByConversationAsync(conversationId, patientId);
+    }
+
+    /// <summary>
+    /// Submit a rating for a doctor
+    /// </summary>
+    public async Task<DoctorRating> SubmitDoctorRatingAsync(
+        Guid conversationId,
+        Guid patientId,
+        Guid doctorId,
+        int overallRating,
+        int? professionalismRating = null,
+        int? communicationRating = null,
+        int? knowledgeRating = null,
+        int? responseTimeRating = null,
+        string? reviewText = null)
+    {
+        var rating = await _doctorRatingService.SubmitRatingAsync(
+            conversationId,
+            patientId,
+            doctorId,
+            overallRating,
+            professionalismRating,
+            communicationRating,
+            knowledgeRating,
+            responseTimeRating,
+            reviewText
+        );
+
+        // Log activity
+        await _activityLogService.LogActivityAsync(
+            patientId,
+            "submit_doctor_rating",
+            $"{{\"conversation_id\": \"{conversationId}\", \"doctor_id\": \"{doctorId}\", \"rating\": {overallRating}}}"
+        );
+
+        return rating;
+    }
+
+    #endregion
 
     #endregion
 }

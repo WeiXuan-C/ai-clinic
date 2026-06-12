@@ -77,133 +77,142 @@ else
 
     <!-- Content Grid -->
     <div class="content-grid">
-        <!-- Profile Photo Section -->
-        <section class="profile-photo-card">
-            <div class="photo-container">
-                @if (!string.IsNullOrEmpty(photoDataUrl))
+        <!-- Left Column -->
+        <div class="left-column">
+            <!-- Profile Photo Section -->
+            <section class="profile-photo-card">
+                <div class="photo-container">
+                    @if (!string.IsNullOrEmpty(photoDataUrl))
+                    {
+                        <img src="@photoDataUrl" alt="Profile Photo" class="avatar-large-img" />
+                    }
+                    else
+                    {
+                        <div class="avatar-large">
+                            <i data-lucide="user"></i>
+                        </div>
+                    }
+                    @if (isEditing)
+                    {
+                        <label class="photo-upload-btn" title="Upload Photo">
+                            <i data-lucide="camera"></i>
+                            <InputFile OnChange="HandlePhotoUpload" accept="image/*" style="display: none;" />
+                        </label>
+                    }
+                </div>
+                <div class="photo-info">
+                    <h3 class="headline-sm">@(profileData?.FullName ?? "No Name")</h3>
+                    <p class="body-md">@(profileData?.User?.Email ?? "No Email")</p>
+                    <p class="body-sm">Member since @(profileData?.CreatedAt.ToString("MMMM yyyy") ?? "Unknown")</p>
+                </div>
+                @if (isEditing && !string.IsNullOrEmpty(photoDataUrl))
                 {
-                    <img src="@photoDataUrl" alt="Profile Photo" class="avatar-large-img" />
+                    <button type="button" class="btn btn-discard btn-compact" @onclick="DeletePhotoAsync">
+                        <i data-lucide="trash-2"></i>
+                        Remove Photo
+                    </button>
                 }
-                else
-                {
-                    <div class="avatar-large">
-                        <i data-lucide="user"></i>
+            </section>
+
+            <!-- Emergency Contact -->
+            <section class="info-card info-card-compact">
+                <div class="section-header">
+                    <h2 class="headline-md">Emergency Contact</h2>
+                </div>
+                <div class="form-grid-single">
+                    <div class="form-group">
+                        <label class="body-sm">Contact Name</label>
+                        <input type="text" class="form-input" @bind="profileData!.EmergencyContactName" disabled="@(!isEditing)" placeholder="Enter contact name" />
                     </div>
-                }
-                @if (isEditing)
-                {
-                    <label class="photo-upload-btn" title="Upload Photo">
-                        <i data-lucide="camera"></i>
-                        <InputFile OnChange="HandlePhotoUpload" accept="image/*" style="display: none;" />
-                    </label>
-                }
-            </div>
-            <div class="photo-info">
-                <h3 class="headline-sm">@(profileData?.FullName ?? "No Name")</h3>
-                <p class="body-md">@(profileData?.User?.Email ?? "No Email")</p>
-                <p class="body-sm">Member since @(profileData?.CreatedAt.ToString("MMMM yyyy") ?? "Unknown")</p>
-            </div>
-            @if (isEditing && !string.IsNullOrEmpty(photoDataUrl))
-            {
-                <button type="button" class="btn btn-discard" style="margin-top: 1rem; width: 100%;" @onclick="DeletePhotoAsync">
-                    <i data-lucide="trash-2"></i>
-                    Remove Photo
-                </button>
-            }
-        </section>
+                    <div class="form-group">
+                        <label class="body-sm">Phone Number</label>
+                        <input type="tel" class="form-input" @bind="profileData!.EmergencyContactPhone" disabled="@(!isEditing)" placeholder="Enter phone number" />
+                    </div>
+                </div>
+            </section>
+        </div>
 
-        <!-- Personal Information -->
-        <section class="info-card">
-            <div class="section-header">
-                <h2 class="headline-md">Personal Information</h2>
-            </div>
-            <div class="form-grid">
-                <div class="form-group">
-                    <label class="body-sm">Full Name</label>
-                    <input type="text" class="form-input" @bind="profileData!.FullName" disabled="@(!isEditing)" />
+        <!-- Right Column -->
+        <div class="right-column">
+            <!-- Personal Information -->
+            <section class="info-card info-card-compact">
+                <div class="section-header">
+                    <h2 class="headline-md">Personal Information</h2>
                 </div>
-                <div class="form-group">
-                    <label class="body-sm">Date of Birth</label>
-                    <input type="date" class="form-input" @bind="profileData!.DateOfBirth" disabled="@(!isEditing)" />
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="body-sm">Full Name</label>
+                        <input type="text" class="form-input" @bind="profileData!.FullName" disabled="@(!isEditing)" placeholder="Enter full name" />
+                    </div>
+                    <div class="form-group">
+                        <label class="body-sm">Date of Birth</label>
+                        <input type="date" class="form-input" @bind="profileData!.DateOfBirth" 
+                               max="@DateTime.Today.ToString("yyyy-MM-dd")" 
+                               disabled="@(!isEditing)" />
+                        @if (dateOfBirthError != null)
+                        {
+                            <span class="field-error">@dateOfBirthError</span>
+                        }
+                    </div>
+                    <div class="form-group">
+                        <label class="body-sm">Email Address</label>
+                        <input type="email" class="form-input" value="@(profileData?.User?.Email ?? "")" disabled />
+                    </div>
+                    <div class="form-group">
+                        <label class="body-sm">Gender</label>
+                        <select class="form-input" @bind="profileData!.Gender" disabled="@(!isEditing)">
+                            <option value="">Select Gender</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                            <option value="Prefer not to say">Prefer not to say</option>
+                        </select>
+                    </div>
+                    <div class="form-group full-width">
+                        <label class="body-sm">Address</label>
+                        <textarea class="form-input" rows="2" @bind="profileData!.Address" disabled="@(!isEditing)" placeholder="Enter address"></textarea>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label class="body-sm">Email Address</label>
-                    <input type="email" class="form-input" value="@(profileData?.User?.Email ?? "")" disabled />
-                </div>
-                <div class="form-group">
-                    <label class="body-sm">Gender</label>
-                    <select class="form-input" @bind="profileData!.Gender" disabled="@(!isEditing)">
-                        <option value="">Select Gender</option>
-                        <option value="Male">Male</option>
-                        <option value="Female">Female</option>
-                        <option value="Other">Other</option>
-                        <option value="Prefer not to say">Prefer not to say</option>
-                    </select>
-                </div>
-                <div class="form-group full-width">
-                    <label class="body-sm">Address</label>
-                    <textarea class="form-input" rows="2" @bind="profileData!.Address" disabled="@(!isEditing)"></textarea>
-                </div>
-            </div>
-        </section>
+            </section>
 
-        <!-- Medical Information -->
-        <section class="info-card">
-            <div class="section-header">
-                <h2 class="headline-md">Medical Information</h2>
-            </div>
-            <div class="form-grid">
-                <div class="form-group">
-                    <label class="body-sm">Blood Type</label>
-                    <select class="form-input" @bind="profileData!.BloodType" disabled="@(!isEditing)">
-                        <option value="">Select Blood Type</option>
-                        <option value="O+">O+</option>
-                        <option value="O-">O-</option>
-                        <option value="A+">A+</option>
-                        <option value="A-">A-</option>
-                        <option value="B+">B+</option>
-                        <option value="B-">B-</option>
-                        <option value="AB+">AB+</option>
-                        <option value="AB-">AB-</option>
-                    </select>
+            <!-- Medical Information -->
+            <section class="info-card info-card-compact">
+                <div class="section-header">
+                    <h2 class="headline-md">Medical Information</h2>
                 </div>
-                <div class="form-group">
-                    <!-- Placeholder for future fields -->
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="body-sm">Blood Type</label>
+                        <select class="form-input" @bind="profileData!.BloodType" disabled="@(!isEditing)">
+                            <option value="">Select Blood Type</option>
+                            <option value="O+">O+</option>
+                            <option value="O-">O-</option>
+                            <option value="A+">A+</option>
+                            <option value="A-">A-</option>
+                            <option value="B+">B+</option>
+                            <option value="B-">B-</option>
+                            <option value="AB+">AB+</option>
+                            <option value="AB-">AB-</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="body-sm">Allergies</label>
+                        <textarea class="form-input" rows="2" @bind="profileData!.Allergies" disabled="@(!isEditing)" 
+                                  placeholder="e.g., Penicillin, Peanuts"></textarea>
+                    </div>
+                    <div class="form-group full-width">
+                        <label class="body-sm">Current Medications</label>
+                        <textarea class="form-input" rows="2" @bind="profileData!.CurrentMedications" disabled="@(!isEditing)"
+                                  placeholder="e.g., Lisinopril 10mg daily, Metformin 500mg"></textarea>
+                    </div>
+                    <div class="form-group full-width">
+                        <label class="body-sm">Chronic Conditions</label>
+                        <textarea class="form-input" rows="2" @bind="profileData!.ChronicConditions" disabled="@(!isEditing)"
+                                  placeholder="e.g., Type 2 Diabetes, Hypertension"></textarea>
+                    </div>
                 </div>
-                <div class="form-group full-width">
-                    <label class="body-sm">Allergies (comma-separated)</label>
-                    <textarea class="form-input" rows="3" @bind="profileData!.Allergies" disabled="@(!isEditing)" 
-                              placeholder="e.g., Penicillin, Peanuts, Shellfish"></textarea>
-                </div>
-                <div class="form-group full-width">
-                    <label class="body-sm">Current Medications (comma-separated)</label>
-                    <textarea class="form-input" rows="3" @bind="profileData!.CurrentMedications" disabled="@(!isEditing)"
-                              placeholder="e.g., Lisinopril 10mg daily, Metformin 500mg"></textarea>
-                </div>
-                <div class="form-group full-width">
-                    <label class="body-sm">Chronic Conditions (comma-separated)</label>
-                    <textarea class="form-input" rows="3" @bind="profileData!.ChronicConditions" disabled="@(!isEditing)"
-                              placeholder="e.g., Type 2 Diabetes, Hypertension"></textarea>
-                </div>
-            </div>
-        </section>
-
-        <!-- Emergency Contact -->
-        <section class="info-card">
-            <div class="section-header">
-                <h2 class="headline-md">Emergency Contact</h2>
-            </div>
-            <div class="form-grid">
-                <div class="form-group">
-                    <label class="body-sm">Contact Name</label>
-                    <input type="text" class="form-input" @bind="profileData!.EmergencyContactName" disabled="@(!isEditing)" />
-                </div>
-                <div class="form-group">
-                    <label class="body-sm">Phone Number</label>
-                    <input type="tel" class="form-input" @bind="profileData!.EmergencyContactPhone" disabled="@(!isEditing)" />
-                </div>
-            </div>
-        </section>
+            </section>
+        </div>
     </div>
 }
 
@@ -272,11 +281,11 @@ else
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
-        margin-bottom: 2rem;
+        margin-bottom: 1.5rem;
     }
 
     .header-left h1 {
-        font-size: 2rem;
+        font-size: 1.75rem;
         font-weight: 700;
         color: #191c1e;
         margin: 0.5rem;
@@ -289,47 +298,59 @@ else
 
     .header-right {
         display: flex;
-        gap: 1rem;
+        gap: 0.75rem;
     }
 
     .content-grid {
         display: grid;
-        grid-template-columns: 1fr 2fr;
-        gap: 2rem;
+        grid-template-columns: 320px 1fr;
+        gap: 1.5rem;
+        align-items: start;
+    }
+
+    .left-column {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .right-column {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
     }
 
     .profile-photo-card {
-        grid-column: span 1;
         background: white;
-        padding: 2rem;
-        border-radius: 16px;
+        padding: 1.5rem;
+        border-radius: 12px;
         display: flex;
         flex-direction: column;
         align-items: center;
         text-align: center;
-        height: fit-content;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     }
 
     .photo-container {
         position: relative;
-        margin-bottom: 1.5rem;
+        margin-bottom: 1rem;
     }
 
     .avatar-large {
-        width: 120px;
-        height: 120px;
+        width: 100px;
+        height: 100px;
         border-radius: 50%;
         background: linear-gradient(135deg, #76f3ea, #006a65);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 3rem;
+        font-size: 2.5rem;
         color: white;
     }
 
     .avatar-large-img {
-        width: 120px;
-        height: 120px;
+        width: 100px;
+        height: 100px;
         border-radius: 50%;
         object-fit: cover;
         border: 3px solid white;
@@ -340,8 +361,8 @@ else
         position: absolute;
         bottom: 0;
         right: 0;
-        width: 40px;
-        height: 40px;
+        width: 36px;
+        height: 36px;
         border-radius: 50%;
         background: #0052cc;
         color: white;
@@ -359,7 +380,7 @@ else
     }
 
     .photo-info h3 {
-        font-size: 1.5rem;
+        font-size: 1.25rem;
         font-weight: 700;
         color: #191c1e;
         margin-bottom: 0.5rem;
@@ -368,29 +389,31 @@ else
     .photo-info p {
         color: #434654;
         margin-bottom: 0.25rem;
+        font-size: 0.875rem;
     }
 
     .info-card {
-        grid-column: span 2;
         background: white;
-        padding: 2rem;
-        border-radius: 16px;
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     }
 
-    .info-card:first-of-type {
-        grid-column: 2;
-        grid-row: 1;
+    .info-card-compact {
+        padding: 1.25rem;
     }
 
     .section-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 1.75rem;
+        margin-bottom: 1.25rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid #e6e8ea;
     }
 
     .section-header h2 {
-        font-size: 1.5rem;
+        font-size: 1.125rem;
         font-weight: 700;
         color: #191c1e;
     }
@@ -398,13 +421,19 @@ else
     .form-grid {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
-        gap: 1.5rem;
+        gap: 1rem;
+    }
+
+    .form-grid-single {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1rem;
     }
 
     .form-group {
         display: flex;
         flex-direction: column;
-        gap: 0.5rem;
+        gap: 0.4rem;
     }
 
     .form-group.full-width {
@@ -414,13 +443,14 @@ else
     .form-group label {
         color: #434654;
         font-weight: 500;
+        font-size: 0.875rem;
     }
 
     .form-input {
-        padding: 0.875rem 1rem;
+        padding: 0.625rem 0.875rem;
         border: 1px solid #e6e8ea;
         border-radius: 8px;
-        font-size: 0.9375rem;
+        font-size: 0.875rem;
         font-family: 'Inter', sans-serif;
         transition: all 0.2s;
     }
@@ -438,7 +468,7 @@ else
 
     textarea.form-input {
         resize: vertical;
-        min-height: 80px;
+        min-height: 60px;
     }
 
     select.form-input {
@@ -446,7 +476,7 @@ else
     }
 
     .btn {
-        padding: 0.75rem 1.5rem;
+        padding: 0.625rem 1.25rem;
         border-radius: 8px;
         font-weight: 600;
         cursor: pointer;
@@ -456,6 +486,12 @@ else
         display: flex;
         align-items: center;
         gap: 0.5rem;
+        justify-content: center;
+    }
+
+    .btn-compact {
+        margin-top: 1rem;
+        width: 100%;
     }
 
     .btn-primary {
@@ -501,20 +537,30 @@ else
         box-shadow: 0 4px 12px rgba(211, 47, 47, 0.3);
     }
 
+    .field-error {
+        color: #d32f2f;
+        font-size: 0.75rem;
+        font-weight: 500;
+        margin-top: 0.25rem;
+    }
+
     @@media (max-width: 1024px) {
         .content-grid {
-            grid-template-columns: 1fr;
-        }
-
-        .profile-photo-card,
-        .info-card,
-        .info-card:first-of-type {
-            grid-column: span 1;
-            grid-row: auto;
+            grid-template-columns: 280px 1fr;
+            gap: 1.25rem;
         }
     }
 
     @@media (max-width: 768px) {
+        .content-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .left-column,
+        .right-column {
+            width: 100%;
+        }
+
         .form-grid {
             grid-template-columns: 1fr;
         }
@@ -525,6 +571,19 @@ else
 
         .header-right {
             flex-direction: column;
+        }
+
+        .content-header {
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .header-right {
+            width: 100%;
+        }
+
+        .btn {
+            width: 100%;
         }
     }
 </style>

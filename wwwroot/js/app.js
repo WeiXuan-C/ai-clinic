@@ -6,14 +6,26 @@ window.scrollToBottom = function(elementId) {
     }
 };
 
-// Download file helper - supports data URLs
-window.downloadFile = function(fileName, dataUrl) {
+// Download file helper - supports data URLs and base64
+window.downloadFile = function(fileName, base64Data, contentType) {
+    const byteCharacters = atob(base64Data);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: contentType || 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    
     const link = document.createElement('a');
+    link.href = url;
     link.download = fileName;
-    link.href = dataUrl;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    
+    // Clean up
+    setTimeout(() => URL.revokeObjectURL(url), 100);
 };
 
 // Download file from byte array

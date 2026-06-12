@@ -27,7 +27,7 @@ else if (dashboardData != null)
             <h1>Welcome back, @doctorName</h1>
             <p class="body-md" style="margin: 0.5rem;">
                 <span class="status-indicator">●</span>
-                You have @dashboardData.PendingConsultations.Count pending consultation@(dashboardData.PendingConsultations.Count != 1 ? "s" : "") today
+                You have @topConversations.Count active conversation@(topConversations.Count != 1 ? "s" : "")
             </p>
         </div>
     </header>
@@ -74,35 +74,35 @@ else if (dashboardData != null)
             </div>
         </div>
 
-        <!-- Pending Consultations -->
+        <!-- Top 10 Conversations -->
         <section class="consultations-section">
             <div class="section-header">
-                <h2 class="headline-md">Pending Consultations</h2>
+                <h2 class="headline-md">Top 10 Conversations</h2>
                 <a href="/doctor/consultation" class="link-primary">View All</a>
             </div>
             <div class="consultations-list">
-                @if (dashboardData.PendingConsultations.Any())
+                @if (topConversations.Any())
                 {
-                    @foreach (var consultation in dashboardData.PendingConsultations)
+                    @foreach (var conversation in topConversations)
                     {
                         <div class="consultation-item">
-                            <div class="consultation-icon @(consultation.Status == ConversationStatus.Active ? "urgent" : "message")">
-                                <i data-lucide="@(consultation.Status == ConversationStatus.Active ? "alert-circle" : "message-square")"></i>
+                            <div class="consultation-icon @(conversation.Status == ConversationStatus.Active ? "urgent" : "message")">
+                                <i data-lucide="@(conversation.Status == ConversationStatus.Active ? "message-circle" : "message-square")"></i>
                             </div>
                             <div class="consultation-info">
-                                <h4 class="headline-sm">@consultation.Title</h4>
-                                <p class="body-sm">@GetTimeSince(consultation.CreatedAt)</p>
+                                <h4 class="headline-sm">@conversation.Title</h4>
+                                <p class="body-sm">Last activity: @GetTimeSince(conversation.LastMessageAt)</p>
                             </div>
-                            <span class="badge @GetConversationBadgeClass(consultation)">@GetConversationBadgeText(consultation)</span>
-                            <button class="btn-primary-sm" @onclick="@(() => Navigation.NavigateTo($"/doctor/chat/{consultation.Id}"))">
-                                @(consultation.Status == ConversationStatus.Active ? "Respond" : "Review")
+                            <span class="badge @GetConversationBadgeClass(conversation)">@GetConversationBadgeText(conversation)</span>
+                            <button class="btn-primary-sm" @onclick="@(() => Navigation.NavigateTo($"/doctor/consultation?conversationId={conversation.Id}"))">
+                                Open
                             </button>
                         </div>
                     }
                 }
                 else
                 {
-                    <p class="body-md" style="color: #434654; padding: 1rem;">No pending consultations at the moment.</p>
+                    <p class="body-md" style="color: #434654; padding: 1rem;">No conversations yet.</p>
                 }
             </div>
         </section>

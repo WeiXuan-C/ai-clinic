@@ -21,6 +21,7 @@ public class PatientFacade
     private readonly ActivityLogService _activityLogService;
     private readonly DocumentService _documentService;
     private readonly UserService _userService;
+    private readonly PatientSettingsService _patientSettingsService;
     // private readonly PatientConsultationWorkflowService _workflowService;
     private readonly MedicalRecordExportService _exportService;
 
@@ -33,6 +34,7 @@ public class PatientFacade
         ActivityLogService activityLogService,
         DocumentService documentService,
         UserService userService,
+        PatientSettingsService patientSettingsService,
         // PatientConsultationWorkflowService workflowService,
         MedicalRecordExportService exportService)
     {
@@ -44,6 +46,7 @@ public class PatientFacade
         _activityLogService = activityLogService;
         _documentService = documentService;
         _userService = userService;
+        _patientSettingsService = patientSettingsService;
         // _workflowService = workflowService;
         _exportService = exportService;
     }
@@ -521,6 +524,253 @@ public class PatientFacade
             // Note: You may need to add an UpdateUser method to UserService
             await _activityLogService.LogActivityAsync(userId, "UpdatePatientSettings");
         }
+    }
+
+    /// <summary>
+    /// Change patient's email address
+    /// Validates that the new email is not already in use
+    /// </summary>
+    public async Task<(bool Success, string Message)> ChangeEmailAsync(Guid userId, string newEmail)
+    {
+        return await _patientSettingsService.ChangeEmailAsync(userId, newEmail);
+    }
+
+    /// <summary>
+    /// Change patient's password
+    /// Validates password complexity and prevents using the same password
+    /// </summary>
+    public async Task<(bool Success, string Message)> ChangePasswordAsync(Guid userId, string currentPassword, string newPassword, string confirmPassword)
+    {
+        return await _patientSettingsService.ChangePasswordAsync(userId, currentPassword, newPassword, confirmPassword);
+    }
+
+    /// <summary>
+    /// Export all patient data including profile, medical records, prescriptions, documents, and conversations
+    /// Returns a comprehensive PDF report
+    /// </summary>
+    public async Task<byte[]> ExportAllPatientDataAsync(Guid userId)
+    {
+        // Get all patient data in parallel
+        var profileTask = _patientProfileService.GetByUserIdAsync(userId);
+        var userTask = _userService.GetByIdAsync(userId);
+        var medicalRecordsTask = _medicalRecordService.GetByPatientIdAsync(userId);
+        var prescriptionsTask = _prescriptionService.GetByPatientIdAsync(userId);
+        var documentsTask = _documentService.GetByPatientIdAsync(userId);
+        var conversationsTask = _conversationService.GetByPatientIdAsync(userId);
+
+        await Task.WhenAll(profileTask, userTask, medicalRecordsTask, prescriptionsTask, documentsTask, conversationsTask);
+
+        var profile = await profileTask;
+        var user = await userTask;
+        var medicalRecords = await medicalRecordsTask;
+        var prescriptions = await prescriptionsTask;
+        var documents = await documentsTask;
+        var conversations = await conversationsTask;
+
+        // Generate comprehensive PDF
+        var document = PdfDocument.Create(container =>
+        {
+            container.Page(page =>
+            {
+                page.Size(PageSizes.A4);
+                page.Margin(2, Unit.Centimetre);
+                page.PageColor(Colors.White);
+                page.DefaultTextStyle(x => x.FontSize(10).FontFamily("Arial"));
+
+                page.Header()
+                    .Height(100)
+                    .Background(Colors.Blue.Lighten3)
+                    .Padding(20)
+                    .Column(column =>
+                    {
+                        column.Item().Text("AI Clinic - Complete Patient Data Export")
+                            .FontSize(18)
+                            .Bold()
+                            .FontColor(Colors.Blue.Darken2);
+                        
+                        column.Item().Text($"Generated: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC")
+                            .FontSize(9)
+                            .FontColor(Colors.Grey.Darken1);
+                        
+                        column.Item().Text("This document contains all your personal and medical information")
+                            .FontSize(9)
+                            .FontColor(Colors.Grey.Darken1);
+                    });
+
+                page.Content()
+                    .PaddingVertical(1, Unit.Centimetre)
+                    .Column(column =>
+                    {
+                        // Personal Information Section
+                        column.Item().Text("PERSONAL INFORMATION")
+                            .FontSize(14).Bold().FontColor(Colors.Blue.Darken1);
+                        column.Item().PaddingTop(5).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
+                        
+                        column.Item().PaddingTop(10).Text($"Email: {user?.Email ?? "N/A"}");
+                        column.Item().Text($"Full Name: {profile?.FullName ?? "N/A"}");
+                        column.Item().Text($"Date of Birth: {profile?.DateOfBirth?.ToString("yyyy-MM-dd") ?? "N/A"}");
+                        column.Item().Text($"Gender: {profile?.Gender ?? "N/A"}");
+                        column.Item().Text($"Phone: {user?.Phone ?? "N/A"}");
+                        column.Item().Text($"Address: {profile?.Address ?? "N/A"}");
+                        column.Item().Text($"Blood Type: {profile?.BloodType ?? "N/A"}");
+                        column.Item().Text($"Allergies: {profile?.Allergies ?? "None"}");
+                        column.Item().Text($"Emergency Contact: {profile?.EmergencyContactName ?? "N/A"} - {profile?.EmergencyContactPhone ?? "N/A"}");
+                        column.Item().Text($"Account Created: {user?.CreatedAt.ToString("yyyy-MM-dd") ?? "N/A"}");
+                        
+                        column.Item().PaddingTop(15);
+
+                        // Privacy Settings Section
+                        column.Item().Text("PRIVACY SETTINGS")
+                            .FontSize(14).Bold().FontColor(Colors.Blue.Darken1);
+                        column.Item().PaddingTop(5).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
+                        
+                        column.Item().PaddingTop(10).Text($"Data Sharing: {(user?.DataSharingEnabled == true ? "Enabled" : "Disabled")}");
+                        column.Item().Text($"AI Analysis: {(user?.AiAnalysisEnabled == true ? "Enabled" : "Disabled")}");
+                        column.Item().Text($"Activity Tracking: {(user?.ActivityTrackingEnabled == true ? "Enabled" : "Disabled")}");
+                        
+                        column.Item().PaddingTop(15);
+
+                        // Medical Records Section
+                        column.Item().Text($"MEDICAL RECORDS ({medicalRecords.Count})")
+                            .FontSize(14).Bold().FontColor(Colors.Blue.Darken1);
+                        column.Item().PaddingTop(5).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
+                        
+                        if (medicalRecords.Any())
+                        {
+                            foreach (var record in medicalRecords.OrderByDescending(r => r.RecordDate).Take(20))
+                            {
+                                column.Item().PaddingTop(10).Text($"Date: {record.RecordDate:yyyy-MM-dd}")
+                                    .FontSize(10).Bold();
+                                column.Item().Text($"Type: {record.RecordType}");
+                                column.Item().Text($"Title: {record.Title}");
+                                if (!string.IsNullOrEmpty(record.DiagnosisDescription))
+                                    column.Item().Text($"Diagnosis: {record.DiagnosisDescription}");
+                                column.Item().Text($"Content: {record.Content}");
+                                if (!string.IsNullOrEmpty(record.Medications))
+                                    column.Item().Text($"Medications: {record.Medications}");
+                            }
+                        }
+                        else
+                        {
+                            column.Item().PaddingTop(10).Text("No medical records found");
+                        }
+
+                        column.Item().PageBreak();
+
+                        // Prescriptions Section
+                        column.Item().Text($"PRESCRIPTIONS ({prescriptions.Count})")
+                            .FontSize(14).Bold().FontColor(Colors.Blue.Darken1);
+                        column.Item().PaddingTop(5).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
+                        
+                        if (prescriptions.Any())
+                        {
+                            foreach (var prescription in prescriptions.OrderByDescending(p => p.CreatedAt))
+                            {
+                                column.Item().PaddingTop(10).Text($"Date: {prescription.CreatedAt:yyyy-MM-dd}")
+                                    .FontSize(10).Bold();
+                                column.Item().Text($"Medication: {prescription.MedicationName}");
+                                column.Item().Text($"Dosage: {prescription.Dosage}");
+                                column.Item().Text($"Frequency: {prescription.Frequency}");
+                                column.Item().Text($"Duration: {prescription.Duration ?? "Ongoing"}");
+                                column.Item().Text($"Status: {(prescription.IsActive ? "Active" : "Inactive")}");
+                                if (!string.IsNullOrEmpty(prescription.Instructions))
+                                    column.Item().Text($"Instructions: {prescription.Instructions}");
+                            }
+                        }
+                        else
+                        {
+                            column.Item().PaddingTop(10).Text("No prescriptions found");
+                        }
+
+                        column.Item().PaddingTop(15);
+
+                        // Documents Section
+                        column.Item().Text($"DOCUMENTS ({documents.Count})")
+                            .FontSize(14).Bold().FontColor(Colors.Blue.Darken1);
+                        column.Item().PaddingTop(5).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
+                        
+                        if (documents.Any())
+                        {
+                            foreach (var doc in documents.OrderByDescending(d => d.CreatedAt))
+                            {
+                                column.Item().PaddingTop(10).Text($"Date: {doc.CreatedAt:yyyy-MM-dd}")
+                                    .FontSize(10).Bold();
+                                column.Item().Text($"Title: {doc.Title ?? doc.FileName}");
+                                column.Item().Text($"Type: {doc.DocumentTypeString ?? doc.FileType.ToString()}");
+                                column.Item().Text($"File: {doc.FileName} ({doc.FileSizeBytes} bytes)");
+                                if (!string.IsNullOrEmpty(doc.Description))
+                                    column.Item().Text($"Description: {doc.Description}");
+                            }
+                        }
+                        else
+                        {
+                            column.Item().PaddingTop(10).Text("No documents found");
+                        }
+
+                        column.Item().PaddingTop(15);
+
+                        // Consultations Section
+                        column.Item().Text($"CONSULTATIONS ({conversations.Count})")
+                            .FontSize(14).Bold().FontColor(Colors.Blue.Darken1);
+                        column.Item().PaddingTop(5).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
+                        
+                        if (conversations.Any())
+                        {
+                            foreach (var conversation in conversations.OrderByDescending(c => c.CreatedAt).Take(10))
+                            {
+                                column.Item().PaddingTop(10).Text($"Date: {conversation.CreatedAt:yyyy-MM-dd}")
+                                    .FontSize(10).Bold();
+                                column.Item().Text($"Title: {conversation.Title}");
+                                column.Item().Text($"Status: {conversation.Status}");
+                                if (!string.IsNullOrEmpty(conversation.InitialSymptoms))
+                                    column.Item().Text($"Symptoms: {conversation.InitialSymptoms}");
+                                if (conversation.AssignedDoctorId.HasValue)
+                                    column.Item().Text($"Assigned Doctor: Yes");
+                            }
+                        }
+                        else
+                        {
+                            column.Item().PaddingTop(10).Text("No consultations found");
+                        }
+
+                        column.Item().PaddingTop(15);
+
+                        // Summary
+                        column.Item().Text("DATA EXPORT SUMMARY")
+                            .FontSize(14).Bold().FontColor(Colors.Blue.Darken1);
+                        column.Item().PaddingTop(5).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
+                        
+                        column.Item().PaddingTop(10).Text($"Total Medical Records: {medicalRecords.Count}");
+                        column.Item().Text($"Total Prescriptions: {prescriptions.Count}");
+                        column.Item().Text($"Total Documents: {documents.Count}");
+                        column.Item().Text($"Total Consultations: {conversations.Count}");
+                        column.Item().Text($"Export Date: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC");
+                        
+                        column.Item().PaddingTop(15);
+                        column.Item().Text("This is a complete export of your data as of the date above. For the most current information, please log in to your AI Clinic account.")
+                            .FontSize(9).Italic().FontColor(Colors.Grey.Darken1);
+                    });
+
+                page.Footer()
+                    .AlignCenter()
+                    .Text(x =>
+                    {
+                        x.Span("Page ");
+                        x.CurrentPageNumber();
+                        x.Span(" of ");
+                        x.TotalPages();
+                    });
+            });
+        });
+
+        var pdfBytes = document.GeneratePdf();
+
+        await _activityLogService.LogActivityAsync(
+            userId,
+            "ExportAllData",
+            "Complete patient data exported to PDF");
+
+        return pdfBytes;
     }
 
     /// <summary>

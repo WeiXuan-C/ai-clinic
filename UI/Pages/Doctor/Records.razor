@@ -2,56 +2,51 @@
 @layout Components.Layout.DoctorSidebarLayout
 @using ai_clinic.Models
 
-<PageTitle>Medical Records - AI Medical Clinic</PageTitle>
+<PageTitle>Conversation History - AI Medical Clinic</PageTitle>
 
 <link rel="stylesheet" href="/css/stitch-design-system.css" />
 
 <!-- Header -->
 <header class="content-header">
     <div class="header-left">
-        <h1>Medical Records</h1>
+        <h1>Conversation History</h1>
         <p class="body-md" style="margin: 0.5rem;">
             <span class="status-indicator">●</span>
-            Manage patient medical records and documentation
+            View patients you've communicated with and their medical records
         </p>
     </div>
     <div class="header-right">
-        <button class="btn btn-secondary" @onclick="OpenExportModal">
-            <i data-lucide="download"></i>
-            Export
-        </button>
-        <button class="btn btn-primary" @onclick="OpenNewRecordModal">
-            <i data-lucide="file-plus"></i>
-            New Record
+        <button class="btn btn-secondary" @onclick="RefreshData">
+            <i data-lucide="refresh-cw"></i>
+            Refresh
         </button>
     </div>
 </header>
 
-<!-- Filter Tabs -->
-<div class="filter-tabs">
-    <button class="tab-btn @(currentFilter == "all" ? "active" : "")" @onclick='() => SetFilter("all")'>All Records</button>
-    <button class="tab-btn @(currentFilter == "lab" ? "active" : "")" @onclick='() => SetFilter("lab")'>Lab Results</button>
-    <button class="tab-btn @(currentFilter == "prescriptions" ? "active" : "")" @onclick='() => SetFilter("prescriptions")'>Prescriptions</button>
-    <button class="tab-btn @(currentFilter == "records" ? "active" : "")" @onclick='() => SetFilter("records")'>Consultation Notes</button>
-    <button class="tab-btn @(currentFilter == "imaging" ? "active" : "")" @onclick='() => SetFilter("imaging")'>Imaging</button>
+<!-- Search Bar -->
+<div class="search-section">
+    <div class="search-box">
+        <i data-lucide="search"></i>
+        <input type="text" 
+               placeholder="Search by patient name or email..." 
+               @bind="searchQuery" 
+               @bind:event="oninput" 
+               @onkeyup="HandleSearch" />
+    </div>
 </div>
 
 <!-- Content Grid -->
 <div class="content-grid">
-    <!-- Records List -->
-    <section class="records-section">
+    <!-- Patient List -->
+    <section class="patients-section">
         <div class="section-header">
-            <h2 class="headline-md">Recent Records</h2>
-            <div class="search-box">
-                <i data-lucide="search"></i>
-                <input type="text" placeholder="Search records..." @bind="searchQuery" @bind:event="oninput" @onkeyup="@(async (e) => { if (e.Key == "Enter") await HandleSearch(); })" />
-            </div>
+            <h2 class="headline-md">Your Patients (@patientConversations.Count)</h2>
         </div>
         
         @if (isLoading)
         {
             <div style="text-align: center; padding: 3rem;">
-                <p class="body-md">Loading records...</p>
+                <p class="body-md">Loading conversations...</p>
             </div>
         }
         else if (!string.IsNullOrEmpty(errorMessage))
@@ -60,38 +55,40 @@
                 <p class="body-md" style="color: #d32f2f;">@errorMessage</p>
             </div>
         }
-        else if (!GetFilteredRecords().Any())
+        else if (!GetFilteredPatients().Any())
         {
             <div style="text-align: center; padding: 3rem;">
-                <p class="body-md">No records found</p>
+                <p class="body-md">No patient conversations found</p>
             </div>
         }
         else
         {
-            <div class="records-list">
-                @foreach (var record in GetFilteredRecords())
+            <div class="patients-list">
+                @foreach (var patient in GetFilteredPatients())
                 {
-                    var recordType = GetRecordType(record);
-                    <div class="record-item">
-                        <div class="record-icon @GetIconClass(recordType)">
-                            <i data-lucide="@GetIconName(recordType)"></i>
+                    var isSelected = selectedPatientId == patient.PatientId;
+                    <div class="patient-item @(isSelected ? "selected" : "")" 
+                         @onclick="() => SelectPatient(patient.PatientId)">
+                        <div class="patient-avatar">
+                            @if (patient.ProfilePhoto != null)
+                            {
+                                <img src="@($"data:image/jpeg;base64,{Convert.ToBase64String(patient.ProfilePhoto)}")" 
+                                     alt="@patient.PatientName" />
+                            }
+                            else
+                            {
+                                <i data-lucide="user"></i>
+                            }
                         </div>
-                        <div class="record-info">
-                            <h4 class="headline-sm">@GetRecordTitle(record)</h4>
-                            <p class="body-sm">Date: @GetRecordDate(record)</p>
-                            <p class="body-sm">@GetRecordDetails(record)</p>
+                        <div class="patient-info">
+                            <h4 class="headline-sm">@patient.PatientName</h4>
+                            <p class="body-sm">@patient.PatientEmail</p>
+                            <p class="body-sm" style="color: #10b981;">
+                                @patient.ConversationCount conversation@(patient.ConversationCount != 1 ? "s" : "")
+                            </p>
                         </div>
-                        <span class="badge @GetBadgeClass(recordType)">@recordType.ToUpper()</span>
-                        <div class="record-actions">
-                            <button class="btn-icon-sm" @onclick="() => ViewRecord(record)" title="View">
-                                <i data-lucide="eye"></i>
-                            </button>
-                            <button class="btn-icon-sm" @onclick="() => EditRecord(record)" title="Edit">
-                                <i data-lucide="edit-2"></i>
-                            </button>
-                            <button class="btn-icon-sm" @onclick="() => DownloadRecord(record)" title="Download">
-                                <i data-lucide="download"></i>
-                            </button>
+                        <div class="patient-badge">
+                            <span class="badge badge-visit">@patient.MedicalRecordCount record@(patient.MedicalRecordCount != 1 ? "s" : "")</span>
                         </div>
                     </div>
                 }
@@ -99,56 +96,161 @@
         }
     </section>
 
-    <!-- Quick Stats -->
-    <section class="stats-card">
-        <h3 class="headline-md">Record Summary</h3>
-        @if (isLoading)
+    <!-- Details Section -->
+    <section class="details-section">
+        @if (selectedPatientId == null)
         {
-            <p class="body-sm">Loading...</p>
+            <div style="text-align: center; padding: 3rem;">
+                <i data-lucide="user-circle" style="font-size: 4rem; color: #e6e8ea; margin-bottom: 1rem;"></i>
+                <p class="body-md" style="color: #434654;">Select a patient to view conversation history and medical records</p>
+            </div>
         }
         else
         {
-            <div class="stats-list">
-                <div class="stat-item">
-                    <i data-lucide="file-text" class="stat-icon"></i>
-                    <div class="stat-info">
-                        <h4 class="headline-lg">@statistics.TotalRecords</h4>
-                        <p class="body-sm">Total Records</p>
+            var patient = patientConversations.FirstOrDefault(p => p.PatientId == selectedPatientId);
+            if (patient != null)
+            {
+                <div class="patient-details-header">
+                    <div class="patient-avatar-large">
+                        @if (patient.ProfilePhoto != null)
+                        {
+                            <img src="@($"data:image/jpeg;base64,{Convert.ToBase64String(patient.ProfilePhoto)}")" 
+                                 alt="@patient.PatientName" />
+                        }
+                        else
+                        {
+                            <i data-lucide="user"></i>
+                        }
+                    </div>
+                    <div>
+                        <h2 class="headline-lg">@patient.PatientName</h2>
+                        <p class="body-md">@patient.PatientEmail</p>
+                        @if (patient.DateOfBirth.HasValue)
+                        {
+                            <p class="body-sm" style="color: #434654;">
+                                Age: @CalculateAge(patient.DateOfBirth.Value) years
+                            </p>
+                        }
                     </div>
                 </div>
-                <div class="stat-item">
-                    <i data-lucide="flask-conical" class="stat-icon"></i>
-                    <div class="stat-info">
-                        <h4 class="headline-lg">@statistics.LabResults</h4>
-                        <p class="body-sm">Lab Results</p>
-                    </div>
+
+                <!-- Tabs -->
+                <div class="tabs">
+                    <button class="tab-btn @(activeTab == "conversations" ? "active" : "")" 
+                            @onclick='() => activeTab = "conversations"'>
+                        <i data-lucide="message-square"></i>
+                        Conversations (@patient.ConversationCount)
+                    </button>
+                    <button class="tab-btn @(activeTab == "records" ? "active" : "")" 
+                            @onclick='() => activeTab = "records"'>
+                        <i data-lucide="file-text"></i>
+                        Medical Records (@patient.MedicalRecordCount)
+                    </button>
                 </div>
-                <div class="stat-item">
-                    <i data-lucide="pill" class="stat-icon"></i>
-                    <div class="stat-info">
-                        <h4 class="headline-lg">@statistics.Prescriptions</h4>
-                        <p class="body-sm">Prescriptions</p>
-                    </div>
+
+                <!-- Tab Content -->
+                <div class="tab-content">
+                    @if (activeTab == "conversations")
+                    {
+                        <div class="conversations-list">
+                            @if (!patient.Conversations.Any())
+                            {
+                                <p class="body-md" style="text-align: center; padding: 2rem; color: #434654;">
+                                    No conversations found
+                                </p>
+                            }
+                            else
+                            {
+                                @foreach (var conversation in patient.Conversations.OrderByDescending(c => c.LastMessageAt))
+                                {
+                                    <div class="conversation-card" @onclick="() => ViewConversation(conversation.Id)">
+                                        <div class="conversation-header">
+                                            <div>
+                                                <h4 class="headline-sm">@(conversation.Title ?? "Consultation")</h4>
+                                                <p class="body-sm" style="color: #434654;">
+                                                    Started: @conversation.StartedAt.ToLocalTime().ToString("MMM dd, yyyy hh:mm tt")
+                                                </p>
+                                            </div>
+                                            <span class="badge @GetStatusBadgeClass(conversation.Status)">
+                                                @conversation.Status
+                                            </span>
+                                        </div>
+                                        <div class="conversation-stats">
+                                            <div class="stat-chip">
+                                                <i data-lucide="message-circle"></i>
+                                                <span>@conversation.TotalMessages messages</span>
+                                            </div>
+                                            @if (!string.IsNullOrEmpty(conversation.AiSuggestedSpecialization))
+                                            {
+                                                <div class="stat-chip">
+                                                    <i data-lucide="stethoscope"></i>
+                                                    <span>@conversation.AiSuggestedSpecialization</span>
+                                                </div>
+                                            }
+                                            @if (conversation.ClosedAt.HasValue)
+                                            {
+                                                <div class="stat-chip">
+                                                    <i data-lucide="calendar"></i>
+                                                    <span>Closed: @conversation.ClosedAt.Value.ToLocalTime().ToString("MMM dd, yyyy")</span>
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="records-list">
+                            @if (!patient.MedicalRecords.Any())
+                            {
+                                <p class="body-md" style="text-align: center; padding: 2rem; color: #434654;">
+                                    No medical records found
+                                </p>
+                            }
+                            else
+                            {
+                                @foreach (var record in patient.MedicalRecords.OrderByDescending(r => r.RecordDate))
+                                {
+                                    <div class="record-card" @onclick="() => ViewRecord(record)">
+                                        <div class="record-icon @GetRecordIconClass(record.RecordType)">
+                                            <i data-lucide="@GetRecordIcon(record.RecordType)"></i>
+                                        </div>
+                                        <div class="record-info">
+                                            <h4 class="headline-sm">@record.Title</h4>
+                                            <p class="body-sm">@record.RecordDate.ToLocalTime().ToString("MMM dd, yyyy hh:mm tt")</p>
+                                            @if (!string.IsNullOrEmpty(record.DiagnosisDescription))
+                                            {
+                                                <p class="body-sm" style="color: #434654; margin-top: 0.5rem;">
+                                                    Diagnosis: @record.DiagnosisDescription
+                                                </p>
+                                            }
+                                        </div>
+                                        <span class="badge @GetRecordBadgeClass(record.RecordType)">
+                                            @record.RecordType
+                                        </span>
+                                        <button class="btn-icon-sm" @onclick:stopPropagation @onclick="() => ViewRecord(record)" title="View Details">
+                                            <i data-lucide="eye"></i>
+                                        </button>
+                                    </div>
+                                }
+                            }
+                        </div>
+                    }
                 </div>
-                <div class="stat-item">
-                    <i data-lucide="scan" class="stat-icon"></i>
-                    <div class="stat-info">
-                        <h4 class="headline-lg">@statistics.ImagingStudies</h4>
-                        <p class="body-sm">Imaging Studies</p>
-                    </div>
-                </div>
-            </div>
+            }
         }
     </section>
 </div>
 
 <!-- View Record Modal -->
-@if (showViewModal && selectedRecord != null)
+@if (showRecordModal && selectedRecord != null)
 {
     <div class="modal-overlay" @onclick="CloseModals">
-        <div class="modal-content" @onclick:stopPropagation>
+        <div class="modal-content modal-large" @onclick:stopPropagation>
             <div class="modal-header">
-                <h2 class="headline-lg">@GetRecordTitle(selectedRecord)</h2>
+                <h2 class="headline-lg">@selectedRecord.Title</h2>
                 <button class="btn-icon" @onclick="CloseModals">
                     <i data-lucide="x"></i>
                 </button>
@@ -156,175 +258,46 @@
             <div class="modal-body">
                 <div class="record-detail">
                     <div class="detail-row">
-                        <span class="detail-label">Type:</span>
-                        <span class="badge @GetBadgeClass(GetRecordType(selectedRecord))">@GetRecordType(selectedRecord)</span>
+                        <span class="detail-label">Record Type:</span>
+                        <span class="badge @GetRecordBadgeClass(selectedRecord.RecordType)">@selectedRecord.RecordType</span>
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Date:</span>
-                        <span class="detail-value">@GetRecordDate(selectedRecord)</span>
+                        <span class="detail-value">@selectedRecord.RecordDate.ToLocalTime().ToString("MMMM dd, yyyy hh:mm tt")</span>
                     </div>
-                    @if (selectedRecord is MedicalRecord mr)
+                    <div class="detail-row">
+                        <span class="detail-label">Patient:</span>
+                        <span class="detail-value">@(selectedRecord.Patient?.Email ?? "N/A")</span>
+                    </div>
+                    @if (!string.IsNullOrEmpty(selectedRecord.DiagnosisCode))
                     {
                         <div class="detail-row">
-                            <span class="detail-label">Patient:</span>
-                            <span class="detail-value">@(mr.Patient?.Email ?? "N/A")</span>
-                        </div>
-                        @if (!string.IsNullOrEmpty(mr.DiagnosisDescription))
-                        {
-                            <div class="detail-row">
-                                <span class="detail-label">Diagnosis:</span>
-                                <span class="detail-value">@mr.DiagnosisDescription</span>
-                            </div>
-                        }
-                        <div class="detail-section">
-                            <span class="detail-label">Content:</span>
-                            <div class="detail-content">@mr.Content</div>
+                            <span class="detail-label">Diagnosis Code:</span>
+                            <span class="detail-value">@selectedRecord.DiagnosisCode</span>
                         </div>
                     }
-                    else if (selectedRecord is Prescription p)
+                    @if (!string.IsNullOrEmpty(selectedRecord.DiagnosisDescription))
                     {
                         <div class="detail-row">
-                            <span class="detail-label">Patient:</span>
-                            <span class="detail-value">@(p.Patient?.Email ?? "N/A")</span>
+                            <span class="detail-label">Diagnosis:</span>
+                            <span class="detail-value">@selectedRecord.DiagnosisDescription</span>
                         </div>
-                        <div class="detail-row">
-                            <span class="detail-label">Medication:</span>
-                            <span class="detail-value">@p.MedicationName</span>
-                        </div>
-                        <div class="detail-row">
-                            <span class="detail-label">Dosage:</span>
-                            <span class="detail-value">@p.Dosage</span>
-                        </div>
-                        <div class="detail-row">
-                            <span class="detail-label">Frequency:</span>
-                            <span class="detail-value">@p.Frequency</span>
-                        </div>
-                        @if (!string.IsNullOrEmpty(p.Duration))
-                        {
-                            <div class="detail-row">
-                                <span class="detail-label">Duration:</span>
-                                <span class="detail-value">@p.Duration</span>
-                            </div>
-                        }
-                        @if (!string.IsNullOrEmpty(p.Instructions))
-                        {
-                            <div class="detail-section">
-                                <span class="detail-label">Instructions:</span>
-                                <div class="detail-content">@p.Instructions</div>
-                            </div>
-                        }
-                        <div class="detail-row">
-                            <span class="detail-label">Status:</span>
-                            <span class="badge @(p.IsActive ? "badge-visit" : "badge-imaging")">
-                                @(p.IsActive ? "ACTIVE" : "INACTIVE")
-                            </span>
+                    }
+                    <div class="detail-section">
+                        <span class="detail-label">Content:</span>
+                        <div class="detail-content">@selectedRecord.Content</div>
+                    </div>
+                    @if (!string.IsNullOrEmpty(selectedRecord.Medications))
+                    {
+                        <div class="detail-section">
+                            <span class="detail-label">Medications:</span>
+                            <div class="detail-content">@selectedRecord.Medications</div>
                         </div>
                     }
                 </div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" @onclick="CloseModals">Close</button>
-                <button class="btn btn-primary" @onclick="() => { CloseModals(); EditRecord(selectedRecord); }">
-                    <i data-lucide="edit-2"></i>
-                    Edit
-                </button>
-            </div>
-        </div>
-    </div>
-}
-
-<!-- Edit Record Modal -->
-@if (showEditModal && selectedRecord != null)
-{
-    <div class="modal-overlay" @onclick="CloseModals">
-        <div class="modal-content modal-large" @onclick:stopPropagation>
-            <div class="modal-header">
-                <h2 class="headline-lg">Edit @GetRecordType(selectedRecord)</h2>
-                <button class="btn-icon" @onclick="CloseModals">
-                    <i data-lucide="x"></i>
-                </button>
-            </div>
-            <div class="modal-body">
-                @if (selectedRecord is MedicalRecord mr)
-                {
-                    <div class="form-group">
-                        <label>Title</label>
-                        <input type="text" class="form-input" @bind="editMedicalRecord.Title" />
-                    </div>
-                    <div class="form-group">
-                        <label>Record Type</label>
-                        <select class="form-input" @bind="editMedicalRecord.RecordType">
-                            <option value="Lab Result">Lab Result</option>
-                            <option value="Imaging">Imaging</option>
-                            <option value="Visit Note">Visit Note</option>
-                            <option value="Consultation">Consultation</option>
-                            <option value="Prescription">Prescription</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Diagnosis</label>
-                        <input type="text" class="form-input" @bind="editMedicalRecord.DiagnosisDescription" />
-                    </div>
-                    <div class="form-group">
-                        <label>Content</label>
-                        <textarea class="form-textarea" rows="8" @bind="editMedicalRecord.Content"></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label>Record Date</label>
-                        <input type="date" class="form-input" @bind="editMedicalRecordDate" />
-                    </div>
-                }
-                else if (selectedRecord is Prescription p)
-                {
-                    <div class="form-group">
-                        <label>Medication Name</label>
-                        <input type="text" class="form-input" @bind="editPrescription.MedicationName" />
-                    </div>
-                    <div class="form-group">
-                        <label>Dosage</label>
-                        <input type="text" class="form-input" @bind="editPrescription.Dosage" />
-                    </div>
-                    <div class="form-group">
-                        <label>Frequency</label>
-                        <input type="text" class="form-input" @bind="editPrescription.Frequency" />
-                    </div>
-                    <div class="form-group">
-                        <label>Duration</label>
-                        <input type="text" class="form-input" @bind="editPrescription.Duration" />
-                    </div>
-                    <div class="form-group">
-                        <label>Instructions</label>
-                        <textarea class="form-textarea" rows="4" @bind="editPrescription.Instructions"></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label class="checkbox-label">
-                            <input type="checkbox" @bind="editPrescription.IsActive" />
-                            <span>Active Prescription</span>
-                        </label>
-                    </div>
-                }
-                
-                @if (!string.IsNullOrEmpty(editErrorMessage))
-                {
-                    <div class="alert alert-error">
-                        <i data-lucide="alert-circle"></i>
-                        @editErrorMessage
-                    </div>
-                }
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" @onclick="CloseModals" disabled="@isSaving">Cancel</button>
-                <button class="btn btn-primary" @onclick="SaveRecord" disabled="@isSaving">
-                    @if (isSaving)
-                    {
-                        <span>Saving...</span>
-                    }
-                    else
-                    {
-                        <i data-lucide="save"></i>
-                        <span>Save Changes</span>
-                    }
-                </button>
             </div>
         </div>
     </div>
@@ -363,60 +336,8 @@
         gap: 1rem;
     }
 
-    .filter-tabs {
-        display: flex;
-        gap: 1rem;
+    .search-section {
         margin-bottom: 2rem;
-        overflow-x: auto;
-        padding-bottom: 0.5rem;
-    }
-
-    .tab-btn {
-        padding: 0.75rem 1.5rem;
-        background: white;
-        border: 1px solid #e6e8ea;
-        border-radius: 8px;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.2s;
-        white-space: nowrap;
-        font-size: 0.875rem;
-    }
-
-    .tab-btn:hover {
-        background: #f7f9fb;
-    }
-
-    .tab-btn.active {
-        background: #1e40af;
-        color: white;
-        border-color: #1e40af;
-    }
-
-    .content-grid {
-        display: grid;
-        grid-template-columns: 2fr 1fr;
-        gap: 2rem;
-    }
-
-    .records-section {
-        grid-column: span 1;
-        background: white;
-        padding: 2rem;
-        border-radius: 16px;
-    }
-
-    .section-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1.75rem;
-    }
-
-    .section-header h2 {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: #191c1e;
     }
 
     .search-box {
@@ -424,9 +345,10 @@
         align-items: center;
         gap: 0.75rem;
         padding: 0.75rem 1rem;
-        background: #f7f9fb;
+        background: white;
+        border: 1px solid #e6e8ea;
         border-radius: 8px;
-        min-width: 300px;
+        max-width: 500px;
     }
 
     .search-box input {
@@ -437,25 +359,242 @@
         width: 100%;
     }
 
+    .content-grid {
+        display: grid;
+        grid-template-columns: 1fr 2fr;
+        gap: 2rem;
+    }
+
+    .patients-section,
+    .details-section {
+        background: white;
+        padding: 2rem;
+        border-radius: 16px;
+    }
+
+    .section-header {
+        margin-bottom: 1.5rem;
+    }
+
+    .section-header h2 {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #191c1e;
+    }
+
+    .patients-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .patient-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem;
+        background: #f7f9fb;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: 2px solid transparent;
+    }
+
+    .patient-item:hover {
+        background: #eceef0;
+        transform: translateX(4px);
+    }
+
+    .patient-item.selected {
+        background: #dbeafe;
+        border-color: #1e40af;
+    }
+
+    .patient-avatar {
+        width: 48px;
+        height: 48px;
+        min-width: 48px;
+        border-radius: 50%;
+        background: #e6e8ea;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+
+    .patient-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .patient-avatar i {
+        font-size: 1.5rem;
+        color: #434654;
+    }
+
+    .patient-info {
+        flex: 1;
+    }
+
+    .patient-info h4 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #191c1e;
+        margin-bottom: 0.25rem;
+    }
+
+    .patient-info p {
+        font-size: 0.8125rem;
+        color: #434654;
+        margin-bottom: 0.125rem;
+    }
+
+    .patient-badge {
+        display: flex;
+        align-items: center;
+    }
+
+    .patient-details-header {
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid #e6e8ea;
+    }
+
+    .patient-avatar-large {
+        width: 80px;
+        height: 80px;
+        min-width: 80px;
+        border-radius: 50%;
+        background: #e6e8ea;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+
+    .patient-avatar-large img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .patient-avatar-large i {
+        font-size: 2.5rem;
+        color: #434654;
+    }
+
+    .tabs {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+        border-bottom: 2px solid #e6e8ea;
+    }
+
+    .tab-btn {
+        padding: 0.75rem 1.5rem;
+        background: transparent;
+        border: none;
+        border-bottom: 2px solid transparent;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #434654;
+        margin-bottom: -2px;
+    }
+
+    .tab-btn:hover {
+        color: #1e40af;
+    }
+
+    .tab-btn.active {
+        color: #1e40af;
+        border-bottom-color: #1e40af;
+    }
+
+    .tab-content {
+        min-height: 400px;
+    }
+
+    .conversations-list,
     .records-list {
         display: flex;
         flex-direction: column;
         gap: 1rem;
     }
 
-    .record-item {
+    .conversation-card {
+        padding: 1.5rem;
+        background: #f7f9fb;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: 2px solid transparent;
+    }
+
+    .conversation-card:hover {
+        background: #eceef0;
+        border-color: #1e40af;
+        transform: translateY(-2px);
+    }
+
+    .conversation-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        margin-bottom: 1rem;
+    }
+
+    .conversation-header h4 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #191c1e;
+        margin-bottom: 0.25rem;
+    }
+
+    .conversation-stats {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+
+    .stat-chip {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.375rem 0.75rem;
+        background: white;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        color: #434654;
+    }
+
+    .stat-chip i {
+        font-size: 0.875rem;
+    }
+
+    .record-card {
         display: flex;
         align-items: center;
         gap: 1rem;
         padding: 1.25rem;
         background: #f7f9fb;
         border-radius: 12px;
+        cursor: pointer;
         transition: all 0.2s;
+        border: 2px solid transparent;
     }
 
-    .record-item:hover {
+    .record-card:hover {
         background: #eceef0;
-        transform: translateX(4px);
+        border-color: #1e40af;
+        transform: translateY(-2px);
     }
 
     .record-icon {
@@ -535,85 +674,6 @@
         color: #d97706;
     }
 
-    .record-actions {
-        display: flex;
-        gap: 0.5rem;
-    }
-
-    .btn-icon-sm {
-        width: 36px;
-        height: 36px;
-        border-radius: 8px;
-        background: white;
-        border: 1px solid #e6e8ea;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.2s;
-    }
-
-    .btn-icon-sm:hover {
-        background: #1e40af;
-        color: white;
-        border-color: #1e40af;
-    }
-
-    .stats-card {
-        grid-column: span 1;
-        background: white;
-        padding: 2rem;
-        border-radius: 16px;
-        height: fit-content;
-    }
-
-    .stats-card h3 {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: #191c1e;
-        margin-bottom: 1.5rem;
-    }
-
-    .stats-list {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-    }
-
-    .stat-item {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        padding: 1rem;
-        background: #f7f9fb;
-        border-radius: 12px;
-    }
-
-    .stat-icon {
-        width: 48px;
-        height: 48px;
-        min-width: 48px;
-        background: #10b981;
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.5rem;
-        color: white;
-    }
-
-    .stat-info h4 {
-        font-size: 1.75rem;
-        font-weight: 700;
-        color: #191c1e;
-        margin-bottom: 0.25rem;
-    }
-
-    .stat-info p {
-        color: #434654;
-        font-size: 0.875rem;
-    }
-
     .btn {
         padding: 0.75rem 1.5rem;
         border-radius: 8px;
@@ -646,30 +706,23 @@
         background: #d8dadc;
     }
 
-    @@media (max-width: 1024px) {
-        .content-grid {
-            grid-template-columns: 1fr;
-        }
-
-        .records-section,
-        .stats-card {
-            grid-column: span 1;
-        }
-
-        .search-box {
-            min-width: 200px;
-        }
+    .btn-icon-sm {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        background: white;
+        border: 1px solid #e6e8ea;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
     }
 
-    @@media (max-width: 768px) {
-        .record-item {
-            flex-wrap: wrap;
-        }
-
-        .record-actions {
-            width: 100%;
-            justify-content: flex-end;
-        }
+    .btn-icon-sm:hover {
+        background: #1e40af;
+        color: white;
+        border-color: #1e40af;
     }
 
     /* Modal Styles */
@@ -770,7 +823,7 @@
     .detail-label {
         font-weight: 600;
         color: #191c1e;
-        min-width: 120px;
+        min-width: 140px;
         font-size: 0.875rem;
     }
 
@@ -790,285 +843,41 @@
         white-space: pre-wrap;
     }
 
-    /* Form Styles */
-    .form-group {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-        margin-bottom: 1.25rem;
+    @@media (max-width: 1024px) {
+        .content-grid {
+            grid-template-columns: 1fr;
+        }
     }
 
-    .form-group label {
-        font-weight: 600;
-        color: #191c1e;
-        font-size: 0.875rem;
-    }
+    @@media (max-width: 768px) {
+        .patient-item,
+        .record-card {
+            flex-wrap: wrap;
+        }
 
-    .form-input,
-    .form-textarea {
-        padding: 0.75rem;
-        border: 1px solid #e6e8ea;
-        border-radius: 8px;
-        font-size: 0.875rem;
-        font-family: inherit;
-        transition: all 0.2s;
-    }
-
-    .form-input:focus,
-    .form-textarea:focus {
-        outline: none;
-        border-color: #1e40af;
-        box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
-    }
-
-    .form-textarea {
-        resize: vertical;
-        min-height: 100px;
-    }
-
-    .checkbox-label {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        cursor: pointer;
-        user-select: none;
-    }
-
-    .checkbox-label input[type="checkbox"] {
-        width: 18px;
-        height: 18px;
-        cursor: pointer;
-    }
-
-    .checkbox-label span {
-        font-size: 0.875rem;
-        color: #434654;
-    }
-
-    /* Alert Styles */
-    .alert {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        padding: 1rem;
-        border-radius: 8px;
-        font-size: 0.875rem;
-        margin-top: 1rem;
-    }
-
-    .alert-error {
-        background: #fef2f2;
-        color: #991b1b;
-        border: 1px solid #fecaca;
-    }
-
-    .alert-success {
-        background: #f0fdf4;
-        color: #166534;
-        border: 1px solid #bbf7d0;
+        .conversation-stats {
+            flex-direction: column;
+        }
     }
 </style>
 
-<!-- Export Modal -->
-@if (showExportModal)
-{
-    <div class="modal-overlay" @onclick="CloseModals">
-        <div class="modal-content" @onclick:stopPropagation>
-            <div class="modal-header">
-                <h2 class="headline-lg">Export Medical Records</h2>
-                <button class="btn-icon" @onclick="CloseModals">
-                    <i data-lucide="x"></i>
-                </button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label>Export Format</label>
-                    <select class="form-input" @bind="exportFormat">
-                        <option value="pdf">PDF Document</option>
-                        <option value="csv">CSV Spreadsheet</option>
-                        <option value="json">JSON Data</option>
-                    </select>
-                </div>
 
-                <div class="form-group">
-                    <label>Date Range (Optional)</label>
-                    <div style="display: flex; gap: 1rem;">
-                        <input type="date" class="form-input" @bind="exportStartDate" placeholder="Start Date" />
-                        <input type="date" class="form-input" @bind="exportEndDate" placeholder="End Date" />
-                    </div>
-                </div>
+<script src="https://unpkg.com/lucide@latest"></script>
+<script>
+    // Initialize Lucide icons after page load
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
 
-                <div class="form-group">
-                    <label>Record Types to Include</label>
-                    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-                        <label class="checkbox-label">
-                            <input type="checkbox" @bind="exportIncludeMedicalRecords" />
-                            <span>Medical Records</span>
-                        </label>
-                        <label class="checkbox-label">
-                            <input type="checkbox" @bind="exportIncludePrescriptions" />
-                            <span>Prescriptions</span>
-                        </label>
-                    </div>
-                </div>
+    // Re-initialize icons when DOM changes (for dynamic content)
+    const observer = new MutationObserver(() => {
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    });
 
-                @if (!string.IsNullOrEmpty(exportMessage))
-                {
-                    <div class="alert @(exportSuccess ? "alert-success" : "alert-error")">
-                        <i data-lucide="@(exportSuccess ? "check-circle" : "alert-circle")"></i>
-                        @exportMessage
-                    </div>
-                }
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" @onclick="CloseModals" disabled="@isExporting">Cancel</button>
-                <button class="btn btn-primary" @onclick="ExportRecords" disabled="@isExporting">
-                    @if (isExporting)
-                    {
-                        <span>Exporting...</span>
-                    }
-                    else
-                    {
-                        <i data-lucide="download"></i>
-                        <span>Export</span>
-                    }
-                </button>
-            </div>
-        </div>
-    </div>
-}
-
-<!-- New Record Modal -->
-@if (showNewRecordModal)
-{
-    <div class="modal-overlay" @onclick="CloseModals">
-        <div class="modal-content modal-large" @onclick:stopPropagation>
-            <div class="modal-header">
-                <h2 class="headline-lg">Create New Medical Record</h2>
-                <button class="btn-icon" @onclick="CloseModals">
-                    <i data-lucide="x"></i>
-                </button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label>Record Type</label>
-                    <select class="form-input" @bind="newRecordType">
-                        <option value="">Select Type</option>
-                        <option value="medical_record">Medical Record</option>
-                        <option value="prescription">Prescription</option>
-                    </select>
-                </div>
-
-                @if (newRecordType == "medical_record")
-                {
-                    <div class="form-group">
-                        <label>Patient ID</label>
-                        <input type="text" class="form-input" @bind="newMedicalRecord.PatientId" placeholder="Enter Patient ID" />
-                    </div>
-
-                    <div class="form-group">
-                        <label>Title</label>
-                        <input type="text" class="form-input" @bind="newMedicalRecord.Title" placeholder="e.g., Annual Check-up" />
-                    </div>
-
-                    <div class="form-group">
-                        <label>Record Type</label>
-                        <select class="form-input" @bind="newMedicalRecord.RecordType">
-                            <option value="Lab Result">Lab Result</option>
-                            <option value="Imaging">Imaging</option>
-                            <option value="Visit Note">Visit Note</option>
-                            <option value="Consultation">Consultation</option>
-                            <option value="Prescription">Prescription</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Diagnosis</label>
-                        <input type="text" class="form-input" @bind="newMedicalRecord.DiagnosisDescription" placeholder="Primary diagnosis" />
-                    </div>
-
-                    <div class="form-group">
-                        <label>Diagnosis Code (ICD-10)</label>
-                        <input type="text" class="form-input" @bind="newMedicalRecord.DiagnosisCode" placeholder="e.g., J00" />
-                    </div>
-
-                    <div class="form-group">
-                        <label>Content</label>
-                        <textarea class="form-textarea" rows="8" @bind="newMedicalRecord.Content" placeholder="Detailed notes, findings, observations..."></textarea>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Medications</label>
-                        <input type="text" class="form-input" @bind="newMedicalRecord.Medications" placeholder="List of medications" />
-                    </div>
-
-                    <div class="form-group">
-                        <label>Record Date</label>
-                        <input type="date" class="form-input" @bind="newMedicalRecordDate" />
-                    </div>
-                }
-                else if (newRecordType == "prescription")
-                {
-                    <div class="form-group">
-                        <label>Patient ID</label>
-                        <input type="text" class="form-input" @bind="newPrescription.PatientId" placeholder="Enter Patient ID" />
-                    </div>
-
-                    <div class="form-group">
-                        <label>Medication Name</label>
-                        <input type="text" class="form-input" @bind="newPrescription.MedicationName" placeholder="e.g., Amoxicillin" />
-                    </div>
-
-                    <div class="form-group">
-                        <label>Dosage</label>
-                        <input type="text" class="form-input" @bind="newPrescription.Dosage" placeholder="e.g., 500mg" />
-                    </div>
-
-                    <div class="form-group">
-                        <label>Frequency</label>
-                        <input type="text" class="form-input" @bind="newPrescription.Frequency" placeholder="e.g., 3 times daily" />
-                    </div>
-
-                    <div class="form-group">
-                        <label>Duration</label>
-                        <input type="text" class="form-input" @bind="newPrescription.Duration" placeholder="e.g., 7 days" />
-                    </div>
-
-                    <div class="form-group">
-                        <label>Instructions</label>
-                        <textarea class="form-textarea" rows="4" @bind="newPrescription.Instructions" placeholder="Special instructions for the patient..."></textarea>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="checkbox-label">
-                            <input type="checkbox" @bind="newPrescription.IsActive" />
-                            <span>Active Prescription</span>
-                        </label>
-                    </div>
-                }
-
-                @if (!string.IsNullOrEmpty(newRecordErrorMessage))
-                {
-                    <div class="alert alert-error">
-                        <i data-lucide="alert-circle"></i>
-                        @newRecordErrorMessage
-                    </div>
-                }
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" @onclick="CloseModals" disabled="@isCreatingRecord">Cancel</button>
-                <button class="btn btn-primary" @onclick="CreateNewRecord" disabled="@isCreatingRecord || string.IsNullOrEmpty(newRecordType)">
-                    @if (isCreatingRecord)
-                    {
-                        <span>Creating...</span>
-                    }
-                    else
-                    {
-                        <i data-lucide="plus"></i>
-                        <span>Create Record</span>
-                    }
-                </button>
-            </div>
-        </div>
-    </div>
-}
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+</script>

@@ -171,32 +171,42 @@
 
             <!-- Input Area -->
             <div class="input-area" @key="@($"input-{currentConversation.Id}")">
-                <div class="input-features">
-                    <span class="feature-badge">
-                        <i data-lucide="shield-check" style="width: 14px; height: 14px;"></i>
-                        Professional medical consultation
-                    </span>
-                </div>
+                @if (currentConversation.Status == ConversationStatus.Closed)
+                {
+                    <div class="consultation-closed-banner">
+                        <i data-lucide="lock" style="width: 18px; height: 18px;"></i>
+                        <span>This consultation has been closed. No new messages can be sent.</span>
+                    </div>
+                }
+                else
+                {
+                    <div class="input-features">
+                        <span class="feature-badge">
+                            <i data-lucide="shield-check" style="width: 14px; height: 14px;"></i>
+                            Professional medical consultation
+                        </span>
+                    </div>
 
-                <div class="input-box">
-                    <button class="icon-btn" title="Emoji">
-                        <i data-lucide="smile" style="width: 20px; height: 20px;"></i>
-                    </button>
-                    <input type="text"
-                           placeholder="Type your response..."
-                           @bind="newMessage"
-                           @bind:event="oninput"
-                           @onkeydown="HandleKeyPress" />
-                    <button class="icon-btn" title="Voice input">
-                        <i data-lucide="mic" style="width: 20px; height: 20px;"></i>
-                    </button>
-                    <button class="send-btn @(string.IsNullOrWhiteSpace(newMessage) ? "disabled" : "")"
-                            @onclick="SendMessage"
-                            disabled="@(string.IsNullOrWhiteSpace(newMessage))"
-                            title="Send message">
-                        <i data-lucide="send" style="width: 20px; height: 20px;"></i>
-                    </button>
-                </div>
+                    <div class="input-box">
+                        <button class="icon-btn" title="Emoji">
+                            <i data-lucide="smile" style="width: 20px; height: 20px;"></i>
+                        </button>
+                        <input type="text"
+                               placeholder="Type your response..."
+                               @bind="newMessage"
+                               @bind:event="oninput"
+                               @onkeydown="HandleKeyPress" />
+                        <button class="icon-btn" title="Voice input">
+                            <i data-lucide="mic" style="width: 20px; height: 20px;"></i>
+                        </button>
+                        <button class="send-btn @(string.IsNullOrWhiteSpace(newMessage) ? "disabled" : "")"
+                                @onclick="SendMessage"
+                                disabled="@(string.IsNullOrWhiteSpace(newMessage))"
+                                title="Send message">
+                            <i data-lucide="send" style="width: 20px; height: 20px;"></i>
+                        </button>
+                    </div>
+                }
             </div>
         }
         else
@@ -224,9 +234,29 @@
                 <p style="font-size: 13px; color: #6b7280; margin-bottom: 8px;">
                     <strong>Messages:</strong> @currentConversation.TotalMessages
                 </p>
-                <p style="font-size: 13px; color: #6b7280; margin-bottom: 8px;">
-                    <strong>Status:</strong> @currentConversation.Status
+                <p style="font-size: 13px; color: #6b7280; margin-bottom: 12px;">
+                    <strong>Status:</strong> 
+                    <span class="status-badge @(currentConversation.Status == ConversationStatus.Active ? "status-active" : "status-closed")">
+                        @currentConversation.Status
+                    </span>
                 </p>
+                
+                @* Consultation Status Actions *@
+                @if (currentConversation.Status == ConversationStatus.Active)
+                {
+                    <button class="btn-close-consultation" @onclick="CloseConsultation" disabled="@isClosingConsultation">
+                        <i data-lucide="lock" style="width: 14px; height: 14px;"></i>
+                        @(isClosingConsultation ? "Closing..." : "Close Consultation")
+                    </button>
+                }
+                else if (currentConversation.Status == ConversationStatus.Closed)
+                {
+                    <div class="closed-info">
+                        <i data-lucide="check-circle" style="width: 14px; height: 14px;"></i>
+                        <span>Consultation closed @(currentConversation.ClosedAt?.ToString("MMM dd, yyyy") ?? "")</span>
+                    </div>
+                }
+                
                 @if (!string.IsNullOrEmpty(currentConversation.InitialSymptoms))
                 {
                     <div style="margin-top: 16px; padding: 12px; background: #f0f9ff; border-radius: 8px; border-left: 3px solid #0ea5e9;">
@@ -925,6 +955,87 @@
 
     .send-btn.disabled:hover {
         transform: none;
+    }
+
+    /* Consultation Closed Banner */
+    .consultation-closed-banner {
+        padding: 16px 20px;
+        background: #fef3c7;
+        border: 1px solid #fbbf24;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: #92400e;
+        font-size: 14px;
+        font-weight: 500;
+        margin: 8px 0;
+    }
+
+    /* Status Badge */
+    .status-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .status-badge.status-active {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .status-badge.status-closed {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    /* Close Consultation Button */
+    .btn-close-consultation {
+        width: 100%;
+        padding: 10px 16px;
+        background: #dc2626;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        transition: all 0.2s;
+        margin-top: 8px;
+    }
+
+    .btn-close-consultation:hover:not(:disabled) {
+        background: #b91c1c;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(220, 38, 38, 0.3);
+    }
+
+    .btn-close-consultation:disabled {
+        background: #fca5a5;
+        cursor: not-allowed;
+    }
+
+    /* Closed Info */
+    .closed-info {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+        background: #f0fdf4;
+        border: 1px solid #86efac;
+        border-radius: 8px;
+        color: #166534;
+        font-size: 12px;
+        font-weight: 500;
+        margin-top: 8px;
     }
 
     /* Context Sidebar */

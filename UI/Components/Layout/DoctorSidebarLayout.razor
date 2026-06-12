@@ -141,8 +141,8 @@
         <div class="sidebar-overlay" @onclick="ToggleSidebar"></div>
     }
 
-    <!-- Toggle Button (visible on all screens) -->
-    <button class="sidebar-toggle-btn-main @(isSidebarCollapsed ? "sidebar-open" : "")" @onclick="ToggleSidebar" type="button">
+    <!-- Toggle Button (visible on mobile/tablet) -->
+    <button class="sidebar-toggle-btn-main" @onclick="ToggleSidebar" type="button">
         <i data-lucide="menu" class="toggle-icon"></i>
     </button>
 

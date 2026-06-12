@@ -37,6 +37,7 @@ public partial class Consultation : ComponentBase, IAsyncDisposable
     private List<Prescription> relatedPrescriptions = [];
     private List<ConsultationNote> relatedConsultationNotes = [];
     private bool isLoadingRecords = false;
+    private bool isClosingConsultation = false;
     
     // Preview/Edit state
     private bool showNotePreviewModal = false;
@@ -378,6 +379,13 @@ public partial class Consultation : ComponentBase, IAsyncDisposable
         if (string.IsNullOrWhiteSpace(newMessage) || currentConversation == null)
             return;
 
+        // Prevent sending if consultation is closed
+        if (currentConversation.Status == ConversationStatus.Closed)
+        {
+            workflowError = "Cannot send messages to a closed consultation.";
+            return;
+        }
+
         var messageContent = newMessage;
         newMessage = "";
         StateHasChanged();
@@ -407,6 +415,47 @@ public partial class Consultation : ComponentBase, IAsyncDisposable
         catch (Exception ex)
         {
             Console.WriteLine($"Error sending message: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Closes the current consultation
+    /// </summary>
+    private async Task CloseConsultation()
+    {
+        if (currentConversation == null || currentConversation.Status == ConversationStatus.Closed)
+            return;
+
+        isClosingConsultation = true;
+        workflowMessage = null;
+        workflowError = null;
+
+        try
+        {
+            // Update conversation status
+            currentConversation.Status = ConversationStatus.Closed;
+            currentConversation.ClosedAt = DateTime.UtcNow;
+            currentConversation.UpdatedAt = DateTime.UtcNow;
+
+            // Save to database
+            await DoctorFacade.UpdateConversationStatusAsync(currentConversation.Id, ConversationStatus.Closed);
+
+            workflowMessage = "Consultation has been closed successfully. The patient can no longer send messages.";
+            
+            // Reload conversations to update the list
+            await LoadConversations();
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            workflowError = $"Failed to close consultation: {ex.Message}";
+            Console.WriteLine($"[Error] Failed to close consultation: {ex.Message}");
+        }
+        finally
+        {
+            isClosingConsultation = false;
+            StateHasChanged();
         }
     }
 

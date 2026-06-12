@@ -17,6 +17,7 @@ public partial class Profile : ComponentBase
     private string? errorMessage;
     private string? successMessage;
     private string? photoDataUrl;
+    private string? dateOfBirthError;
     private Guid currentUserId;
 
     protected override async Task OnInitializedAsync()
@@ -84,6 +85,23 @@ public partial class Profile : ComponentBase
             isSaving = true;
             errorMessage = null;
             successMessage = null;
+            dateOfBirthError = null;
+
+            // Validate date of birth
+            if (profileData!.DateOfBirth.HasValue && profileData.DateOfBirth.Value.Date > DateTime.Today)
+            {
+                dateOfBirthError = "Date of birth cannot be in the future";
+                errorMessage = "Please correct the errors before saving";
+                return;
+            }
+
+            // Additional validation: check if date of birth is reasonable (e.g., not more than 150 years ago)
+            if (profileData.DateOfBirth.HasValue && profileData.DateOfBirth.Value.Date < DateTime.Today.AddYears(-150))
+            {
+                dateOfBirthError = "Please enter a valid date of birth";
+                errorMessage = "Please correct the errors before saving";
+                return;
+            }
 
             Console.WriteLine($"[Profile] Saving profile for user {currentUserId}");
             Console.WriteLine($"[Profile] Profile ID: {profileData!.Id}");
@@ -120,6 +138,7 @@ public partial class Profile : ComponentBase
         isEditing = false;
         successMessage = null;
         errorMessage = null;
+        dateOfBirthError = null;
         _ = LoadProfileAsync();
     }
 

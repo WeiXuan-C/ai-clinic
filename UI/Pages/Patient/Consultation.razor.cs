@@ -48,6 +48,17 @@ public partial class Consultation : ComponentBase, IAsyncDisposable
     private string? errorMessage;
     private string? successMessage;
 
+    // Rating state
+    private bool showRatingDialog = false;
+    private DoctorRating? existingRating = null;
+    private int selectedRating = 0;
+    private int professionalismRating = 0;
+    private int communicationRating = 0;
+    private int knowledgeRating = 0;
+    private int responseTimeRating = 0;
+    private string reviewText = "";
+    private bool isSubmittingRating = false;
+
 #pragma warning disable CS0414
     private bool _iconsInitialized = false;
 #pragma warning restore CS0414
@@ -376,6 +387,9 @@ public partial class Consultation : ComponentBase, IAsyncDisposable
             
             // Load related medical records
             await LoadRelatedMedicalRecords();
+            
+            // Check and show rating dialog if needed
+            await CheckAndShowRatingDialog();
             
             await InvokeAsync(StateHasChanged);
             
@@ -1245,5 +1259,187 @@ public partial class Consultation : ComponentBase, IAsyncDisposable
         public string? PreviewUrl { get; set; }
     }
 
-}
+    #region Rating Methods
 
+    /// <summary>
+    /// Check if rating dialog should be shown
+    /// </summary>
+    private async Task CheckAndShowRatingDialog()
+    {
+        if (currentConversation == null) return;
+
+        Console.WriteLine($"[DEBUG] Checking rating dialog for conversation {currentConversation.Id}, Status: {currentConversation.Status}");
+
+        // Only show for closed conversations with a doctor
+        if (currentConversation.Status == ConversationStatus.Closed &&
+            currentConversation.AssignedDoctorId.HasValue)
+        {
+            // Check if already rated
+            existingRating = await ConsultationFacade.GetConversationRatingAsync(
+                currentConversation.Id,
+                currentPatientId);
+
+            Console.WriteLine($"[DEBUG] Existing rating: {(existingRating == null ? "None" : existingRating.Rating.ToString())}");
+
+            if (existingRating == null)
+            {
+                // Not yet rated, show dialog
+                showRatingDialog = true;
+                StateHasChanged();
+                
+                // Initialize Lucide icons for the rating dialog
+                await Task.Delay(100);
+                try
+                {
+                    await JS.InvokeVoidAsync("initializeLucide");
+                    Console.WriteLine("[DEBUG] Lucide icons initialized for rating dialog");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[DEBUG] Lucide initialization warning: {ex.Message}");
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Submit doctor rating
+    /// </summary>
+    private async Task SubmitRating()
+    {
+        if (currentConversation == null || !currentConversation.AssignedDoctorId.HasValue)
+            return;
+
+        if (selectedRating == 0)
+        {
+            errorMessage = "Please select an overall rating";
+            return;
+        }
+
+        isSubmittingRating = true;
+        errorMessage = null;
+
+        try
+        {
+            var rating = await ConsultationFacade.SubmitDoctorRatingAsync(
+                currentConversation.Id,
+                currentPatientId,
+                currentConversation.AssignedDoctorId.Value,
+                selectedRating,
+                professionalismRating > 0 ? professionalismRating : null,
+                communicationRating > 0 ? communicationRating : null,
+                knowledgeRating > 0 ? knowledgeRating : null,
+                responseTimeRating > 0 ? responseTimeRating : null,
+                string.IsNullOrWhiteSpace(reviewText) ? null : reviewText
+            );
+
+            existingRating = rating;
+            showRatingDialog = false;
+
+            // Reset form
+            selectedRating = 0;
+            professionalismRating = 0;
+            communicationRating = 0;
+            knowledgeRating = 0;
+            responseTimeRating = 0;
+            reviewText = "";
+
+            successMessage = "Thank you for your feedback!";
+            
+            // Clear success message after 5 seconds
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(5000);
+                successMessage = null;
+                await InvokeAsync(StateHasChanged);
+            });
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to submit rating: {ex.Message}";
+        }
+        finally
+        {
+            isSubmittingRating = false;
+            StateHasChanged();
+        }
+    }
+
+    /// <summary>
+    /// Close rating dialog
+    /// </summary>
+    private void CloseRatingDialog()
+    {
+        showRatingDialog = false;
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Set overall rating
+    /// </summary>
+    private void SetOverallRating(int rating)
+    {
+        Console.WriteLine($"[DEBUG] Setting overall rating to: {rating}");
+        selectedRating = rating;
+        errorMessage = null; // Clear error when user selects rating
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Set professionalism rating
+    /// </summary>
+    private void SetProfessionalismRating(int rating)
+    {
+        Console.WriteLine($"[DEBUG] Setting professionalism rating to: {rating}");
+        professionalismRating = rating;
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Set communication rating
+    /// </summary>
+    private void SetCommunicationRating(int rating)
+    {
+        Console.WriteLine($"[DEBUG] Setting communication rating to: {rating}");
+        communicationRating = rating;
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Set knowledge rating
+    /// </summary>
+    private void SetKnowledgeRating(int rating)
+    {
+        Console.WriteLine($"[DEBUG] Setting knowledge rating to: {rating}");
+        knowledgeRating = rating;
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Set response time rating
+    /// </summary>
+    private void SetResponseTimeRating(int rating)
+    {
+        Console.WriteLine($"[DEBUG] Setting response time rating to: {rating}");
+        responseTimeRating = rating;
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Get rating description text
+    /// </summary>
+    private string GetRatingText(int rating)
+    {
+        return rating switch
+        {
+            1 => "Poor",
+            2 => "Fair",
+            3 => "Good",
+            4 => "Very Good",
+            5 => "Excellent",
+            _ => ""
+        };
+    }
+
+    #endregion
+}

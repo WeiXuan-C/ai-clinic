@@ -72,6 +72,7 @@ public class ConversationService
         using var db = DbClient.Instance.GetDb();
         return await db.Conversations
             .Include(c => c.Patient)
+                .ThenInclude(p => p.PatientProfile)
             .Where(c => c.AssignedDoctorId == doctorId)
             .OrderByDescending(c => c.LastMessageAt)
             .ToListAsync();
@@ -96,6 +97,19 @@ public class ConversationService
 
         using var db = DbClient.Instance.GetDb();
         db.Conversations.Add(conversation);
+        await db.SaveChangesAsync();
+
+        // Add AI greeting message first
+        var greetingMessage = new Message
+        {
+            ConversationId = conversation.Id,
+            SenderId = null, // AI has no user ID
+            SenderType = MessageSenderType.AI,
+            Content = "Hello! I'm OWL, a medical AI assistant. I'm here to help answer your health-related questions. 😊\nCould you please let me know what specific concern or question you have? Whether it's about symptoms, medication, general wellness, or anything else health-related, I'll do my best to provide helpful information.\nPlease remember that while I can offer guidance, it's always best to consult with a healthcare professional for personalized medical advice and treatment.",
+            CreatedAt = DateTime.UtcNow,
+            IsRead = false
+        };
+        db.Messages.Add(greetingMessage);
         await db.SaveChangesAsync();
 
         // Add initial message if provided
@@ -163,6 +177,10 @@ public class ConversationService
             await db.SaveChangesAsync();
         }
 
+        // Update doctor statistics
+        var doctorProfileService = new DoctorProfileService();
+        await doctorProfileService.UpdateDoctorStatisticsAsync(doctorId);
+
         return conversation;
     }
 
@@ -192,6 +210,10 @@ public class ConversationService
             conversation.AssignedDoctorId = doctorId;
             conversation.UpdatedAt = DateTime.UtcNow;
             await db.SaveChangesAsync();
+
+            // Update doctor statistics
+            var doctorProfileService = new DoctorProfileService();
+            await doctorProfileService.UpdateDoctorStatisticsAsync(doctorId);
         }
     }
 
@@ -204,6 +226,8 @@ public class ConversationService
         var conversation = await db.Conversations.FindAsync(conversationId);
         if (conversation != null)
         {
+            var doctorId = conversation.AssignedDoctorId;
+            
             conversation.Status = status;
             if (status == ConversationStatus.Closed)
             {
@@ -211,6 +235,13 @@ public class ConversationService
             }
             conversation.UpdatedAt = DateTime.UtcNow;
             await db.SaveChangesAsync();
+
+            // Update doctor statistics if this conversation had an assigned doctor
+            if (doctorId.HasValue)
+            {
+                var doctorProfileService = new DoctorProfileService();
+                await doctorProfileService.UpdateDoctorStatisticsAsync(doctorId.Value);
+            }
         }
     }
 

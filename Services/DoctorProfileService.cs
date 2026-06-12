@@ -147,4 +147,62 @@ public class DoctorProfileService
             .Include(d => d.User)
             .ToListAsync();
     }
+
+    /// <summary>
+    /// Update doctor statistics (Total Consultations, Active Conversations, Ratings)
+    /// </summary>
+    public async Task UpdateDoctorStatisticsAsync(Guid userId)
+    {
+        using var db = DbClient.Instance.GetDb();
+        var doctor = await db.DoctorProfiles
+            .FirstOrDefaultAsync(d => d.UserId == userId);
+
+        if (doctor == null)
+        {
+            Console.WriteLine($"[DoctorProfileService] Doctor profile not found for userId: {userId}");
+            return;
+        }
+
+        // Calculate Total Consultations (all conversations assigned to this doctor)
+        var allDoctorConversations = await db.Conversations
+            .Where(c => c.AssignedDoctorId == userId)
+            .ToListAsync();
+        
+        var totalConsultations = allDoctorConversations.Count;
+
+        Console.WriteLine($"[DoctorProfileService] Found {allDoctorConversations.Count} conversations for doctor {userId}");
+        foreach (var conv in allDoctorConversations.Take(5))
+        {
+            Console.WriteLine($"  - Conversation {conv.Id}: Status={conv.Status}, Title={conv.Title}");
+        }
+
+        // Calculate Current Active Conversations
+        var activeConversations = allDoctorConversations
+            .Count(c => c.Status == ConversationStatus.Active);
+
+        // Calculate Average Rating and Total Ratings
+        var ratings = await db.DoctorRatings
+            .Where(r => r.DoctorId == userId)
+            .ToListAsync();
+
+        var totalRatings = ratings.Count;
+        var averageRating = totalRatings > 0 
+            ? (decimal)ratings.Average(r => r.Rating) 
+            : 0.0m;
+
+        // Update the profile
+        doctor.TotalConsultations = totalConsultations;
+        doctor.CurrentActiveConversations = activeConversations;
+        doctor.AverageRating = averageRating;
+        doctor.TotalRatings = totalRatings;
+        doctor.UpdatedAt = DateTime.UtcNow;
+
+        await db.SaveChangesAsync();
+
+        Console.WriteLine($"[DoctorProfileService] Updated statistics for doctor {userId}:");
+        Console.WriteLine($"  - Total Consultations: {totalConsultations}");
+        Console.WriteLine($"  - Active Conversations: {activeConversations}");
+        Console.WriteLine($"  - Average Rating: {averageRating:F2}");
+        Console.WriteLine($"  - Total Ratings: {totalRatings}");
+    }
 }

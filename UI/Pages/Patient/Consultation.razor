@@ -420,6 +420,21 @@
         transform: none;
     }
 
+    /* Consultation Closed Banner */
+    .consultation-closed-banner {
+        padding: 16px 20px;
+        background: #fef3c7;
+        border: 1px solid #fbbf24;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: #92400e;
+        font-size: 14px;
+        font-weight: 500;
+        margin: 8px 0;
+    }
+
     /* Context Sidebar */
     .context-sidebar {
         background: white;
@@ -948,6 +963,687 @@
         border-radius: 6px;
         border: 1px solid #e5e7eb;
     }
+
+    /* Rating Dialog Styles */
+    .rating-modal {
+        max-width: 680px;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+
+    .rating-modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid #f3f4f6;
+    }
+
+    .rating-modal-header h2 {
+        font-size: 28px;
+        font-weight: 800;
+        background: linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin: 0;
+    }
+
+    .rating-content {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+    }
+
+    .rating-intro {
+        text-align: center;
+        padding: 24px 0;
+    }
+
+    .rating-icon-circle {
+        width: 72px;
+        height: 72px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 16px;
+        box-shadow: 0 4px 20px rgba(251, 191, 36, 0.3);
+    }
+
+    .rating-description {
+        font-size: 18px;
+        font-weight: 600;
+        color: #111827;
+        margin: 0 0 8px 0;
+    }
+
+    .rating-subdescription {
+        font-size: 14px;
+        color: #6b7280;
+        margin: 0;
+    }
+
+    /* Rating Cards */
+    .rating-card {
+        background: white;
+        border: 2px solid #e5e7eb;
+        border-radius: 16px;
+        padding: 24px;
+        transition: all 0.3s;
+    }
+
+    .rating-card.primary {
+        border-color: #fbbf24;
+        background: linear-gradient(to bottom, #fffbeb 0%, white 100%);
+        box-shadow: 0 4px 20px rgba(251, 191, 36, 0.1);
+    }
+
+    .rating-card.secondary {
+        background: linear-gradient(to bottom, #f0f9ff 0%, white 100%);
+    }
+
+    .rating-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .rating-card-header h3 {
+        font-size: 18px;
+        font-weight: 700;
+        color: #111827;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .required-badge {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        color: white;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 4px 12px;
+        border-radius: 20px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .optional-badge {
+        background: #e5e7eb;
+        color: #6b7280;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 4px 12px;
+        border-radius: 20px;
+        text-transform: uppercase;
+    }
+
+    .card-description {
+        font-size: 13px;
+        color: #6b7280;
+        margin: 0 0 20px 0;
+    }
+
+    .rating-section {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .rating-section-inline {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px;
+        background: white;
+        border-radius: 12px;
+        border: 1px solid #e5e7eb;
+        transition: all 0.2s;
+    }
+
+    .rating-section-inline:hover {
+        border-color: #0ea5e9;
+        box-shadow: 0 2px 8px rgba(14, 165, 233, 0.1);
+    }
+
+    .rating-section-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex: 1;
+    }
+
+    .rating-label {
+        font-size: 15px;
+        font-weight: 600;
+        color: #111827;
+        margin: 0;
+    }
+
+    .detailed-ratings-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .star-rating {
+        display: flex;
+        gap: 8px;
+        justify-content: center;
+    }
+
+    .star-rating.small {
+        gap: 4px;
+        justify-content: flex-start;
+    }
+
+    .star-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 4px;
+        transition: all 0.2s;
+        position: relative;
+    }
+
+    .star-btn:hover {
+        transform: scale(1.15);
+    }
+
+    .star-rating .star-btn i {
+        width: 36px;
+        height: 36px;
+        transition: all 0.2s ease;
+    }
+
+    .star-rating.small .star-btn i {
+        width: 24px;
+        height: 24px;
+    }
+
+    /* Default gray stars */
+    .star-btn:not(.active) i {
+        color: #d1d5db !important;
+        fill: #d1d5db !important;
+        stroke: #d1d5db !important;
+    }
+
+    /* Hover effect - bright yellow */
+    .star-btn:hover i {
+        color: #fbbf24 !important;
+        fill: #fbbf24 !important;
+        stroke: #fbbf24 !important;
+        filter: drop-shadow(0 0 4px rgba(251, 191, 36, 0.5));
+    }
+
+    /* Active/selected stars - bright yellow */
+    .star-btn.active i {
+        color: #fbbf24 !important;
+        fill: #fbbf24 !important;
+        stroke: #fbbf24 !important;
+        stroke-width: 0 !important;
+    }
+
+    /* Rating Buttons Row */
+    .rating-buttons-row {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+        align-items: center;
+        margin: 20px 0 16px 0;
+    }
+
+    .rating-buttons-row.small {
+        gap: 8px;
+        justify-content: flex-end;
+        margin: 0;
+    }
+
+    .rating-btn {
+        min-width: 96px;
+        height: 80px;
+        border: 3px solid #e5e7eb;
+        border-radius: 16px;
+        background: white;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        font-weight: 600;
+        color: #6b7280;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .rating-btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(245, 158, 11, 0.1) 100%);
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+
+    .rating-btn:hover::before {
+        opacity: 1;
+    }
+
+    .rating-btn:hover {
+        border-color: #fbbf24;
+        transform: translateY(-4px) scale(1.02);
+        box-shadow: 0 8px 24px rgba(251, 191, 36, 0.25);
+    }
+
+    .rating-btn.selected {
+        border-color: #fbbf24;
+        background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+        color: white;
+        transform: scale(1.05);
+        box-shadow: 0 8px 32px rgba(251, 191, 36, 0.5);
+    }
+
+    .rating-btn.selected::before {
+        opacity: 0;
+    }
+
+    .rating-btn-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        position: relative;
+        z-index: 1;
+    }
+
+    .rating-number {
+        font-size: 32px;
+        font-weight: 800;
+        line-height: 1;
+    }
+
+    .rating-btn.small {
+        min-width: 44px;
+        height: 44px;
+        font-size: 16px;
+        font-weight: 700;
+        border-width: 2px;
+        border-radius: 10px;
+    }
+
+    .rating-btn.small span {
+        font-size: 18px;
+    }
+
+    .rating-btn.small:hover {
+        transform: translateY(-2px) scale(1.05);
+    }
+
+    .rating-btn.small.selected {
+        transform: scale(1.08);
+    }
+
+    .rating-descriptions {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 0;
+        padding: 0 12px;
+    }
+
+    .rating-desc-item {
+        font-size: 13px;
+        color: #6b7280;
+        font-weight: 600;
+        text-align: center;
+        width: 96px;
+    }
+
+    .rating-feedback {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        margin-top: 20px;
+        padding: 16px 20px;
+        background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+        border-radius: 12px;
+        border: 2px solid #10b981;
+        color: #065f46;
+        font-size: 15px;
+        font-weight: 600;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+    }
+
+    .rating-hint {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin-top: 16px;
+        padding: 12px;
+        background: #f9fafb;
+        border-radius: 10px;
+        color: #6b7280;
+        font-size: 13px;
+        font-style: italic;
+    }
+
+    .rating-result {
+        font-size: 14px;
+        font-weight: 600;
+        color: #fbbf24;
+        margin-left: auto;
+        min-width: 70px;
+        text-align: right;
+    }
+
+    .detailed-ratings {
+        background: #f9fafb;
+        border-radius: 12px;
+        padding: 20px;
+    }
+
+    .detailed-ratings h3 {
+        font-size: 14px;
+        font-weight: 600;
+        color: #6b7280;
+        margin: 0 0 16px 0;
+    }
+
+    /* Rating Slider Styles */
+    .rating-slider-container {
+        margin: 12px 0;
+    }
+
+    .rating-slider-container.small {
+        margin: 8px 0;
+    }
+
+    .rating-slider {
+        width: 100%;
+        height: 10px;
+        border-radius: 10px;
+        outline: none;
+        -webkit-appearance: none;
+        appearance: none;
+        cursor: pointer;
+        background: #e5e7eb;
+        position: relative;
+    }
+
+    .rating-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(251, 191, 36, 0.5);
+        transition: all 0.2s;
+        border: 3px solid white;
+    }
+
+    .rating-slider::-moz-range-thumb {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+        cursor: pointer;
+        border: 3px solid white;
+        box-shadow: 0 2px 8px rgba(251, 191, 36, 0.5);
+        transition: all 0.2s;
+    }
+
+    .rating-slider:hover::-webkit-slider-thumb {
+        transform: scale(1.15);
+        box-shadow: 0 4px 16px rgba(251, 191, 36, 0.6);
+    }
+
+    .rating-slider:hover::-moz-range-thumb {
+        transform: scale(1.15);
+        box-shadow: 0 4px 16px rgba(251, 191, 36, 0.6);
+    }
+
+    .rating-slider:active::-webkit-slider-thumb {
+        transform: scale(1.05);
+    }
+
+    .rating-slider:active::-moz-range-thumb {
+        transform: scale(1.05);
+    }
+
+    .rating-slider::-webkit-slider-runnable-track {
+        width: 100%;
+        height: 10px;
+        border-radius: 10px;
+        background: linear-gradient(to right, #fbbf24 0%, #fbbf24 0%, #e5e7eb 0%, #e5e7eb 100%);
+    }
+
+    .rating-slider::-moz-range-track {
+        width: 100%;
+        height: 10px;
+        border-radius: 10px;
+        background: #e5e7eb;
+    }
+
+    .rating-slider::-moz-range-progress {
+        height: 10px;
+        border-radius: 10px;
+        background: #fbbf24;
+    }
+
+    .rating-labels {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 8px;
+        font-size: 12px;
+        color: #9ca3af;
+        font-weight: 500;
+        padding: 0 4px;
+    }
+
+    .rating-display {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-top: 16px;
+        padding: 16px;
+        background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+        border-radius: 12px;
+        border: 2px solid #fbbf24;
+    }
+
+    .rating-stars {
+        display: flex;
+        gap: 4px;
+    }
+
+    .rating-value-display {
+        text-align: right;
+        font-size: 14px;
+        color: #6b7280;
+        font-weight: 600;
+        margin-top: 6px;
+    }
+
+    .rating-slider.small {
+        height: 8px;
+    }
+
+    .rating-slider.small::-webkit-slider-thumb {
+        width: 22px;
+        height: 22px;
+    }
+
+    .rating-slider.small::-moz-range-thumb {
+        width: 22px;
+        height: 22px;
+    }
+
+    .rating-slider.small::-webkit-slider-runnable-track {
+        height: 8px;
+    }
+
+    .rating-slider.small::-moz-range-track {
+        height: 8px;
+    }
+
+    .rating-slider.small::-moz-range-progress {
+        height: 8px;
+    }
+
+    .detailed-ratings {
+        background: #f9fafb;
+        border-radius: 12px;
+        padding: 20px;
+    }
+
+    .detailed-ratings h3 {
+        font-size: 14px;
+        font-weight: 600;
+        color: #6b7280;
+        margin: 0 0 16px 0;
+    }
+
+    .review-textarea {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 14px;
+        font-family: inherit;
+        resize: vertical;
+    }
+
+    .review-textarea:focus {
+        outline: none;
+        border-color: #0ea5e9;
+    }
+
+    .btn-submit-rating {
+        padding: 12px 24px;
+        background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        box-shadow: 0 2px 4px rgba(14, 165, 233, 0.2);
+    }
+
+    .btn-submit-rating:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(14, 165, 233, 0.3);
+    }
+
+    .btn-submit-rating:disabled {
+        background: #e5e7eb;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+
+    .error-banner {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px;
+        background: #fff3f3;
+        border: 1px solid #ffcdd2;
+        border-radius: 8px;
+        color: #c62828;
+        font-size: 14px;
+    }
+
+    /* Rating Display Styles */
+    .context-section {
+        margin-bottom: 24px;
+        padding-bottom: 24px;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .rating-display {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 16px;
+        background: #f9fafb;
+        border-radius: 8px;
+    }
+
+    .rating-stars {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .star-icon {
+        width: 18px;
+        height: 18px;
+        color: #d1d5db;
+        stroke: #d1d5db;
+        stroke-width: 2px;
+    }
+
+    .star-icon.filled {
+        color: #fbbf24;
+        fill: #fbbf24;
+        stroke: #fbbf24;
+    }
+
+    .rating-value {
+        margin-left: 8px;
+        font-size: 18px;
+        font-weight: 700;
+        color: #111827;
+    }
+
+    .detailed-rating-display {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        font-size: 12px;
+        color: #6b7280;
+    }
+
+    .rating-item {
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .review-text-display {
+        padding: 12px;
+        background: white;
+        border-radius: 6px;
+        border: 1px solid #e5e7eb;
+    }
+
+    .review-text-display p {
+        margin: 0;
+        font-size: 13px;
+        color: #374151;
+        font-style: italic;
+        line-height: 1.6;
+    }
+
+    .rating-date {
+        font-size: 11px;
+        color: #9ca3af;
+        text-align: right;
+    }
 </style>
 
 <div class="consultation-container">
@@ -1136,91 +1832,101 @@
 
             <!-- Input Area -->
             <div class="input-area" @key="@($"input-{currentConversation.Id}")">
-                <div class="input-features">
-                    <span class="feature-badge">
-                        <i data-lucide="shield-check" style="width: 14px; height: 14px;"></i>
-                        End-to-end encrypted medical sanctuary
-                    </span>
-                    @if (currentConversation.AssignedDoctorId == null)
-                    {
-                        <button class="model-selector-btn" @onclick="ShowModelSelector">
-                            <i data-lucide="cpu" style="width: 14px; height: 14px;"></i>
-                            @ConsultationFacade.GetCurrentAiModelName()
-                        </button>
-                    }
-                    else
-                    {
-                        <div style="width: 140px;"></div>
-                    }
-                </div>
-
-                @* Attachments Preview *@
-                @if (attachments.Any())
+                @if (currentConversation.Status == ConversationStatus.Closed)
                 {
-                    <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
-                        @foreach (var attachment in attachments)
+                    <div class="consultation-closed-banner">
+                        <i data-lucide="lock" style="width: 18px; height: 18px;"></i>
+                        <span>This consultation has been closed by your doctor. You can view messages but cannot send new ones.</span>
+                    </div>
+                }
+                else
+                {
+                    <div class="input-features">
+                        <span class="feature-badge">
+                            <i data-lucide="shield-check" style="width: 14px; height: 14px;"></i>
+                            End-to-end encrypted medical sanctuary
+                        </span>
+                        @if (currentConversation.AssignedDoctorId == null)
                         {
-                            <div style="position: relative; padding: 8px 12px; background: #f3f4f6; border-radius: 8px; display: flex; align-items: center; gap: 8px; max-width: 200px;">
-                                @if (attachment.PreviewUrl != null)
-                                {
-                                    <img src="@attachment.PreviewUrl" alt="@attachment.FileName" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;" />
-                                }
-                                else
-                                {
-                                    <i data-lucide="file" style="width: 20px; height: 20px; color: #6b7280;"></i>
-                                }
-                                <div style="flex: 1; min-width: 0;">
-                                    <div style="font-size: 12px; font-weight: 500; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                                        @attachment.FileName
-                                    </div>
-                                    <div style="font-size: 11px; color: #6b7280;">
-                                        @FormatFileSize(attachment.FileSize)
-                                    </div>
-                                </div>
-                                <button @onclick="@(() => RemoveAttachment(attachment))" 
-                                        style="background: transparent; border: none; color: #ef4444; cursor: pointer; padding: 4px; display: flex; align-items: center;">
-                                    <i data-lucide="x" style="width: 16px; height: 16px;"></i>
-                                </button>
-                            </div>
+                            <button class="model-selector-btn" @onclick="ShowModelSelector">
+                                <i data-lucide="cpu" style="width: 14px; height: 14px;"></i>
+                                @ConsultationFacade.GetCurrentAiModelName()
+                            </button>
+                        }
+                        else
+                        {
+                            <div style="width: 140px;"></div>
                         }
                     </div>
-                }
 
-                @if (isUploadingFile)
-                {
-                    <div style="margin-bottom: 12px; padding: 8px; background: #f0f9ff; border-radius: 8px; display: flex; align-items: center; gap: 8px;">
-                        <div class="typing-indicator" style="margin: 0;">
-                            <span></span>
-                            <span></span>
-                            <span></span>
+                    @* Attachments Preview *@
+                    @if (attachments.Any())
+                    {
+                        <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
+                            @foreach (var attachment in attachments)
+                            {
+                                <div style="position: relative; padding: 8px 12px; background: #f3f4f6; border-radius: 8px; display: flex; align-items: center; gap: 8px; max-width: 200px;">
+                                    @if (attachment.PreviewUrl != null)
+                                    {
+                                        <img src="@attachment.PreviewUrl" alt="@attachment.FileName" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;" />
+                                    }
+                                    else
+                                    {
+                                        <i data-lucide="file" style="width: 20px; height: 20px; color: #6b7280;"></i>
+                                    }
+                                    <div style="flex: 1; min-width: 0;">
+                                        <div style="font-size: 12px; font-weight: 500; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                            @attachment.FileName
+                                        </div>
+                                        <div style="font-size: 11px; color: #6b7280;">
+                                            @FormatFileSize(attachment.FileSize)
+                                        </div>
+                                    </div>
+                                    <button @onclick="@(() => RemoveAttachment(attachment))" 
+                                            style="background: transparent; border: none; color: #ef4444; cursor: pointer; padding: 4px; display: flex; align-items: center;">
+                                        <i data-lucide="x" style="width: 16px; height: 16px;"></i>
+                                    </button>
+                                </div>
+                            }
                         </div>
-                        <span style="font-size: 12px; color: #0ea5e9;">Uploading file...</span>
+                    }
+
+                    @if (isUploadingFile)
+                    {
+                        <div style="margin-bottom: 12px; padding: 8px; background: #f0f9ff; border-radius: 8px; display: flex; align-items: center; gap: 8px;">
+                            <div class="typing-indicator" style="margin: 0;">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </div>
+                            <span style="font-size: 12px; color: #0ea5e9;">Uploading file...</span>
+                        </div>
+                    }
+                    
+                    <div class="input-box">
+                        <button class="icon-btn" title="Emoji">
+                            <i data-lucide="smile" style="width: 20px; height: 20px;"></i>
+                        </button>
+                        <InputFile OnChange="HandleFileSelected" multiple accept="image/*,.pdf,.doc,.docx" id="file-upload" style="display: none;" />
+                        <label for="file-upload" class="icon-btn" title="Attach file" style="cursor: pointer; margin: 0;">
+                            <i data-lucide="paperclip" style="width: 20px; height: 20px;"></i>
+                        </label>
+                        <input type="text" 
+                               placeholder="Describe your symptoms or ask a question..." 
+                               @bind="newMessage"
+                               @bind:event="oninput"
+                               @onkeydown="HandleKeyPress" />
+                        <button class="icon-btn" title="Voice input">
+                            <i data-lucide="mic" style="width: 20px; height: 20px;"></i>
+                        </button>
+                        <button class="send-btn @(string.IsNullOrWhiteSpace(newMessage) && attachments.Count == 0 ? "disabled" : "")" 
+                                @onclick="SendMessage"
+                                disabled="@(string.IsNullOrWhiteSpace(newMessage) && attachments.Count == 0)"
+                                title="Send message">
+                            <i data-lucide="send" style="width: 20px; height: 20px;"></i>
+                        </button>
                     </div>
                 }
-                
-                <div class="input-box">
-                    <button class="icon-btn" title="Emoji">
-                        <i data-lucide="smile" style="width: 20px; height: 20px;"></i>
-                    </button>
-                    <InputFile OnChange="HandleFileSelected" multiple accept="image/*,.pdf,.doc,.docx" id="file-upload" style="display: none;" />
-                    <label for="file-upload" class="icon-btn" title="Attach file" style="cursor: pointer; margin: 0;">
-                        <i data-lucide="paperclip" style="width: 20px; height: 20px;"></i>
-                    </label>
-                    <input type="text" 
-                           placeholder="Describe your symptoms or ask a question..." 
-                           @bind="newMessage"
-                           @bind:event="oninput"
-                           @onkeydown="HandleKeyPress" />
-                    <button class="icon-btn" title="Voice input">
-                        <i data-lucide="mic" style="width: 20px; height: 20px;"></i>
-                    </button>
-                    <button class="send-btn @(string.IsNullOrWhiteSpace(newMessage) && attachments.Count == 0 ? "disabled" : "")" 
-                            @onclick="SendMessage"
-                            disabled="@(string.IsNullOrWhiteSpace(newMessage) && attachments.Count == 0)"
-                            title="Send message">
-                        <i data-lucide="send" style="width: 20px; height: 20px;"></i>
-                    </button>
-                </div>
             </div>
         }
         else
@@ -1259,6 +1965,79 @@
                     <strong>Status:</strong> @currentConversation.Status
                 </p>
             </div>
+
+            @* Doctor Rating Display *@
+            @if (existingRating != null && currentConversation.AssignedDoctorId != null)
+            {
+                <div style="margin-top: 24px; padding: 20px; background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border-radius: 12px; border: 2px solid #fbbf24;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                        <h3 style="font-size: 15px; font-weight: 700; color: #111827; margin: 0; display: flex; align-items: center; gap: 8px;">
+                            <i data-lucide="star" style="width: 18px; height: 18px; color: #fbbf24; fill: #fbbf24;"></i>
+                            Your Rating
+                        </h3>
+                        <div style="font-size: 20px; font-weight: 800; color: #f59e0b;">
+                            @existingRating.Rating<span style="font-size: 14px; color: #6b7280;">/5</span>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 4px; margin-bottom: 12px;">
+                        @for (int i = 1; i <= 5; i++)
+                        {
+                            <i data-lucide="star" style="width: 20px; height: 20px; @(i <= existingRating.Rating ? "fill: #fbbf24; color: #fbbf24;" : "fill: #e5e7eb; color: #e5e7eb;")"></i>
+                        }
+                    </div>
+
+                    @if (existingRating.ProfessionalismRating.HasValue || existingRating.CommunicationRating.HasValue || 
+                         existingRating.KnowledgeRating.HasValue || existingRating.ResponseTimeRating.HasValue)
+                    {
+                        <div style="display: flex; flex-direction: column; gap: 6px; padding: 12px; background: white; border-radius: 8px; margin-bottom: 12px;">
+                            <p style="font-size: 12px; font-weight: 600; color: #6b7280; margin: 0 0 6px 0;">Detailed Ratings:</p>
+                            @if (existingRating.ProfessionalismRating.HasValue)
+                            {
+                                <div style="display: flex; justify-content: space-between; font-size: 12px;">
+                                    <span style="color: #6b7280;">Professionalism</span>
+                                    <span style="color: #f59e0b; font-weight: 600;">@existingRating.ProfessionalismRating/5</span>
+                                </div>
+                            }
+                            @if (existingRating.CommunicationRating.HasValue)
+                            {
+                                <div style="display: flex; justify-content: space-between; font-size: 12px;">
+                                    <span style="color: #6b7280;">Communication</span>
+                                    <span style="color: #f59e0b; font-weight: 600;">@existingRating.CommunicationRating/5</span>
+                                </div>
+                            }
+                            @if (existingRating.KnowledgeRating.HasValue)
+                            {
+                                <div style="display: flex; justify-content: space-between; font-size: 12px;">
+                                    <span style="color: #6b7280;">Knowledge</span>
+                                    <span style="color: #f59e0b; font-weight: 600;">@existingRating.KnowledgeRating/5</span>
+                                </div>
+                            }
+                            @if (existingRating.ResponseTimeRating.HasValue)
+                            {
+                                <div style="display: flex; justify-content: space-between; font-size: 12px;">
+                                    <span style="color: #6b7280;">Response Time</span>
+                                    <span style="color: #f59e0b; font-weight: 600;">@existingRating.ResponseTimeRating/5</span>
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(existingRating.ReviewText))
+                    {
+                        <div style="padding: 12px; background: white; border-radius: 8px; margin-bottom: 12px;">
+                            <p style="font-size: 12px; font-weight: 600; color: #6b7280; margin: 0 0 6px 0;">Your Review:</p>
+                            <p style="font-size: 13px; color: #374151; margin: 0; line-height: 1.5; font-style: italic;">
+                                "@existingRating.ReviewText"
+                            </p>
+                        </div>
+                    }
+
+                    <div style="text-align: right; font-size: 11px; color: #9ca3af;">
+                        Rated on @existingRating.CreatedAt.ToString("MMM dd, yyyy")
+                    </div>
+                </div>
+            }
 
             @* AI推荐医生列表 *@
             @if (currentConversation.AssignedDoctorId == null && messages.Count >= 3 && !isLoadingRecommendations)
@@ -1485,6 +2264,209 @@
         }
     </div>
 </div>
+
+<!-- Rating Dialog -->
+@if (showRatingDialog && currentConversation != null)
+{
+    <div class="modal-overlay">
+        <div class="modal-content rating-modal">
+            <div class="rating-modal-header">
+                <h2>Rate Your Consultation</h2>
+                <button class="close-btn" @onclick="CloseRatingDialog">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+
+            <div class="rating-content">
+                <div class="rating-intro">
+                    <div class="rating-icon-circle">
+                        <i data-lucide="star" style="width: 32px; height: 32px; color: #fbbf24; fill: #fbbf24;"></i>
+                    </div>
+                    <p class="rating-description">
+                        How was your experience with Dr. @(currentConversation.AssignedDoctor?.DoctorProfile?.FullName)?
+                    </p>
+                    <p class="rating-subdescription">Your feedback helps us maintain quality care</p>
+                </div>
+
+                <!-- Overall Rating Card -->
+                <div class="rating-card primary">
+                    <div class="rating-card-header">
+                        <h3>Overall Rating</h3>
+                        <span class="required-badge">Required</span>
+                    </div>
+                    
+                    <!-- Clickable Rating Buttons -->
+                    <div class="rating-buttons-row">
+                        @for (int i = 1; i <= 5; i++)
+                        {
+                            var ratingValue = i;
+                            var isSelected = selectedRating == ratingValue;
+                            <button type="button" 
+                                    class="rating-btn @(isSelected ? "selected" : "")"
+                                    @onclick="@(() => SetOverallRating(ratingValue))">
+                                <div class="rating-btn-content">
+                                    <span class="rating-number">@ratingValue</span>
+                                    <i data-lucide="star" style="width: 24px; height: 24px; @(isSelected ? "fill: white; color: white;" : "fill: #fbbf24; color: #fbbf24;")"></i>
+                                </div>
+                            </button>
+                        }
+                    </div>
+
+                    <!-- Descriptive Labels -->
+                    <div class="rating-descriptions">
+                        <span class="rating-desc-item">😞 Poor</span>
+                        <span class="rating-desc-item">😐 Fair</span>
+                        <span class="rating-desc-item">🙂 Good</span>
+                        <span class="rating-desc-item">😊 Very Good</span>
+                        <span class="rating-desc-item">🤩 Excellent</span>
+                    </div>
+
+                    @if (selectedRating > 0)
+                    {
+                        <div class="rating-feedback">
+                            <i data-lucide="check-circle" style="width: 20px; height: 20px; color: #10b981; fill: #10b981;"></i>
+                            <span>You rated <strong>@GetRatingText(selectedRating)</strong> (@selectedRating out of 5 stars)</span>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="rating-hint">
+                            <i data-lucide="hand-pointer" style="width: 16px; height: 16px; color: #6b7280;"></i>
+                            <span>Click a number to rate your experience</span>
+                        </div>
+                    }
+                </div>
+
+                <!-- Detailed Ratings Card -->
+                <div class="rating-card secondary">
+                    <div class="rating-card-header">
+                        <h3>Detailed Feedback</h3>
+                        <span class="optional-badge">Optional</span>
+                    </div>
+                    <p class="card-description">Help us understand specific aspects of your experience</p>
+
+                    <div class="detailed-ratings-grid">
+                    
+                    <div class="rating-section-inline">
+                        <div class="rating-section-left">
+                            <i data-lucide="user-check" style="width: 20px; height: 20px; color: #0ea5e9;"></i>
+                            <label class="rating-label">Professionalism</label>
+                        </div>
+                        <div class="rating-buttons-row small">
+                            @for (int i = 1; i <= 5; i++)
+                            {
+                                var ratingValue = i;
+                                var isSelected = professionalismRating == ratingValue;
+                                <button type="button" 
+                                        class="rating-btn small @(isSelected ? "selected" : "")"
+                                        @onclick="@(() => SetProfessionalismRating(ratingValue))">
+                                    <span>@ratingValue</span>
+                                </button>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="rating-section-inline">
+                        <div class="rating-section-left">
+                            <i data-lucide="message-circle" style="width: 20px; height: 20px; color: #0ea5e9;"></i>
+                            <label class="rating-label">Communication</label>
+                        </div>
+                        <div class="rating-buttons-row small">
+                            @for (int i = 1; i <= 5; i++)
+                            {
+                                var ratingValue = i;
+                                var isSelected = communicationRating == ratingValue;
+                                <button type="button" 
+                                        class="rating-btn small @(isSelected ? "selected" : "")"
+                                        @onclick="@(() => SetCommunicationRating(ratingValue))">
+                                    <span>@ratingValue</span>
+                                </button>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="rating-section-inline">
+                        <div class="rating-section-left">
+                            <i data-lucide="brain" style="width: 20px; height: 20px; color: #0ea5e9;"></i>
+                            <label class="rating-label">Knowledge</label>
+                        </div>
+                        <div class="rating-buttons-row small">
+                            @for (int i = 1; i <= 5; i++)
+                            {
+                                var ratingValue = i;
+                                var isSelected = knowledgeRating == ratingValue;
+                                <button type="button" 
+                                        class="rating-btn small @(isSelected ? "selected" : "")"
+                                        @onclick="@(() => SetKnowledgeRating(ratingValue))">
+                                    <span>@ratingValue</span>
+                                </button>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="rating-section-inline">
+                        <div class="rating-section-left">
+                            <i data-lucide="clock" style="width: 20px; height: 20px; color: #0ea5e9;"></i>
+                            <label class="rating-label">Response Time</label>
+                        </div>
+                        <div class="rating-buttons-row small">
+                            @for (int i = 1; i <= 5; i++)
+                            {
+                                var ratingValue = i;
+                                var isSelected = responseTimeRating == ratingValue;
+                                <button type="button" 
+                                        class="rating-btn small @(isSelected ? "selected" : "")"
+                                        @onclick="@(() => SetResponseTimeRating(ratingValue))">
+                                    <span>@ratingValue</span>
+                                </button>
+                            }
+                        </div>
+                    </div>
+                    
+                    </div>
+                </div>
+
+                <!-- Review Text Card -->
+                <div class="rating-card">
+                    <div class="rating-card-header">
+                        <h3>Your Review</h3>
+                        <span class="optional-badge">Optional</span>
+                    </div>
+                    <p class="card-description">Share more details about your experience</p>
+                    <textarea class="review-textarea" 
+                              @bind="reviewText" 
+                              placeholder="Share your experience..."
+                              rows="4"></textarea>
+                </div>
+
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="error-banner">
+                        <i data-lucide="alert-circle"></i>
+                        @errorMessage
+                    </div>
+                }
+
+                <!-- Actions -->
+                <div class="modal-actions">
+                    <button class="btn-cancel" @onclick="CloseRatingDialog">Skip</button>
+                    <button class="btn-submit-rating" 
+                            @onclick="SubmitRating" 
+                            disabled="@isSubmittingRating">
+                        @if (isSubmittingRating)
+                        {
+                            <span>Submitting...</span>
+                        }
+                        else
+                        {
+                            <span>Submit Rating</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
 <!-- Preview Modal for Consultation Note (Patient View) -->
 @if (showNotePreviewModal && selectedNote != null)

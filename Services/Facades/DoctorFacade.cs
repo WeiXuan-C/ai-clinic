@@ -200,6 +200,8 @@ public class DoctorFacade
     /// </summary>
     public async Task<DoctorProfile?> GetDoctorProfileAsync(Guid userId)
     {
+        // Update statistics before returning profile
+        await _doctorProfileService.UpdateDoctorStatisticsAsync(userId);
         return await _doctorProfileService.GetByUserIdAsync(userId);
     }
 
@@ -221,10 +223,21 @@ public class DoctorFacade
             await _doctorProfileService.UpdateAsync(profile);
         }
 
+        // Update statistics after saving
+        await _doctorProfileService.UpdateDoctorStatisticsAsync(profile.UserId);
+
         await _activityLogService.LogActivityAsync(
             profile.UserId,
             "UpdateDoctorProfile",
             $"Profile ID: {profile.Id}");
+    }
+
+    /// <summary>
+    /// Manually update doctor statistics (for maintenance or refresh)
+    /// </summary>
+    public async Task UpdateDoctorStatisticsAsync(Guid userId)
+    {
+        await _doctorProfileService.UpdateDoctorStatisticsAsync(userId);
     }
 
     /// <summary>
@@ -449,6 +462,26 @@ public class DoctorFacade
             $"Conversation ID: {conversationId}");
 
         return message;
+    }
+
+    /// <summary>
+    /// Updates the conversation status (e.g., Active, Closed)
+    /// </summary>
+    public async Task UpdateConversationStatusAsync(Guid conversationId, ConversationStatus status)
+    {
+        var conversation = await _conversationService.GetByIdAsync(conversationId);
+        if (conversation == null)
+        {
+            throw new InvalidOperationException($"Conversation {conversationId} not found");
+        }
+
+        // Use the existing UpdateStatusAsync method
+        await _conversationService.UpdateStatusAsync(conversationId, status);
+
+        await _activityLogService.LogActivityAsync(
+            conversation.AssignedDoctorId ?? Guid.Empty,
+            "UpdateConversationStatus",
+            $"Conversation ID: {conversationId}, Status: {status}");
     }
 
     /// <summary>

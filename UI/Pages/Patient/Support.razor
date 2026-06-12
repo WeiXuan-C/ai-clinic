@@ -394,14 +394,24 @@
 
     protected override async Task OnInitializedAsync()
     {
-        if (!AuthFacade.IsAuthenticated || AuthFacade.CurrentUser?.Role != UserRole.Patient)
+        try
         {
-            Navigation.NavigateTo("/auth/signin");
-            return;
-        }
+            if (!AuthFacade.IsAuthenticated || AuthFacade.CurrentUser?.Role != UserRole.Patient)
+            {
+                Navigation.NavigateTo("/auth/signin");
+                return;
+            }
 
-        await LoadTickets();
-        ResetForm();
+            await LoadTickets();
+            ResetForm();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ERROR] Support page initialization failed: {ex.Message}");
+            Console.WriteLine($"[ERROR] Stack trace: {ex.StackTrace}");
+            errorMessage = $"Failed to load support page: {ex.Message}";
+            isLoadingTickets = false;
+        }
     }
 
     private void ToggleFaq(int index)
@@ -416,7 +426,8 @@
     {
         try
         {
-            await JSRuntime.InvokeVoidAsync("scrollToElement", "tickets-section");
+            // Use Blazor's built-in JS interop for scrolling
+            await JSRuntime.InvokeVoidAsync("eval", "document.getElementById('tickets-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })");
         }
         catch (Exception)
         {
@@ -437,9 +448,18 @@
     private async Task LoadTickets()
     {
         isLoadingTickets = true;
+        errorMessage = null;
         try
         {
             tickets = await SupportTicketService.GetByUserIdAsync(AuthFacade.CurrentUser!.Id);
+            Console.WriteLine($"[DEBUG] Loaded {tickets.Count} support tickets");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ERROR] Failed to load tickets: {ex.Message}");
+            Console.WriteLine($"[ERROR] Stack trace: {ex.StackTrace}");
+            errorMessage = $"Failed to load tickets: {ex.Message}";
+            tickets = new();
         }
         finally
         {
@@ -1566,34 +1586,3 @@
         line-height: 1.5;
     }
 </style>
-
-<script>
-    window.scrollToElement = function(elementId) {
-        const element = document.getElementById(elementId);
-        if (element) {
-            element.scrollIntoView({ 
-                behavior: 'smooth', 
-                block: 'start' 
-            });
-        }
-    }
-
-    // Re-initialize Lucide icons after Blazor renders
-    const reinitializeLucide = () => {
-        if (typeof lucide !== 'undefined') {
-            lucide.createIcons();
-        }
-    };
-
-    // Initialize on load
-    document.addEventListener('DOMContentLoaded', reinitializeLucide);
-
-    // Re-initialize after Blazor updates
-    if (typeof Blazor !== 'undefined') {
-        Blazor.addEventListener('enhancedload', reinitializeLucide);
-    }
-
-    // Observe DOM changes and reinitialize icons
-    const observer = new MutationObserver(reinitializeLucide);
-    observer.observe(document.body, { childList: true, subtree: true });
-</script>

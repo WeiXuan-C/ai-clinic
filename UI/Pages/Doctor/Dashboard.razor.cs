@@ -14,6 +14,7 @@ public partial class Dashboard : ComponentBase
     private bool isLoading = true;
     private string errorMessage = string.Empty;
     private string doctorName = "Doctor";
+    private List<Conversation> topConversations = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -40,6 +41,9 @@ public partial class Dashboard : ComponentBase
             {
                 doctorName = $"Dr. {dashboardData.Profile.FullName}";
             }
+
+            // Load top 10 conversations based on recent activity
+            await LoadTopConversations(userId);
         }
         catch (Exception ex)
         {
@@ -49,6 +53,24 @@ public partial class Dashboard : ComponentBase
         finally
         {
             isLoading = false;
+        }
+    }
+
+    private async Task LoadTopConversations(Guid doctorId)
+    {
+        try
+        {
+            // Get all conversations for this doctor and take top 10 by last message time
+            var allConversations = await DoctorFacade.GetDoctorConversationsAsync(doctorId);
+            topConversations = allConversations
+                .OrderByDescending(c => c.LastMessageAt)
+                .Take(10)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DASHBOARD ERROR] Failed to load top conversations: {ex.Message}");
+            topConversations = new();
         }
     }
 
