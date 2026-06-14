@@ -1,6 +1,6 @@
 @page "/doctor/settings"
-@using ai_clinic.Models
 @layout Components.Layout.DoctorSidebarLayout
+@using ai_clinic.Models
 
 <PageTitle>Settings - AI Medical Clinic</PageTitle>
 
@@ -20,15 +20,13 @@
 @if (isLoading)
 {
     <div style="text-align: center; padding: 3rem;">
-        <div class="spinner"></div>
-        <p class="body-md" style="margin-top: 1rem;">Loading settings...</p>
+        <p class="body-md">Loading settings...</p>
     </div>
 }
 else if (!string.IsNullOrEmpty(errorMessage))
 {
-    <div class="alert alert-error" style="max-width: 900px; margin: 0 auto 2rem;">
-        <i data-lucide="alert-circle"></i>
-        <span>@errorMessage</span>
+    <div style="text-align: center; padding: 3rem;">
+        <p class="body-md" style="color: #d32f2f;">@errorMessage</p>
     </div>
 }
 else
@@ -41,37 +39,10 @@ else
     </div>
 }
 <div class="content-grid">
-    <!-- Account Settings -->
-    <section class="settings-card">
-        <div class="section-header">
-            <div class="header-with-icon">
-                <i data-lucide="user-cog" class="section-icon"></i>
-                <h2 class="headline-md">Account Settings</h2>
-            </div>
-        </div>
-        <div class="settings-list">
-            <div class="setting-item">
-                <div class="setting-info">
-                    <h4 class="headline-sm">Email Address</h4>
-                    <p class="body-sm">@settings.Email</p>
-                </div>
-                <button class="btn-link" @onclick="OpenEmailChangeModal">Change</button>
-            </div>
-            <div class="setting-item">
-                <div class="setting-info">
-                    <h4 class="headline-sm">Password</h4>
-                    <p class="body-sm">••••••••</p>
-                </div>
-                <button class="btn-link" @onclick="OpenPasswordChangeModal">Change</button>
-            </div>
-        </div>
-    </section>
-
     <!-- Availability Settings -->
     <section class="settings-card">
         <div class="section-header">
             <div class="header-with-icon">
-                <i data-lucide="calendar" class="section-icon"></i>
                 <h2 class="headline-md">Availability Settings</h2>
             </div>
         </div>
@@ -87,25 +58,710 @@ else
                     <option value="@DoctorAvailabilityStatus.Offline">Offline</option>
                 </select>
             </div>
+        </div>
+    </section>
+
+    <!-- Account Settings -->
+    <section class="settings-card">
+        <div class="section-header">
+            <div class="header-with-icon">
+                <h2 class="headline-md">Account Settings</h2>
+            </div>
+        </div>
+        <div class="settings-list">
             <div class="setting-item">
                 <div class="setting-info">
-                    <h4 class="headline-sm">Auto-Accept Appointments</h4>
-                    <p class="body-sm">Automatically accept new appointment requests</p>
+                    <h4 class="headline-sm">Email Address</h4>
+                    <p class="body-sm">Change your account email address</p>
                 </div>
-                <label class="toggle-switch">
-                    <input type="checkbox" @bind="settings.AutoAcceptAppointments" @bind:after="SaveSettings" />
-                    <span class="toggle-slider"></span>
-                </label>
+                <button class="btn-link" @onclick="OpenChangeEmailModal">Change Email</button>
             </div>
             <div class="setting-item">
                 <div class="setting-info">
-                    <h4 class="headline-sm">Maximum Daily Patients</h4>
-                    <p class="body-sm">Limit the number of patients per day</p>
+                    <h4 class="headline-sm">Password</h4>
+                    <p class="body-sm">Update your password to keep your account secure</p>
                 </div>
-                <input type="number" min="1" max="100" class="number-input" @bind="settings.MaxDailyPatients" @bind:after="SaveSettings" />
+                <button class="btn-link" @onclick="OpenChangePasswordModal">Change Password</button>
             </div>
         </div>
     </section>
 
-    <!-- Notification Settings -->
+    <!-- Data & Privacy -->
     <section class="settings-card">
+        <div class="section-header">
+            <div class="header-with-icon">
+                <h2 class="headline-md">Data & Privacy</h2>
+            </div>
+        </div>
+        <div class="settings-list">
+            <div class="setting-item">
+                <div class="setting-info">
+                    <h4 class="headline-sm">Download My Data</h4>
+                    <p class="body-sm">Download all your account data in JSON format</p>
+                </div>
+                <button class="btn-primary-sm" @onclick="DownloadMyData" disabled="@isDownloading">
+                    @(isDownloading ? "Downloading..." : "Download Data")
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Danger Zone -->
+    <section class="settings-card danger-zone">
+        <div class="section-header">
+            <div class="header-with-icon">
+                <h2 class="headline-md" style="color: #d32f2f;">Danger Zone</h2>
+            </div>
+        </div>
+        <div class="settings-list">
+            <div class="setting-item">
+                <div class="setting-info">
+                    <h4 class="headline-sm">Deactivate Account</h4>
+                    <p class="body-sm">Temporarily disable your account. You can reactivate it later.</p>
+                </div>
+                <button class="btn-danger-outline" @onclick="OpenDeactivateModal">Deactivate</button>
+            </div>
+            <div class="setting-item">
+                <div class="setting-info">
+                    <h4 class="headline-sm">Delete Account</h4>
+                    <p class="body-sm">Permanently delete your account and all associated data. This cannot be undone.</p>
+                </div>
+                <button class="btn-danger" @onclick="OpenDeleteModal">Delete Account</button>
+            </div>
+        </div>
+    </section>
+</div>
+
+<!-- Change Email Modal -->
+@if (showChangeEmailModal)
+{
+    <div class="modal-overlay" @onclick="CloseChangeEmailModal">
+        <div class="modal-content" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3>Change Email Address</h3>
+                <button class="close-button" @onclick="CloseChangeEmailModal">&times;</button>
+            </div>
+            @if (!string.IsNullOrEmpty(emailModalError))
+            {
+                <div class="alert alert-error">@emailModalError</div>
+            }
+            <div class="form-group">
+                <label class="form-label">Current Password</label>
+                <div class="password-input-wrapper">
+                    <input type="@(showEmailPassword ? "text" : "password")" 
+                           class="form-input" 
+                           @bind="emailCurrentPassword" 
+                           placeholder="Enter your current password" />
+                    <button type="button" class="password-toggle-btn" @onclick="() => showEmailPassword = !showEmailPassword">
+                        <i data-lucide="@(showEmailPassword ? "eye-off" : "eye")"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">New Email Address</label>
+                <input type="email" class="form-input" @bind="newEmail" placeholder="Enter new email address" />
+            </div>
+            <div class="modal-actions">
+                <button class="btn-secondary" @onclick="CloseChangeEmailModal">Cancel</button>
+                <button class="btn-primary" @onclick="ChangeEmail" disabled="@isProcessing">
+                    @(isProcessing ? "Changing..." : "Change Email")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Change Password Modal -->
+@if (showChangePasswordModal)
+{
+    <div class="modal-overlay" @onclick="CloseChangePasswordModal">
+        <div class="modal-content" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3>Change Password</h3>
+                <button class="close-button" @onclick="CloseChangePasswordModal">&times;</button>
+            </div>
+            @if (!string.IsNullOrEmpty(passwordModalError))
+            {
+                <div class="alert alert-error">@passwordModalError</div>
+            }
+            <div class="form-group">
+                <label class="form-label">Current Password</label>
+                <div class="password-input-wrapper">
+                    <input type="@(showCurrentPassword ? "text" : "password")" 
+                           class="form-input" 
+                           @bind="currentPassword" 
+                           placeholder="Enter current password" />
+                    <button type="button" class="password-toggle-btn" @onclick="() => showCurrentPassword = !showCurrentPassword">
+                        <i data-lucide="@(showCurrentPassword ? "eye-off" : "eye")"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">New Password</label>
+                <div class="password-input-wrapper">
+                    <input type="@(showNewPassword ? "text" : "password")" 
+                           class="form-input" 
+                           @bind="newPassword" 
+                           placeholder="Enter new password (min. 6 characters)" />
+                    <button type="button" class="password-toggle-btn" @onclick="() => showNewPassword = !showNewPassword">
+                        <i data-lucide="@(showNewPassword ? "eye-off" : "eye")"></i>
+                    </button>
+                </div>
+                <span class="form-hint">Password must be at least 6 characters long</span>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Confirm New Password</label>
+                <div class="password-input-wrapper">
+                    <input type="@(showConfirmPassword ? "text" : "password")" 
+                           class="form-input" 
+                           @bind="confirmPassword" 
+                           placeholder="Confirm new password" />
+                    <button type="button" class="password-toggle-btn" @onclick="() => showConfirmPassword = !showConfirmPassword">
+                        <i data-lucide="@(showConfirmPassword ? "eye-off" : "eye")"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-secondary" @onclick="CloseChangePasswordModal">Cancel</button>
+                <button class="btn-primary" @onclick="ChangePassword" disabled="@isProcessing">
+                    @(isProcessing ? "Changing..." : "Change Password")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Deactivate Account Modal -->
+@if (showDeactivateModal)
+{
+    <div class="modal-overlay" @onclick="CloseDeactivateModal">
+        <div class="modal-content" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3>Deactivate Account</h3>
+                <button class="close-button" @onclick="CloseDeactivateModal">&times;</button>
+            </div>
+            @if (!string.IsNullOrEmpty(deactivateModalError))
+            {
+                <div class="alert alert-error">@deactivateModalError</div>
+            }
+            <p class="body-sm" style="margin-bottom: 1.5rem;">
+                Your account will be temporarily disabled. You can reactivate it by contacting support.
+            </p>
+            <div class="form-group">
+                <label class="form-label">Enter Your Password to Confirm</label>
+                <div class="password-input-wrapper">
+                    <input type="@(showDeactivatePassword ? "text" : "password")" 
+                           class="form-input" 
+                           @bind="deactivatePassword" 
+                           placeholder="Enter your password" />
+                    <button type="button" class="password-toggle-btn" @onclick="() => showDeactivatePassword = !showDeactivatePassword">
+                        <i data-lucide="@(showDeactivatePassword ? "eye-off" : "eye")"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-secondary" @onclick="CloseDeactivateModal">Cancel</button>
+                <button class="btn-danger" @onclick="DeactivateAccount" disabled="@isProcessing">
+                    @(isProcessing ? "Deactivating..." : "Deactivate Account")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Delete Account Modal -->
+@if (showDeleteModal)
+{
+    <div class="modal-overlay" @onclick="CloseDeleteModal">
+        <div class="modal-content" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h3>Delete Account</h3>
+                <button class="close-button" @onclick="CloseDeleteModal">&times;</button>
+            </div>
+            @if (!string.IsNullOrEmpty(deleteModalError))
+            {
+                <div class="alert alert-error">@deleteModalError</div>
+            }
+            <div class="alert alert-error" style="margin-bottom: 1.5rem;">
+                <strong>Warning:</strong> This action cannot be undone. All your data will be permanently deleted.
+            </div>
+            <div class="form-group">
+                <label class="form-label">Enter Your Password to Confirm</label>
+                <div class="password-input-wrapper">
+                    <input type="@(showDeletePassword ? "text" : "password")" 
+                           class="form-input" 
+                           @bind="deletePassword" 
+                           placeholder="Enter your password" />
+                    <button type="button" class="password-toggle-btn" @onclick="() => showDeletePassword = !showDeletePassword">
+                        <i data-lucide="@(showDeletePassword ? "eye-off" : "eye")"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-secondary" @onclick="CloseDeleteModal">Cancel</button>
+                <button class="btn-danger" @onclick="DeleteAccount" disabled="@isProcessing">
+                    @(isProcessing ? "Deleting..." : "Delete Account Permanently")
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .content-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1.5rem;
+    }
+
+    .header-left h1 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #191c1e;
+        margin: 0.25rem 0.5rem;
+        font-family: 'Manrope', sans-serif;
+    }
+
+    .header-left p {
+        color: #434654;
+        margin: 0 0.5rem;
+    }
+
+    .content-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1.25rem;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    /* Settings Card */
+    .settings-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+    }
+
+    .settings-card.danger-zone {
+        border: 2px solid #ffebee;
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.25rem;
+    }
+
+    .header-with-icon {
+        display: flex;
+        align-items: center;
+        gap: 0.625rem;
+    }
+
+    .section-icon {
+        font-size: 1.25rem;
+        color: #0052cc;
+    }
+
+    .section-icon.danger {
+        color: #d32f2f;
+    }
+
+    .section-header h2 {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #191c1e;
+    }
+
+    /* Settings List */
+    .settings-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.875rem;
+    }
+
+    .setting-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem;
+        background: #f7f9fb;
+        border-radius: 10px;
+    }
+
+    .setting-info {
+        flex: 1;
+    }
+
+    .setting-info h4 {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: #191c1e;
+        margin-bottom: 0.25rem;
+    }
+
+    .setting-info p {
+        font-size: 0.8125rem;
+        color: #434654;
+        margin: 0;
+    }
+
+    /* Toggle Switch */
+    .toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 48px;
+        height: 28px;
+    }
+
+    .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .toggle-slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #e6e8ea;
+        transition: 0.3s;
+        border-radius: 28px;
+    }
+
+    .toggle-slider:before {
+        position: absolute;
+        content: "";
+        height: 20px;
+        width: 20px;
+        left: 4px;
+        bottom: 4px;
+        background-color: white;
+        transition: 0.3s;
+        border-radius: 50%;
+    }
+
+    input:checked + .toggle-slider {
+        background-color: #0052cc;
+    }
+
+    input:checked + .toggle-slider:before {
+        transform: translateX(20px);
+    }
+
+    /* Buttons */
+    .btn-link {
+        color: #0052cc;
+        background: none;
+        border: none;
+        font-weight: 600;
+        cursor: pointer;
+        font-size: 0.875rem;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        transition: all 0.2s;
+    }
+
+    .btn-link:hover {
+        background: #e3f2fd;
+    }
+
+    .select-input {
+        padding: 0.625rem 1rem;
+        border: 1px solid #e6e8ea;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        cursor: pointer;
+        background: white;
+        min-width: 150px;
+    }
+
+    .select-input:focus {
+        outline: none;
+        border-color: #0052cc;
+    }
+
+    .number-input {
+        padding: 0.625rem 1rem;
+        border: 1px solid #e6e8ea;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        background: white;
+        min-width: 100px;
+    }
+
+    .number-input:focus {
+        outline: none;
+        border-color: #0052cc;
+    }
+
+    .btn-primary-sm {
+        padding: 0.625rem 1.25rem;
+        background: #0052cc;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        font-size: 0.875rem;
+        transition: all 0.2s;
+    }
+
+    .btn-primary-sm:hover {
+        background: #003d9b;
+    }
+
+    .btn-danger-outline {
+        padding: 0.625rem 1.25rem;
+        background: white;
+        color: #d32f2f;
+        border: 2px solid #d32f2f;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        font-size: 0.875rem;
+        transition: all 0.2s;
+    }
+
+    .btn-danger-outline:hover {
+        background: #ffebee;
+    }
+
+    .btn-danger {
+        padding: 0.625rem 1.25rem;
+        background: #d32f2f;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        font-size: 0.875rem;
+        transition: all 0.2s;
+    }
+
+    .btn-danger:hover {
+        background: #b71c1c;
+    }
+
+    /* Responsive */
+    @@media (max-width: 768px) {
+        .setting-item {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+    }
+
+    /* Modal Styles */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+
+    .modal-content {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        max-width: 500px;
+        width: 90%;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+
+    .modal-header h3 {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #191c1e;
+        margin: 0;
+    }
+
+    .close-button {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        color: #434654;
+        cursor: pointer;
+        padding: 0;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+        transition: all 0.2s;
+    }
+
+    .close-button:hover {
+        background: #f7f9fb;
+    }
+
+    .form-group {
+        margin-bottom: 1.25rem;
+    }
+
+    .form-label {
+        display: block;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #191c1e;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-input {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 1px solid #e6e8ea;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        box-sizing: border-box;
+    }
+
+    .form-input:focus {
+        outline: none;
+        border-color: #0052cc;
+    }
+
+    .form-hint {
+        display: block;
+        font-size: 0.75rem;
+        color: #434654;
+        margin-top: 0.375rem;
+    }
+
+    .alert {
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+        margin-bottom: 1.25rem;
+        font-size: 0.875rem;
+    }
+
+    .alert-error {
+        background: #ffebee;
+        color: #d32f2f;
+        border: 1px solid #ef9a9a;
+    }
+
+    .alert-success {
+        background: #e8f5e9;
+        color: #2e7d32;
+        border: 1px solid #81c784;
+    }
+
+    .modal-actions {
+        display: flex;
+        gap: 0.75rem;
+        justify-content: flex-end;
+        margin-top: 1.5rem;
+    }
+
+    .btn-secondary {
+        padding: 0.75rem 1.5rem;
+        background: #f7f9fb;
+        color: #434654;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        font-size: 0.875rem;
+        transition: all 0.2s;
+    }
+
+    .btn-secondary:hover {
+        background: #e6e8ea;
+    }
+
+    .btn-primary {
+        padding: 0.75rem 1.5rem;
+        background: #0052cc;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        font-size: 0.875rem;
+        transition: all 0.2s;
+    }
+
+    .btn-primary:hover {
+        background: #003d9b;
+    }
+
+    .btn-primary:disabled,
+    .btn-secondary:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .password-input-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    .password-input-wrapper .form-input {
+        padding-right: 3rem;
+    }
+
+    .password-toggle-btn {
+        position: absolute;
+        right: 0.75rem;
+        background: none;
+        border: none;
+        color: #434654;
+        cursor: pointer;
+        padding: 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+        transition: all 0.2s;
+    }
+
+    .password-toggle-btn:hover {
+        background: #f7f9fb;
+        color: #0052cc;
+    }
+
+    .password-toggle-btn i {
+        width: 20px;
+        height: 20px;
+    }
+
+    .success-banner {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 1rem 1.25rem;
+        background: #e8f5e9;
+        border: 1px solid #81c784;
+        border-radius: 12px;
+        color: #2e7d32;
+        font-size: 0.9375rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 8px rgba(46, 125, 50, 0.1);
+    }
+
+    .success-banner i {
+        font-size: 1.25rem;
+    }
+</style>
+}

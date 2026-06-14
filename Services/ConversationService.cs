@@ -69,13 +69,28 @@ public class ConversationService
     /// </summary>
     public async Task<List<Conversation>> GetByDoctorIdAsync(Guid doctorId)
     {
-        using var db = DbClient.Instance.GetDb();
-        return await db.Conversations
-            .Include(c => c.Patient)
-                .ThenInclude(p => p.PatientProfile)
-            .Where(c => c.AssignedDoctorId == doctorId)
-            .OrderByDescending(c => c.LastMessageAt)
-            .ToListAsync();
+        try
+        {
+            using var db = DbClient.Instance.GetDb();
+            
+            Console.WriteLine($"[ConversationService] Fetching conversations for doctor {doctorId}");
+            
+            var conversations = await db.Conversations
+                .Include(c => c.Patient)
+                    .ThenInclude(p => p!.PatientProfile)
+                .Where(c => c.AssignedDoctorId == doctorId)
+                .OrderByDescending(c => c.LastMessageAt)
+                .AsNoTracking() // Prevent tracking to avoid circular references
+                .ToListAsync();
+            
+            Console.WriteLine($"[ConversationService] Found {conversations.Count} conversations");
+            return conversations;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ConversationService] Error in GetByDoctorIdAsync: {ex.Message}");
+            throw;
+        }
     }
 
     /// <summary>

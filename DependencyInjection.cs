@@ -32,6 +32,7 @@ public static class DependencyInjectionExtensions
         // Doctor-related services
         services.AddScoped<DoctorProfileService>();
         services.AddScoped<DoctorRatingService>();
+        services.AddScoped<DoctorSettingsService>();
 
         // System services
         services.AddScoped<ActivityLogService>();

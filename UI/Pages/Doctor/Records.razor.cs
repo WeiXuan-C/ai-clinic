@@ -28,62 +28,174 @@ public partial class Records : ComponentBase
     private Guid? selectedPatientId = null;
     private string activeTab = "conversations";
     private string searchQuery = string.Empty;
-    private bool isLoading = true;
     private string errorMessage = string.Empty;
     private MedicalRecord? selectedRecord = null;
     private bool showRecordModal = false;
 
+    private bool _hasInitialized = false;
+
+    private string GetDisplayName(string? fullName, string? email)
+    {
+        // If full name exists and is not empty, use it
+        if (!string.IsNullOrWhiteSpace(fullName))
+            return fullName;
+        
+        // If email exists, extract the part before @ symbol
+        if (!string.IsNullOrWhiteSpace(email))
+        {
+            var atIndex = email.IndexOf('@');
+            if (atIndex > 0)
+            {
+                var username = email.Substring(0, atIndex);
+                // Capitalize first letter
+                return char.ToUpper(username[0]) + username.Substring(1);
+            }
+        }
+        
+        // Fallback
+        return "Patient";
+    }
+
     protected override async Task OnInitializedAsync()
     {
-        await LoadData();
+        if (_hasInitialized)
+        {
+            Console.WriteLine("[Doctor Records] OnInitializedAsync skipped - already initialized");
+            return;
+        }
+        
+        _hasInitialized = true;
+        Console.WriteLine("[Doctor Records] OnInitializedAsync started");
+        Console.WriteLine($"[Doctor Records] Thread ID: {Environment.CurrentManagedThreadId}");
+        
+        try
+        {
+            Console.WriteLine("[Doctor Records] About to call LoadData");
+            await LoadData();
+            Console.WriteLine("[Doctor Records] LoadData completed successfully");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Doctor Records] OnInitializedAsync error: {ex.Message}");
+            Console.WriteLine($"[Doctor Records] Stack trace: {ex.StackTrace}");
+            errorMessage = $"Initialization error: {ex.Message}";
+            StateHasChanged();
+        }
+        
+        Console.WriteLine("[Doctor Records] OnInitializedAsync completed");
+    }
+    
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            Console.WriteLine("[Doctor Records] OnAfterRenderAsync - first render");
+        }
+        await base.OnAfterRenderAsync(firstRender);
     }
 
     private async Task LoadData()
     {
-        isLoading = true;
+        Console.WriteLine("[Doctor Records] LoadData started");
         errorMessage = string.Empty;
         patientConversations.Clear();
+        
+        // Force UI update to show loading state
+        StateHasChanged();
 
         try
         {
             var currentUser = AuthStateService.CurrentUser;
+            Console.WriteLine($"[Doctor Records] Current user: {currentUser?.Email ?? "null"}");
+            
             if (currentUser == null)
             {
                 errorMessage = "User not authenticated";
+                Console.WriteLine("[Doctor Records] User not authenticated");
+                StateHasChanged();
                 return;
             }
 
-            // Get all conversations for this doctor
-            var conversations = await ConversationService.GetByDoctorIdAsync(currentUser.Id);
+            Console.WriteLine($"[Doctor Records] Fetching conversations for doctor ID: {currentUser.Id}");
             
-            // Get all medical records created by this doctor
-            var medicalRecords = await MedicalRecordService.GetByDoctorIdAsync(currentUser.Id);
-
-            // Group by patient
-            var patientGroups = conversations
-                .GroupBy(c => c.PatientId)
-                .Select(g => new PatientConversationData
+            // Use Task.Run to prevent blocking the UI thread
+            var conversations = await Task.Run(async () => 
+            {
+                try
                 {
-                    PatientId = g.Key,
-                    PatientName = g.First().Patient?.PatientProfile?.FullName ?? "Unknown Patient",
-                    PatientEmail = g.First().Patient?.Email ?? "N/A",
-                    ProfilePhoto = g.First().Patient?.PatientProfile?.ProfilePhoto,
-                    DateOfBirth = g.First().Patient?.PatientProfile?.DateOfBirth,
-                    Conversations = g.ToList(),
-                    MedicalRecords = medicalRecords.Where(mr => mr.PatientId == g.Key).ToList()
+                    return await ConversationService.GetByDoctorIdAsync(currentUser.Id);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Doctor Records] Error fetching conversations: {ex.Message}");
+                    throw;
+                }
+            });
+            
+            Console.WriteLine($"[Doctor Records] Fetched {conversations?.Count ?? 0} conversations");
+            
+            Console.WriteLine($"[Doctor Records] Fetching medical records for doctor ID: {currentUser.Id}");
+            
+            var medicalRecords = await Task.Run(async () =>
+            {
+                try
+                {
+                    return await MedicalRecordService.GetByDoctorIdAsync(currentUser.Id);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Doctor Records] Error fetching medical records: {ex.Message}");
+                    throw;
+                }
+            });
+            
+            Console.WriteLine($"[Doctor Records] Fetched {medicalRecords?.Count ?? 0} medical records");
+
+            if (conversations == null || !conversations.Any())
+            {
+                Console.WriteLine("[Doctor Records] No conversations found");
+                patientConversations = new List<PatientConversationData>();
+                StateHasChanged();
+                return;
+            }
+
+            Console.WriteLine("[Doctor Records] Grouping conversations by patient");
+            // Group by patient with null safety
+            var patientGroups = conversations
+                .Where(c => c.Patient != null) // Filter out conversations without patient data
+                .GroupBy(c => c.PatientId)
+                .Select(g => {
+                    var patient = g.First().Patient;
+                    var fullName = patient?.PatientProfile?.FullName;
+                    var email = patient?.Email ?? "N/A";
+                    
+                    return new PatientConversationData
+                    {
+                        PatientId = g.Key,
+                        PatientName = GetDisplayName(fullName, email),
+                        PatientEmail = email,
+                        ProfilePhoto = patient?.PatientProfile?.ProfilePhoto,
+                        DateOfBirth = patient?.PatientProfile?.DateOfBirth,
+                        Conversations = g.ToList(),
+                        MedicalRecords = medicalRecords?.Where(mr => mr.PatientId == g.Key).ToList() ?? new List<MedicalRecord>()
+                    };
                 })
-                .OrderByDescending(p => p.Conversations.Max(c => c.LastMessageAt))
+                .OrderByDescending(p => p.Conversations.Any() ? p.Conversations.Max(c => c.LastMessageAt) : DateTime.MinValue)
                 .ToList();
 
             patientConversations = patientGroups;
+            Console.WriteLine($"[Doctor Records] Grouped into {patientConversations.Count} patient groups");
         }
         catch (Exception ex)
         {
             errorMessage = $"Error loading data: {ex.Message}";
+            Console.WriteLine($"[Doctor Records] Error in LoadData: {ex.Message}");
+            Console.WriteLine($"[Doctor Records] Stack trace: {ex.StackTrace}");
         }
         finally
         {
-            isLoading = false;
+            Console.WriteLine("[Doctor Records] LoadData completed (finally block)");
+            StateHasChanged();
         }
     }
 
@@ -171,6 +283,17 @@ public partial class Records : ComponentBase
             "prescription" => "pill",
             "imaging" => "scan",
             _ => "file-text"
+        };
+    }
+
+    private string GetRecordIconEmoji(string recordType)
+    {
+        return recordType.ToLower() switch
+        {
+            "lab result" => "🧪",
+            "prescription" => "💊",
+            "imaging" => "🔬",
+            _ => "📄"
         };
     }
 

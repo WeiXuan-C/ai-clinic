@@ -19,13 +19,27 @@ public class MedicalRecordService
 
     public async Task<List<MedicalRecord>> GetByDoctorIdAsync(Guid doctorId)
     {
-        using var db = DbClient.Instance.GetDb();
-        return await db.MedicalRecords
-            .Include(mr => mr.Patient)
-            .Include(mr => mr.Conversation)
-            .Where(mr => mr.CreatedByDoctorId == doctorId)
-            .OrderByDescending(mr => mr.CreatedAt)
-            .ToListAsync();
+        try
+        {
+            using var db = DbClient.Instance.GetDb();
+            
+            Console.WriteLine($"[MedicalRecordService] Fetching medical records for doctor {doctorId}");
+            
+            var records = await db.MedicalRecords
+                .Include(mr => mr.Patient)
+                .Where(mr => mr.CreatedByDoctorId == doctorId)
+                .OrderByDescending(mr => mr.CreatedAt)
+                .AsNoTracking() // Prevent tracking to avoid circular references
+                .ToListAsync();
+            
+            Console.WriteLine($"[MedicalRecordService] Found {records.Count} medical records");
+            return records;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[MedicalRecordService] Error in GetByDoctorIdAsync: {ex.Message}");
+            throw;
+        }
     }
 
     public async Task<MedicalRecord?> GetByIdAsync(Guid recordId)

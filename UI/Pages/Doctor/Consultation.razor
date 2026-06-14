@@ -188,9 +188,37 @@
                     </div>
 
                     <div class="input-box">
-                        <button class="icon-btn" title="Emoji">
+                        <button class="icon-btn" title="Emoji" @onclick="ToggleEmojiPicker">
                             <i data-lucide="smile" style="width: 20px; height: 20px;"></i>
                         </button>
+                        
+                        @if (showEmojiPicker)
+                        {
+                            <div class="emoji-picker" @onclick:stopPropagation>
+                                <div class="emoji-picker-header">
+                                    <div class="emoji-tabs">
+                                        @foreach (var category in emojiCategories)
+                                        {
+                                            <button class="emoji-tab @(selectedEmojiCategory == category.Key ? "active" : "")" 
+                                                    @onclick="() => SelectEmojiCategory(category.Key)"
+                                                    title="@category.Key">
+                                                @category.Value[0]
+                                            </button>
+                                        }
+                                    </div>
+                                    <button class="emoji-close-btn" @onclick="CloseEmojiPicker" title="Close">✕</button>
+                                </div>
+                                <div class="emoji-grid">
+                                    @foreach (var emoji in GetEmojisForCategory(selectedEmojiCategory))
+                                    {
+                                        <button class="emoji-btn" @onclick="() => InsertEmoji(emoji)" title="@emoji">
+                                            @emoji
+                                        </button>
+                                    }
+                                </div>
+                            </div>
+                        }
+                        
                         <input type="text"
                                placeholder="Type your response..."
                                @bind="newMessage"
@@ -1499,5 +1527,140 @@
         background: #f9fafb;
         border-color: #d1d5db;
         color: #374151;
+    }
+
+    /* Emoji Picker Styles */
+    .emoji-picker {
+        width: 320px;
+        position: absolute;
+        bottom: 70px;
+        left: 16px;
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        padding: 12px;
+        max-height: 320px;
+        display: flex;
+        flex-direction: column;
+        z-index: 1000;
+        animation: emojiPickerFadeIn 0.2s ease-out;
+    }
+
+    @@keyframes emojiPickerFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .emoji-picker-header {
+        padding-bottom: 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #e5e7eb;
+        margin-bottom: 10px;
+    }
+
+    .emoji-tabs {
+        display: flex;
+        gap: 4px;
+    }
+
+    .emoji-tab {
+        width: 36px;
+        height: 36px;
+        background: transparent;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+    }
+
+    .emoji-tab:hover {
+        background: #e5e7eb;
+    }
+
+    .emoji-tab.active {
+        background: #dbeafe;
+        box-shadow: 0 0 0 2px #0ea5e9;
+    }
+
+    .emoji-close-btn {
+        width: 28px;
+        height: 28px;
+        background: transparent;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        color: #6b7280;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+    }
+
+    .emoji-close-btn:hover {
+        background: #d1d5db;
+        color: #111827;
+    }
+
+    .emoji-grid {
+        flex: 1;
+        overflow-y: auto;
+        display: grid;
+        grid-template-columns: repeat(8, 1fr);
+        gap: 4px;
+        padding: 4px 0;
+    }
+
+    .emoji-grid::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .emoji-grid::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+    }
+
+    .emoji-grid::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 4px;
+    }
+
+    .emoji-grid::-webkit-scrollbar-thumb:hover {
+        background: #a8a8a8;
+    }
+
+    .emoji-btn {
+        width: 36px;
+        height: 36px;
+        background: transparent;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+    }
+
+    .emoji-btn:hover {
+        background: #f3f4f6;
+        transform: scale(1.2);
+    }
+
+    .emoji-btn:active {
+        transform: scale(1.1);
     }
 </style>

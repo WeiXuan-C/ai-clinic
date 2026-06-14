@@ -127,30 +127,47 @@
         };
 
         // Download file function for medical records
-        window.downloadFile = function(filename, content) {
+        window.downloadFile = function(filename, content, contentType) {
             try {
                 let blob;
                 
-                // Determine content type based on file extension
-                const extension = filename.split('.').pop().toLowerCase();
-                
-                if (extension === 'pdf') {
-                    // For PDF, content is base64 encoded
+                // If contentType is provided, use it directly
+                if (contentType) {
+                    // Content is base64 encoded
                     const binaryString = window.atob(content);
                     const bytes = new Uint8Array(binaryString.length);
                     for (let i = 0; i < binaryString.length; i++) {
                         bytes[i] = binaryString.charCodeAt(i);
                     }
-                    blob = new Blob([bytes], { type: 'application/pdf' });
-                } else if (extension === 'csv') {
-                    // For CSV
-                    blob = new Blob([content], { type: 'text/csv;charset=utf-8' });
-                } else if (extension === 'json') {
-                    // For JSON
-                    blob = new Blob([content], { type: 'application/json;charset=utf-8' });
+                    blob = new Blob([bytes], { type: contentType });
                 } else {
-                    // Default to plain text
-                    blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+                    // Determine content type based on file extension (legacy support)
+                    const extension = filename.split('.').pop().toLowerCase();
+                    
+                    if (extension === 'pdf') {
+                        // For PDF, content is base64 encoded
+                        const binaryString = window.atob(content);
+                        const bytes = new Uint8Array(binaryString.length);
+                        for (let i = 0; i < binaryString.length; i++) {
+                            bytes[i] = binaryString.charCodeAt(i);
+                        }
+                        blob = new Blob([bytes], { type: 'application/pdf' });
+                    } else if (extension === 'csv') {
+                        // For CSV
+                        blob = new Blob([content], { type: 'text/csv;charset=utf-8' });
+                    } else if (extension === 'json') {
+                        // For JSON - decode from base64 if it looks like base64
+                        try {
+                            const decoded = window.atob(content);
+                            blob = new Blob([decoded], { type: 'application/json;charset=utf-8' });
+                        } catch {
+                            // Not base64, use as-is
+                            blob = new Blob([content], { type: 'application/json;charset=utf-8' });
+                        }
+                    } else {
+                        // Default to plain text
+                        blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+                    }
                 }
                 
                 // Create download link

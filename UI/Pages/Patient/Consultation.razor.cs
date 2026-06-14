@@ -59,6 +59,21 @@ public partial class Consultation : ComponentBase, IAsyncDisposable
     private string reviewText = "";
     private bool isSubmittingRating = false;
 
+    // Emoji picker state
+    private bool showEmojiPicker = false;
+    private string selectedEmojiCategory = "Smileys";
+    private ElementReference messageInputRef;
+    
+    private readonly Dictionary<string, string[]> emojiCategories = new()
+    {
+        { "Smileys", new[] { "😀", "😃", "😄", "😁", "😅", "😂", "🤣", "😊", "😇", "🙂", "🙃", "😉", "😌", "😍", "🥰", "😘", "😗", "😙", "😚", "😋", "😛", "😝", "😜", "🤪", "🤨", "🧐", "🤓", "😎", "🥸", "🤩", "🥳", "😏", "😒", "😞", "😔", "😟", "😕", "🙁", "☹️", "😣", "😖", "😫", "😩", "🥺", "😢", "😭", "😤", "😠", "😡", "🤬", "🤯", "😳", "🥵", "🥶", "😱", "😨", "😰", "😥", "😓", "🤗", "🤔", "🤭", "🤫", "🤥", "😶", "😐", "😑", "😬", "🙄", "😯", "😦", "😧", "😮", "😲", "🥱", "😴", "🤤", "😪", "😵", "🤐", "🥴", "🤢", "🤮", "🤧", "😷", "🤒", "🤕" } },
+        { "Gestures", new[] { "👋", "🤚", "🖐", "✋", "🖖", "👌", "🤌", "🤏", "✌️", "🤞", "🤟", "🤘", "🤙", "👈", "👉", "👆", "🖕", "👇", "☝️", "👍", "👎", "✊", "👊", "🤛", "🤜", "👏", "🙌", "👐", "🤲", "🤝", "🙏", "✍️", "💪", "🦾", "🦿", "🦵", "🦶", "👂", "🦻", "👃", "🧠", "🫀", "🫁", "🦷", "🦴", "👀", "👁", "👅", "👄", "💋", "🩸" } },
+        { "Medical", new[] { "💊", "💉", "🩹", "🩺", "🌡️", "🏥", "🚑", "⚕️", "🧬", "🦠", "🧪", "🔬", "🧫", "🩻", "🧑‍⚕️", "👨‍⚕️", "👩‍⚕️", "🧑‍🔬", "👨‍🔬", "👩‍🔬" } },
+        { "Symbols", new[] { "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "🤎", "💔", "❤️‍🔥", "❤️‍🩹", "💕", "💞", "💓", "💗", "💖", "💘", "💝", "💟", "☮️", "✝️", "☪️", "🕉️", "☸️", "✡️", "🔯", "🕎", "☯️", "☦️", "🛐", "⛎", "♈", "♉", "♊", "♋", "♌", "♍", "♎", "♏", "♐", "♑", "♒", "♓", "🆔", "⚛️", "🉑", "☢️", "☣️", "📴", "📳", "🈶", "🈚", "🈸", "🈺", "🈷️", "✴️", "🆚", "💮", "🉐", "㊙️", "㊗️", "🈴", "🈵", "🈹", "🈲", "🅰️", "🅱️", "🆎", "🆑", "🅾️", "🆘", "❌", "⭕", "🛑", "⛔", "📛", "🚫" } },
+        { "Nature", new[] { "🌸", "💐", "🌹", "🥀", "🌺", "🌻", "🌼", "🌷", "🌱", "🌲", "🌳", "🌴", "🌵", "🌾", "🌿", "☘️", "🍀", "🍁", "🍂", "🍃", "🍄", "🌰", "🦀", "🦞", "🦐", "🦑", "🐙", "🐚", "🐌", "🦋", "🐛", "🐜", "🐝", "🐞", "🦗", "🕷️", "🕸️", "🦂", "🦟", "🦠", "💐", "🌹", "🥀", "🌺" } },
+        { "Food", new[] { "🍎", "🍏", "🍐", "🍊", "🍋", "🍌", "🍉", "🍇", "🍓", "🫐", "🍈", "🍒", "🍑", "🥭", "🍍", "🥥", "🥝", "🍅", "🍆", "🥑", "🥦", "🥬", "🥒", "🌶️", "🫑", "🌽", "🥕", "🫒", "🧄", "🧅", "🥔", "🍠", "🥐", "🥯", "🍞", "🥖", "🥨", "🧀", "🥚", "🍳", "🧈", "🥞", "🧇", "🥓", "🥩", "🍗", "🍖", "🦴", "🌭", "🍔", "🍟", "🍕", "🫓", "🥪", "🥙", "🧆", "🌮", "🌯", "🫔", "🥗", "🥘", "🫕", "🥫", "🍝", "🍜", "🍲", "🍛", "🍣", "🍱", "🥟", "🦪", "🍤", "🍙", "🍚", "🍘", "🍥", "🥠", "🥮", "🍢", "🍡", "🍧", "🍨", "🍦", "🥧", "🧁", "🍰", "🎂", "🍮", "🍭", "🍬", "🍫", "🍿", "🍩", "🍪", "🌰", "🥜", "🍯", "🥛", "🍼", "🫖", "☕", "🍵", "🧃", "🥤", "🧋", "🍶", "🍺", "🍻", "🥂", "🍷", "🥃", "🍸", "🍹", "🧉", "🍾", "🧊" } }
+    };
+
 #pragma warning disable CS0414
     private bool _iconsInitialized = false;
 #pragma warning restore CS0414
@@ -1439,6 +1454,54 @@ public partial class Consultation : ComponentBase, IAsyncDisposable
             5 => "Excellent",
             _ => ""
         };
+    }
+
+    #endregion
+
+    #region Emoji Picker Methods
+
+    /// <summary>
+    /// Toggle emoji picker visibility
+    /// </summary>
+    private void ToggleEmojiPicker()
+    {
+        showEmojiPicker = !showEmojiPicker;
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Close emoji picker
+    /// </summary>
+    private void CloseEmojiPicker()
+    {
+        showEmojiPicker = false;
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Select emoji category
+    /// </summary>
+    private void SelectEmojiCategory(string category)
+    {
+        selectedEmojiCategory = category;
+        StateHasChanged();
+    }
+
+    /// <summary>
+    /// Get emojis for selected category
+    /// </summary>
+    private string[] GetEmojisForCategory(string category)
+    {
+        return emojiCategories.TryGetValue(category, out var emojis) ? emojis : Array.Empty<string>();
+    }
+
+    /// <summary>
+    /// Insert emoji into message input
+    /// </summary>
+    private void InsertEmoji(string emoji)
+    {
+        newMessage += emoji;
+        StateHasChanged();
     }
 
     #endregion

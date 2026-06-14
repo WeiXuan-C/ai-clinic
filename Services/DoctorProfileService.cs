@@ -14,10 +14,41 @@ public class DoctorProfileService
     /// </summary>
     public async Task<DoctorProfile?> GetByUserIdAsync(Guid userId)
     {
-        using var db = DbClient.Instance.GetDb();
-        return await db.DoctorProfiles
-            .Include(d => d.User)
-            .FirstOrDefaultAsync(d => d.UserId == userId);
+        try
+        {
+            Console.WriteLine($"[DoctorProfileService] GetByUserIdAsync started for user: {userId}");
+            
+            using var db = DbClient.Instance.GetDb();
+            var profile = await db.DoctorProfiles
+                .Include(d => d.User)
+                .FirstOrDefaultAsync(d => d.UserId == userId);
+            
+            if (profile == null)
+            {
+                Console.WriteLine($"[DoctorProfileService] Profile not found for user: {userId}");
+            }
+            else
+            {
+                Console.WriteLine($"[DoctorProfileService] ✓ Profile found. Specialization: {profile.PrimarySpecialization}");
+            }
+            
+            return profile;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DoctorProfileService] ERROR in GetByUserIdAsync");
+            Console.WriteLine($"  Type: {ex.GetType().Name}");
+            Console.WriteLine($"  Message: {ex.Message}");
+            Console.WriteLine($"  Stack Trace: {ex.StackTrace}");
+            
+            // Check for database connection issues
+            if (ex.InnerException != null)
+            {
+                Console.WriteLine($"  Inner Exception: {ex.InnerException.Message}");
+            }
+            
+            throw; // Re-throw to be handled by caller
+        }
     }
 
     /// <summary>

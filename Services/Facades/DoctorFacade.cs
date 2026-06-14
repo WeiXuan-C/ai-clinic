@@ -1,6 +1,7 @@
 using ai_clinic.Models;
 using ai_clinic.Services.Hubs;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 
 namespace ai_clinic.Services.Facades;
 
@@ -20,6 +21,8 @@ public class DoctorFacade
     private readonly IHubContext<ConsultationHub> _hubContext;
     private readonly DoctorRecordExportService _doctorRecordExportService;
     private readonly DoctorReportExportService _doctorReportExportService;
+    private readonly UserService _userService;
+    private readonly DoctorSettingsService _doctorSettingsService;
 
     public DoctorFacade(
         DoctorProfileService doctorProfileService,
@@ -31,7 +34,9 @@ public class DoctorFacade
         StatisticsService statisticsService,
         IHubContext<ConsultationHub> hubContext,
         DoctorRecordExportService doctorRecordExportService,
-        DoctorReportExportService doctorReportExportService)
+        DoctorReportExportService doctorReportExportService,
+        UserService userService,
+        DoctorSettingsService doctorSettingsService)
     {
         _doctorProfileService = doctorProfileService;
         _conversationService = conversationService;
@@ -43,6 +48,8 @@ public class DoctorFacade
         _hubContext = hubContext;
         _doctorRecordExportService = doctorRecordExportService;
         _doctorReportExportService = doctorReportExportService;
+        _userService = userService;
+        _doctorSettingsService = doctorSettingsService;
     }
 
     /// <summary>
@@ -597,23 +604,98 @@ public class DoctorFacade
     /// </summary>
     public async Task<DoctorSettingsData> GetDoctorSettingsAsync(Guid userId)
     {
-        var profile = await _doctorProfileService.GetByUserIdAsync(userId);
-        
-        await _activityLogService.LogActivityAsync(userId, "ViewDoctorSettings");
-
-        return new DoctorSettingsData
+        try
         {
-            Profile = profile,
-            Email = profile?.User?.Email ?? string.Empty,
-            AvailabilityStatus = profile?.AvailabilityStatus ?? DoctorAvailabilityStatus.Offline,
-            AutoAcceptAppointments = profile?.AutoAcceptAppointments ?? false,
-            MaxDailyPatients = profile?.MaxDailyPatients ?? 30,
-            NotifyUrgentConsultations = profile?.NotifyUrgentConsultations ?? true,
-            NotifyNewAppointments = profile?.NotifyNewAppointments ?? true,
-            NotifyAiAssessments = profile?.NotifyAiAssessments ?? true,
-            NotifyEmailSummaries = profile?.NotifyEmailSummaries ?? false,
-            SessionTimeoutMinutes = profile?.SessionTimeoutMinutes ?? 30
-        };
+            Console.WriteLine($"[DoctorFacade] GetDoctorSettingsAsync started for user: {userId}");
+            
+            var profile = await _doctorProfileService.GetByUserIdAsync(userId);
+            Console.WriteLine($"[DoctorFacade] Profile loaded: {profile != null}");
+            
+            // If profile doesn't have user loaded, create a new profile with defaults
+            if (profile == null)
+            {
+                Console.WriteLine("[DoctorFacade] Profile is null, loading user email separately");
+                
+                // Get user email separately
+                var user = await GetUserByIdAsync(userId);
+                Console.WriteLine($"[DoctorFacade] User loaded: {user != null}, Email: {user?.Email}");
+                
+                await _activityLogService.LogActivityAsync(userId, "ViewDoctorSettings");
+
+                return new DoctorSettingsData
+                {
+                    Profile = null,
+                    Email = user?.Email ?? string.Empty,
+                    AvailabilityStatus = DoctorAvailabilityStatus.Offline,
+                    AutoAcceptAppointments = false,
+                    MaxDailyPatients = 30,
+                    NotifyUrgentConsultations = true,
+                    NotifyNewAppointments = true,
+                    NotifyAiAssessments = true,
+                    NotifyEmailSummaries = false,
+                    SessionTimeoutMinutes = 30
+                };
+            }
+            
+            // Get user email from profile's User or separately
+            var emailToUse = profile.User?.Email ?? string.Empty;
+            if (string.IsNullOrEmpty(emailToUse))
+            {
+                Console.WriteLine("[DoctorFacade] Email not in profile, loading user separately");
+                var user = await GetUserByIdAsync(userId);
+                emailToUse = user?.Email ?? string.Empty;
+            }
+            
+            Console.WriteLine($"[DoctorFacade] ✓ Settings prepared successfully. Email: {emailToUse}");
+            
+            await _activityLogService.LogActivityAsync(userId, "ViewDoctorSettings");
+
+            return new DoctorSettingsData
+            {
+                Profile = profile,
+                Email = emailToUse,
+                AvailabilityStatus = profile.AvailabilityStatus,
+                AutoAcceptAppointments = profile.AutoAcceptAppointments,
+                MaxDailyPatients = profile.MaxDailyPatients,
+                NotifyUrgentConsultations = profile.NotifyUrgentConsultations,
+                NotifyNewAppointments = profile.NotifyNewAppointments,
+                NotifyAiAssessments = profile.NotifyAiAssessments,
+                NotifyEmailSummaries = profile.NotifyEmailSummaries,
+                SessionTimeoutMinutes = profile.SessionTimeoutMinutes
+            };
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DoctorFacade] ERROR in GetDoctorSettingsAsync");
+            Console.WriteLine($"  Type: {ex.GetType().Name}");
+            Console.WriteLine($"  Message: {ex.Message}");
+            Console.WriteLine($"  Stack Trace: {ex.StackTrace}");
+            throw; // Re-throw to be handled by caller
+        }
+    }
+
+    /// <summary>
+    /// Helper method to get user by ID
+    /// </summary>
+    private async Task<User?> GetUserByIdAsync(Guid userId)
+    {
+        try
+        {
+            using var db = Data.DbClient.Instance.GetDb();
+            var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId);
+            
+            if (user == null)
+            {
+                Console.WriteLine($"[DoctorFacade] WARNING: User not found for ID: {userId}");
+            }
+            
+            return user;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DoctorFacade] ERROR in GetUserByIdAsync: {ex.Message}");
+            return null;
+        }
     }
 
     /// <summary>
@@ -622,23 +704,61 @@ public class DoctorFacade
     /// </summary>
     public async Task SaveDoctorSettingsAsync(Guid userId, DoctorSettingsData settings)
     {
-        var profile = await _doctorProfileService.GetByUserIdAsync(userId);
-        
-        if (profile != null)
+        try
         {
-            profile.AvailabilityStatus = settings.AvailabilityStatus;
-            profile.AutoAcceptAppointments = settings.AutoAcceptAppointments;
-            profile.MaxDailyPatients = settings.MaxDailyPatients;
-            profile.NotifyUrgentConsultations = settings.NotifyUrgentConsultations;
-            profile.NotifyNewAppointments = settings.NotifyNewAppointments;
-            profile.NotifyAiAssessments = settings.NotifyAiAssessments;
-            profile.NotifyEmailSummaries = settings.NotifyEmailSummaries;
-            profile.SessionTimeoutMinutes = settings.SessionTimeoutMinutes;
-            profile.UpdatedAt = DateTime.UtcNow;
+            Console.WriteLine($"[DoctorFacade] SaveDoctorSettingsAsync started for user: {userId}");
+            
+            var profile = await _doctorProfileService.GetByUserIdAsync(userId);
+            
+            if (profile == null)
+            {
+                Console.WriteLine($"[DoctorFacade] WARNING: Profile not found for user: {userId}, creating new profile");
+                
+                // Create a new profile if it doesn't exist
+                profile = new DoctorProfile
+                {
+                    UserId = userId,
+                    AvailabilityStatus = settings.AvailabilityStatus,
+                    AutoAcceptAppointments = settings.AutoAcceptAppointments,
+                    MaxDailyPatients = settings.MaxDailyPatients,
+                    NotifyUrgentConsultations = settings.NotifyUrgentConsultations,
+                    NotifyNewAppointments = settings.NotifyNewAppointments,
+                    NotifyAiAssessments = settings.NotifyAiAssessments,
+                    NotifyEmailSummaries = settings.NotifyEmailSummaries,
+                    SessionTimeoutMinutes = settings.SessionTimeoutMinutes,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                
+                await _doctorProfileService.CreateAsync(profile);
+                Console.WriteLine("[DoctorFacade] ✓ New profile created");
+            }
+            else
+            {
+                profile.AvailabilityStatus = settings.AvailabilityStatus;
+                profile.AutoAcceptAppointments = settings.AutoAcceptAppointments;
+                profile.MaxDailyPatients = settings.MaxDailyPatients;
+                profile.NotifyUrgentConsultations = settings.NotifyUrgentConsultations;
+                profile.NotifyNewAppointments = settings.NotifyNewAppointments;
+                profile.NotifyAiAssessments = settings.NotifyAiAssessments;
+                profile.NotifyEmailSummaries = settings.NotifyEmailSummaries;
+                profile.SessionTimeoutMinutes = settings.SessionTimeoutMinutes;
+                profile.UpdatedAt = DateTime.UtcNow;
 
-            await _doctorProfileService.UpdateAsync(profile);
+                await _doctorProfileService.UpdateAsync(profile);
+                Console.WriteLine("[DoctorFacade] ✓ Profile updated");
+            }
 
             await _activityLogService.LogActivityAsync(userId, "UpdateDoctorSettings");
+            Console.WriteLine("[DoctorFacade] ✓ SaveDoctorSettingsAsync completed successfully");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DoctorFacade] ERROR in SaveDoctorSettingsAsync");
+            Console.WriteLine($"  Type: {ex.GetType().Name}");
+            Console.WriteLine($"  Message: {ex.Message}");
+            Console.WriteLine($"  Stack Trace: {ex.StackTrace}");
+            throw; // Re-throw to be handled by caller
         }
     }
 
@@ -780,6 +900,172 @@ public class DoctorFacade
             $"\"size_bytes\": {jsonContent.Length}}}");
 
         return jsonContent;
+    }
+
+    // ====================================================================
+    // ACCOUNT SECURITY OPERATIONS - Facade Pattern
+    // Coordinates UserService, DoctorSettingsService, and ActivityLogService
+    // ====================================================================
+
+    /// <summary>
+    /// Change doctor's email address - Facade Pattern
+    /// Coordinates email validation, user service, and activity logging
+    /// </summary>
+    public async Task<(bool Success, string Message)> ChangeEmailAsync(
+        Guid userId,
+        string currentPassword,
+        string newEmail)
+    {
+        try
+        {
+            // Delegate to DoctorSettingsService for email change logic
+            var result = await _doctorSettingsService.ChangeEmailAsync(userId, currentPassword, newEmail);
+
+            // Log activity if successful
+            if (result.Success)
+            {
+                await _activityLogService.LogActivityAsync(
+                    userId,
+                    "ChangeEmail",
+                    $"{{\"new_email\": \"{newEmail}\"}}");
+            }
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DoctorFacade] Error in ChangeEmailAsync: {ex.Message}");
+            return (false, "An error occurred while changing email");
+        }
+    }
+
+    /// <summary>
+    /// Change doctor's password - Facade Pattern
+    /// Coordinates password validation, user service, and activity logging
+    /// </summary>
+    public async Task<(bool Success, string Message)> ChangePasswordAsync(
+        Guid userId,
+        string currentPassword,
+        string newPassword)
+    {
+        try
+        {
+            // Delegate to DoctorSettingsService for password change logic
+            var result = await _doctorSettingsService.ChangePasswordAsync(userId, currentPassword, newPassword);
+
+            // Log activity if successful
+            if (result.Success)
+            {
+                await _activityLogService.LogActivityAsync(
+                    userId,
+                    "ChangePassword",
+                    null);
+            }
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DoctorFacade] Error in ChangePasswordAsync: {ex.Message}");
+            return (false, "An error occurred while changing password");
+        }
+    }
+
+    /// <summary>
+    /// Deactivate doctor account - Facade Pattern
+    /// Coordinates account deactivation, profile update, and activity logging
+    /// </summary>
+    public async Task<(bool Success, string Message)> DeactivateAccountAsync(
+        Guid userId,
+        string password)
+    {
+        try
+        {
+            // Delegate to DoctorSettingsService for deactivation logic
+            var result = await _doctorSettingsService.DeactivateAccountAsync(userId, password);
+
+            // Log activity if successful
+            if (result.Success)
+            {
+                await _activityLogService.LogActivityAsync(
+                    userId,
+                    "DeactivateAccount",
+                    null);
+
+                // Update doctor profile availability status
+                var profile = await _doctorProfileService.GetByUserIdAsync(userId);
+                if (profile != null)
+                {
+                    profile.AvailabilityStatus = DoctorAvailabilityStatus.Offline;
+                    profile.IsAcceptingPatients = false;
+                    await _doctorProfileService.UpdateAsync(profile);
+                }
+            }
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DoctorFacade] Error in DeactivateAccountAsync: {ex.Message}");
+            return (false, "An error occurred while deactivating account");
+        }
+    }
+
+    /// <summary>
+    /// Delete doctor account permanently - Facade Pattern
+    /// Coordinates account deletion, related data cleanup, and activity logging
+    /// </summary>
+    public async Task<(bool Success, string Message)> DeleteAccountAsync(
+        Guid userId,
+        string password)
+    {
+        try
+        {
+            // Log activity BEFORE deletion
+            await _activityLogService.LogActivityAsync(
+                userId,
+                "DeleteAccount",
+                null);
+
+            // Delegate to DoctorSettingsService for deletion logic
+            var result = await _doctorSettingsService.DeleteAccountAsync(userId, password);
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DoctorFacade] Error in DeleteAccountAsync: {ex.Message}");
+            return (false, "An error occurred while deleting account");
+        }
+    }
+
+    /// <summary>
+    /// Download doctor's data in JSON format - Facade Pattern
+    /// Coordinates data retrieval from multiple sources and activity logging
+    /// </summary>
+    public async Task<string?> DownloadMyDataAsync(Guid userId)
+    {
+        try
+        {
+            // Delegate to DoctorSettingsService for data export logic
+            var jsonData = await _doctorSettingsService.DownloadMyDataAsync(userId);
+
+            // Log activity if successful
+            if (jsonData != null)
+            {
+                await _activityLogService.LogActivityAsync(
+                    userId,
+                    "DownloadMyData",
+                    $"{{\"size_bytes\": {jsonData.Length}}}");
+            }
+
+            return jsonData;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DoctorFacade] Error in DownloadMyDataAsync: {ex.Message}");
+            return null;
+        }
     }
 }
 
