@@ -44,9 +44,7 @@ public partial class Consultation : ComponentBase, IAsyncDisposable
     private bool isLoadingRecommendations = false;
     private bool showAllRecommendedDoctorsModal = false;
     private Guid? selectedRecommendedDoctorId = null;
-    private bool isSaving = false;
     private string? errorMessage;
-    private string? successMessage;
 
     // Rating state
     private bool showRatingDialog = false;
@@ -1359,15 +1357,8 @@ public partial class Consultation : ComponentBase, IAsyncDisposable
             responseTimeRating = 0;
             reviewText = "";
 
-            successMessage = "Thank you for your feedback!";
-            
-            // Clear success message after 5 seconds
-            _ = Task.Run(async () =>
-            {
-                await Task.Delay(5000);
-                successMessage = null;
-                await InvokeAsync(StateHasChanged);
-            });
+            // Rating submitted successfully - dialog will close automatically
+            // Could show a snackbar notification here if desired
         }
         catch (Exception ex)
         {

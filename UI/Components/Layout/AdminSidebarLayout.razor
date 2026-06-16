@@ -173,17 +173,17 @@
                 <i data-lucide="ticket" class="nav-icon"></i>
                 <span>Support Tickets</span>
             </a>
-            <a href="/admin/activity-logs" class="nav-item @(IsActive("/admin/activity-logs") ? "active" : "")">
-                <i data-lucide="activity" class="nav-icon"></i>
-                <span>Activity Logs</span>
+            <a href="/admin/ai-settings" class="nav-item @(IsActive("/admin/ai-settings") ? "active" : "")">
+                <i data-lucide="cpu" class="nav-icon"></i>
+                <span>AI Assistant</span>
+            </a>
+            <a href="/admin/reports" class="nav-item @(IsActive("/admin/reports") ? "active" : "")">
+                <i data-lucide="bar-chart-3" class="nav-icon"></i>
+                <span>Reports & Analytics</span>
             </a>
         </nav>
 
         <div class="sidebar-footer">
-            <a href="/admin/settings" class="nav-item">
-                <i data-lucide="settings" class="nav-icon"></i>
-                <span>Settings</span>
-            </a>
             <a @onclick="HandleLogout" class="nav-item" style="cursor: pointer;">
                 <i data-lucide="log-out" class="nav-icon"></i>
                 <span>Logout</span>

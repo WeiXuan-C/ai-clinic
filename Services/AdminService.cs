@@ -49,8 +49,8 @@ public class AdminService
         {
             var search = searchTerm.ToLower();
             query = query.Where(u =>
-                u.Email.ToLower().Contains(search) ||
-                (u.PatientProfile != null && u.PatientProfile.FullName.ToLower().Contains(search)) ||
+                (u.Email != null && u.Email.ToLower().Contains(search)) ||
+                (u.PatientProfile != null && u.PatientProfile.FullName != null && u.PatientProfile.FullName.ToLower().Contains(search)) ||
                 (u.DoctorProfile != null && u.DoctorProfile.FullName.ToLower().Contains(search)) ||
                 (u.AdminProfile != null && u.AdminProfile.FullName.ToLower().Contains(search)));
         }

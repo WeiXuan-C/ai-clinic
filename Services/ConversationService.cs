@@ -96,7 +96,10 @@ public class ConversationService
     /// <summary>
     /// Create a new conversation with AI assistant
     /// </summary>
-    public async Task<Conversation> CreateAiConversationAsync(Guid patientId, string? initialMessage = null)
+    public async Task<Conversation> CreateAiConversationAsync(
+        Guid patientId, 
+        string? initialMessage = null,
+        string? aiModelUsed = null)
     {
         var conversation = new Conversation
         {
@@ -104,6 +107,7 @@ public class ConversationService
             AssignedDoctorId = null, // AI conversation
             Title = "AI Consultation",
             Status = ConversationStatus.Active,
+            AiModelUsed = aiModelUsed, // Store which AI model is being used
             StartedAt = DateTime.UtcNow,
             LastMessageAt = DateTime.UtcNow,
             CreatedAt = DateTime.UtcNow,
@@ -121,6 +125,7 @@ public class ConversationService
             SenderId = null, // AI has no user ID
             SenderType = MessageSenderType.AI,
             Content = "Hello! I'm OWL, a medical AI assistant. I'm here to help answer your health-related questions. 😊\nCould you please let me know what specific concern or question you have? Whether it's about symptoms, medication, general wellness, or anything else health-related, I'll do my best to provide helpful information.\nPlease remember that while I can offer guidance, it's always best to consult with a healthcare professional for personalized medical advice and treatment.",
+            AiModelUsed = aiModelUsed,
             CreatedAt = DateTime.UtcNow,
             IsRead = false
         };

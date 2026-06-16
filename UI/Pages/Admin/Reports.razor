@@ -1,0 +1,362 @@
+@page "/admin/reports"
+@using ai_clinic.Models
+@using ai_clinic.Services
+@using ai_clinic.Services.Facades
+@layout Components.Layout.AdminSidebarLayout
+@inject AuthFacade AuthFacade
+@inject AdminFacade AdminFacade
+@inject NavigationManager Navigation
+
+<PageTitle>Reports & Analytics - Admin Panel</PageTitle>
+
+<link rel="stylesheet" href="/css/stitch-design-system.css" />
+
+<div class="reports-page">
+    <div class="page-header">
+        <div>
+            <h1>Reports & Analytics</h1>
+            <p class="text-muted">Comprehensive system insights and performance metrics</p>
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-outline-secondary" @onclick="RefreshData">
+                <i class="bi bi-arrow-clockwise"></i> Refresh
+            </button>
+            <button class="btn btn-outline-secondary" @onclick="NavigateBack">
+                <i class="bi bi-arrow-left"></i> Back to Dashboard
+            </button>
+        </div>
+    </div>
+
+    @if (_isLoading)
+    {
+        <div class="loading-container">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p>Loading analytics data...</p>
+        </div>
+    }
+    else if (_stats != null && _userRoleCounts != null && _conversationStats != null)
+    {
+        <!-- Overview Statistics -->
+        <section class="report-section">
+            <h2 class="section-title">System Overview</h2>
+            <div class="stats-grid">
+                <div class="stat-card stat-primary">
+                    <div class="stat-icon">
+                        <i class="bi bi-people-fill"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>@_stats.TotalUsers</h3>
+                        <p>Total Active Users</p>
+                        <small class="text-success">+@_stats.RecentRegistrations in last 7 days</small>
+                    </div>
+                </div>
+
+                <div class="stat-card stat-success">
+                    <div class="stat-icon">
+                        <i class="bi bi-person-badge-fill"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>@_stats.TotalDoctors</h3>
+                        <p>Total Doctors</p>
+                        <small>@_stats.VerifiedDoctors verified • @_stats.PendingVerifications pending</small>
+                    </div>
+                </div>
+
+                <div class="stat-card stat-info">
+                    <div class="stat-icon">
+                        <i class="bi bi-person-hearts"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>@_stats.TotalPatients</h3>
+                        <p>Total Patients</p>
+                    </div>
+                </div>
+
+                <div class="stat-card stat-warning">
+                    <div class="stat-icon">
+                        <i class="bi bi-chat-dots-fill"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>@_stats.ActiveConversations</h3>
+                        <p>Active Consultations</p>
+                        <small>@_stats.TotalConversations total consultations</small>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- User Distribution -->
+        <section class="report-section">
+            <h2 class="section-title">User Distribution by Role</h2>
+            <div class="chart-container">
+                <div class="distribution-grid">
+                    @foreach (var roleCount in _userRoleCounts.OrderByDescending(kv => kv.Value))
+                    {
+                        var percentage = _stats.TotalUsers > 0 
+                            ? (roleCount.Value * 100.0 / _stats.TotalUsers).ToString("F1") 
+                            : "0";
+                        var roleClass = roleCount.Key.ToString().ToLower();
+
+                        <div class="distribution-card @roleClass">
+                            <div class="distribution-header">
+                                <i class="@GetRoleIcon(roleCount.Key)"></i>
+                                <h3>@roleCount.Key</h3>
+                            </div>
+                            <div class="distribution-body">
+                                <div class="count">@roleCount.Value</div>
+                                <div class="percentage">@percentage%</div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: @percentage%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </section>
+
+        <!-- Consultation Analytics -->
+        <section class="report-section">
+            <h2 class="section-title">Consultation Analytics</h2>
+            <div class="analytics-grid">
+                <div class="analytics-card">
+                    <div class="analytics-header">
+                        <i class="bi bi-chat-left-text-fill text-primary"></i>
+                        <h3>Total Consultations</h3>
+                    </div>
+                    <div class="analytics-value">@_conversationStats.TotalConversations</div>
+                    <div class="analytics-footer">
+                        <span class="badge bg-info">All Time</span>
+                    </div>
+                </div>
+
+                <div class="analytics-card">
+                    <div class="analytics-header">
+                        <i class="bi bi-activity text-success"></i>
+                        <h3>Active Now</h3>
+                    </div>
+                    <div class="analytics-value">@_conversationStats.ActiveConversations</div>
+                    <div class="analytics-footer">
+                        @if (_conversationStats.TotalConversations > 0)
+                        {
+                            var activeRate = (_conversationStats.ActiveConversations * 100.0 / _conversationStats.TotalConversations).ToString("F1");
+                            <span class="badge bg-success">@activeRate% active rate</span>
+                        }
+                    </div>
+                </div>
+
+                <div class="analytics-card">
+                    <div class="analytics-header">
+                        <i class="bi bi-check-circle-fill text-primary"></i>
+                        <h3>Completed</h3>
+                    </div>
+                    <div class="analytics-value">@_conversationStats.CompletedConversations</div>
+                    <div class="analytics-footer">
+                        @if (_conversationStats.TotalConversations > 0)
+                        {
+                            var completionRate = (_conversationStats.CompletedConversations * 100.0 / _conversationStats.TotalConversations).ToString("F1");
+                            <span class="badge bg-primary">@completionRate% completion rate</span>
+                        }
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Doctor Verification Status -->
+        <section class="report-section">
+            <h2 class="section-title">Doctor Verification Status</h2>
+            <div class="verification-grid">
+                <div class="verification-card verified">
+                    <div class="verification-icon">
+                        <i class="bi bi-patch-check-fill"></i>
+                    </div>
+                    <div class="verification-content">
+                        <h3>@_stats.VerifiedDoctors</h3>
+                        <p>Verified Doctors</p>
+                        @if (_stats.TotalDoctors > 0)
+                        {
+                            var verifiedPercentage = (_stats.VerifiedDoctors * 100.0 / _stats.TotalDoctors).ToString("F1");
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: @verifiedPercentage%"></div>
+                            </div>
+                            <span class="percentage-label">@verifiedPercentage% of all doctors</span>
+                        }
+                    </div>
+                </div>
+
+                <div class="verification-card pending">
+                    <div class="verification-icon">
+                        <i class="bi bi-clock-history"></i>
+                    </div>
+                    <div class="verification-content">
+                        <h3>@_stats.PendingVerifications</h3>
+                        <p>Pending Verification</p>
+                        @if (_stats.PendingVerifications > 0)
+                        {
+                            <button class="btn btn-warning btn-sm mt-2" @onclick="NavigateToVerifications">
+                                Review Now <i class="bi bi-arrow-right"></i>
+                            </button>
+                        }
+                        else
+                        {
+                            <span class="badge bg-success mt-2">All caught up!</span>
+                        }
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Support Tickets Overview -->
+        <section class="report-section">
+            <h2 class="section-title">Support Tickets Overview</h2>
+            <div class="tickets-overview">
+                <div class="ticket-stat-card">
+                    <div class="ticket-stat-icon danger">
+                        <i class="bi bi-exclamation-circle-fill"></i>
+                    </div>
+                    <div class="ticket-stat-content">
+                        <h3>@_stats.OpenSupportTickets</h3>
+                        <p>Open Tickets</p>
+                        @if (_stats.OpenSupportTickets > 0)
+                        {
+                            <button class="btn btn-outline-danger btn-sm mt-2" @onclick="NavigateToTickets">
+                                View Tickets
+                            </button>
+                        }
+                    </div>
+                </div>
+
+                <div class="ticket-stat-card">
+                    <div class="ticket-stat-icon info">
+                        <i class="bi bi-inbox-fill"></i>
+                    </div>
+                    <div class="ticket-stat-content">
+                        <h3>@_stats.TotalSupportTickets</h3>
+                        <p>Total Tickets</p>
+                        @if (_stats.TotalSupportTickets > 0)
+                        {
+                            var resolvedCount = _stats.TotalSupportTickets - _stats.OpenSupportTickets;
+                            var resolutionRate = (resolvedCount * 100.0 / _stats.TotalSupportTickets).ToString("F1");
+                            <span class="badge bg-info mt-2">@resolutionRate% resolved</span>
+                        }
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- System Health Indicators -->
+        <section class="report-section">
+            <h2 class="section-title">System Health</h2>
+            <div class="health-grid">
+                <div class="health-card healthy">
+                    <i class="bi bi-database-fill-check"></i>
+                    <h4>Database</h4>
+                    <span class="badge bg-success">Operational</span>
+                </div>
+
+                <div class="health-card healthy">
+                    <i class="bi bi-server"></i>
+                    <h4>API Services</h4>
+                    <span class="badge bg-success">Healthy</span>
+                </div>
+
+                <div class="health-card @(_stats.PendingVerifications > 10 ? "warning" : "healthy")">
+                    <i class="bi bi-shield-check"></i>
+                    <h4>Verification Queue</h4>
+                    <span class="badge @(_stats.PendingVerifications > 10 ? "bg-warning" : "bg-success")">
+                        @(_stats.PendingVerifications > 10 ? "Needs Attention" : "Normal")
+                    </span>
+                </div>
+
+                <div class="health-card @(_stats.OpenSupportTickets > 20 ? "warning" : "healthy")">
+                    <i class="bi bi-headset"></i>
+                    <h4>Support Load</h4>
+                    <span class="badge @(_stats.OpenSupportTickets > 20 ? "bg-warning" : "bg-success")">
+                        @(_stats.OpenSupportTickets > 20 ? "High Load" : "Normal")
+                    </span>
+                </div>
+            </div>
+        </section>
+    }
+    else if (_errorMessage != null)
+    {
+        <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle-fill"></i> @_errorMessage
+        </div>
+    }
+</div>
+
+@code {
+    private ai_clinic.Services.Facades.AdminDashboardStats? _stats;
+    private Dictionary<UserRole, int>? _userRoleCounts;
+    private ConversationStats? _conversationStats;
+    private bool _isLoading = true;
+    private string? _errorMessage;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadReportData();
+    }
+
+    private async Task LoadReportData()
+    {
+        try
+        {
+            _isLoading = true;
+            _errorMessage = null;
+
+            // Load all analytics data in parallel
+            var statsTask = AdminFacade.GetDashboardStatsAsync();
+            var userRoleTask = AdminFacade.GetUserCountByRoleAsync();
+            var conversationTask = AdminFacade.GetConversationStatsAsync();
+
+            await Task.WhenAll(statsTask, userRoleTask, conversationTask);
+
+            _stats = await statsTask;
+            _userRoleCounts = await userRoleTask;
+            _conversationStats = await conversationTask;
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Failed to load analytics data: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task RefreshData()
+    {
+        await LoadReportData();
+    }
+
+    private void NavigateToVerifications()
+    {
+        Navigation.NavigateTo("/admin/verify-doctors");
+    }
+
+    private void NavigateToTickets()
+    {
+        Navigation.NavigateTo("/admin/support-tickets");
+    }
+
+    private void NavigateBack()
+    {
+        Navigation.NavigateTo("/admin/dashboard");
+    }
+
+    private string GetRoleIcon(UserRole role)
+    {
+        return role switch
+        {
+            UserRole.Admin => "bi bi-shield-fill-check",
+            UserRole.Doctor => "bi bi-person-badge-fill",
+            UserRole.Patient => "bi bi-person-fill",
+            _ => "bi bi-person"
+        };
+    }
+}

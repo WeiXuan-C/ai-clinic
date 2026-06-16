@@ -1,0 +1,404 @@
+@page "/admin/ai-settings"
+@using ai_clinic.Models
+@using ai_clinic.Services.Facades
+@layout Components.Layout.AdminSidebarLayout
+@inject AuthFacade AuthFacade
+@inject AdminFacade AdminFacade
+@inject NavigationManager Navigation
+
+<PageTitle>AI Assistant Settings - Admin Panel</PageTitle>
+
+<link rel="stylesheet" href="/css/stitch-design-system.css" />
+<link rel="stylesheet" href="/css/admin-ai-settings.css" />
+
+<div class="ai-settings-page">
+    <div class="page-header">
+        <div>
+            <h1>AI Assistant Settings</h1>
+            <p class="text-muted">Manage AI models and configurations for consultation chatrooms</p>
+        </div>
+        <div class="header-actions">
+            <button class="btn btn-primary" @onclick="ShowCreateModal">
+                <i class="bi bi-plus-circle"></i> Add AI Configuration
+            </button>
+            <button class="btn btn-outline-secondary" @onclick="NavigateBack">
+                <i class="bi bi-arrow-left"></i> Back to Dashboard
+            </button>
+        </div>
+    </div>
+
+    <!-- Information Banner -->
+    <div class="alert alert-info" role="alert">
+        <i class="bi bi-info-circle-fill"></i>
+        <strong>Active Model in Consultations:</strong> The AI model marked as "Active" below will be used in all patient consultation chatrooms. 
+        Only one model can be active at a time. Changes take effect immediately.
+    </div>
+
+    @if (!string.IsNullOrEmpty(_successMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill"></i> @_successMessage
+            <button type="button" class="btn-close" @onclick="() => _successMessage = null"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill"></i> @_errorMessage
+            <button type="button" class="btn-close" @onclick="() => _errorMessage = null"></button>
+        </div>
+    }
+
+    <!-- Statistics Cards -->
+    @if (_stats != null)
+    {
+        <div class="stats-grid">
+            <div class="stat-card stat-primary">
+                <div class="stat-icon">
+                    <i class="bi bi-gear-fill"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>@_stats.TotalSettings</h3>
+                    <p>Total Configurations</p>
+                </div>
+            </div>
+
+            <div class="stat-card stat-success">
+                <div class="stat-icon">
+                    <i class="bi bi-check-circle-fill"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>@_stats.ActiveSettings</h3>
+                    <p>Active Configuration</p>
+                </div>
+            </div>
+
+            <div class="stat-card stat-info">
+                <div class="stat-icon">
+                    <i class="bi bi-cpu-fill"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>@_stats.ModelsUsed</h3>
+                    <p>Unique Models</p>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (_isLoading)
+    {
+        <div class="loading-container">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p>Loading AI settings...</p>
+        </div>
+    }
+    else if (_settings != null && _settings.Count > 0)
+    {
+        <!-- AI Settings Table -->
+        <div class="table-container">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Model Name</th>
+                        <th>Status</th>
+                        <th>Features</th>
+                        <th>Created By</th>
+                        <th>Created At</th>
+                        <th>Updated At</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var setting in _settings)
+                    {
+                        <tr class="@(!setting.IsActive ? "inactive-row" : "active-row")">
+                            <td>
+                                <div class="model-cell">
+                                    <i class="bi bi-cpu-fill"></i>
+                                    <strong>@setting.ModelName</strong>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge @(setting.IsActive ? "bg-success" : "bg-secondary")">
+                                    @(setting.IsActive ? "Active" : "Inactive")
+                                </span>
+                            </td>
+                            <td>
+                                <div class="feature-badges">
+                                    @if (setting.EnableDocumentAnalysis)
+                                    {
+                                        <span class="badge bg-info" title="Document Analysis">
+                                            <i class="bi bi-file-text"></i> Docs
+                                        </span>
+                                    }
+                                    @if (setting.EnableSymptomChecker)
+                                    {
+                                        <span class="badge bg-warning" title="Symptom Checker">
+                                            <i class="bi bi-clipboard2-pulse"></i> Symptoms
+                                        </span>
+                                    }
+                                    @if (setting.EnableDoctorRecommendation)
+                                    {
+                                        <span class="badge bg-primary" title="Doctor Recommendation">
+                                            <i class="bi bi-person-badge"></i> Recommend
+                                        </span>
+                                    }
+                                </div>
+                            </td>
+                            <td>
+                                @if (setting.CreatedByAdminId.HasValue)
+                                {
+                                    <span class="text-muted">Admin</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">System</span>
+                                }
+                            </td>
+                            <td>@setting.CreatedAt.ToString("MMM dd, yyyy")</td>
+                            <td>@setting.UpdatedAt.ToString("MMM dd, yyyy HH:mm")</td>
+                            <td>
+                                <div class="action-buttons">
+                                    @if (!setting.IsActive)
+                                    {
+                                        <button class="btn btn-sm btn-success" 
+                                                @onclick="() => ActivateSetting(setting.Id)"
+                                                title="Activate Configuration">
+                                            <i class="bi bi-play-circle"></i>
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button class="btn btn-sm btn-success" disabled title="Currently Active">
+                                            <i class="bi bi-check-circle-fill"></i>
+                                        </button>
+                                    }
+                                    <button class="btn btn-sm btn-info" 
+                                            @onclick="() => ShowEditModal(setting)"
+                                            title="Edit Configuration">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-danger" 
+                                            @onclick="() => ShowDeleteModal(setting)"
+                                            title="Delete Configuration"
+                                            disabled="@setting.IsActive">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-secondary" 
+                                            @onclick="() => ShowDetailsModal(setting)"
+                                            title="View Details">
+                                        <i class="bi bi-info-circle"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="empty-state">
+            <i class="bi bi-cpu"></i>
+            <h3>No AI Configurations</h3>
+            <p>Create your first AI assistant configuration to get started.</p>
+            <button class="btn btn-primary" @onclick="ShowCreateModal">
+                <i class="bi bi-plus-circle"></i> Add AI Configuration
+            </button>
+        </div>
+    }
+</div>
+
+<!-- Create/Edit Modal -->
+@if (_showModal)
+{
+    <div class="modal-overlay" @onclick="CloseModal">
+        <div class="modal-dialog" @onclick:stopPropagation="true">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>@(_isEditMode ? "Edit AI Configuration" : "Create AI Configuration")</h3>
+                    <button class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Model Name <span class="text-danger">*</span></label>
+                        <input type="text" 
+                               class="form-control" 
+                               @bind="_formModel.ModelName" 
+                               placeholder="e.g., gpt-4, claude-3-opus-20240229" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>System Prompt</label>
+                        <textarea class="form-control" 
+                                  rows="4" 
+                                  @bind="_formModel.SystemPrompt" 
+                                  placeholder="Optional custom system prompt for this AI model..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="form-check">
+                            <input type="checkbox" 
+                                   class="form-check-input" 
+                                   id="isActiveCheck"
+                                   @bind="_formModel.IsActive" />
+                            <label class="form-check-label" for="isActiveCheck">
+                                Set as Active Configuration
+                            </label>
+                        </div>
+                        <small class="form-text text-muted">
+                            Only one configuration can be active at a time.
+                        </small>
+                    </div>
+
+                    <hr />
+
+                    <h5>Features</h5>
+
+                    <div class="form-group">
+                        <div class="form-check">
+                            <input type="checkbox" 
+                                   class="form-check-input" 
+                                   id="enableDocAnalysis"
+                                   @bind="_formModel.EnableDocumentAnalysis" />
+                            <label class="form-check-label" for="enableDocAnalysis">
+                                <i class="bi bi-file-text"></i> Enable Document Analysis
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="form-check">
+                            <input type="checkbox" 
+                                   class="form-check-input" 
+                                   id="enableSymptomChecker"
+                                   @bind="_formModel.EnableSymptomChecker" />
+                            <label class="form-check-label" for="enableSymptomChecker">
+                                <i class="bi bi-clipboard2-pulse"></i> Enable Symptom Checker
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="form-check">
+                            <input type="checkbox" 
+                                   class="form-check-input" 
+                                   id="enableDoctorRec"
+                                   @bind="_formModel.EnableDoctorRecommendation" />
+                            <label class="form-check-label" for="enableDoctorRec">
+                                <i class="bi bi-person-badge"></i> Enable Doctor Recommendation
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
+                    <button class="btn btn-primary" @onclick="SaveSetting">
+                        @(_isEditMode ? "Update" : "Create")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Delete Confirmation Modal -->
+@if (_showDeleteModal)
+{
+    <div class="modal-overlay" @onclick="CloseDeleteModal">
+        <div class="modal-dialog" @onclick:stopPropagation="true">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Confirm Deletion</h3>
+                    <button class="btn-close" @onclick="CloseDeleteModal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete the AI configuration for <strong>@_selectedSetting?.ModelName</strong>?</p>
+                    <p class="text-danger">This action cannot be undone.</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CloseDeleteModal">Cancel</button>
+                    <button class="btn btn-danger" @onclick="DeleteSetting">
+                        <i class="bi bi-trash"></i> Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Details Modal -->
+@if (_showDetailsModal && _selectedSetting != null)
+{
+    <div class="modal-overlay" @onclick="CloseDetailsModal">
+        <div class="modal-dialog modal-lg" @onclick:stopPropagation="true">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>AI Configuration Details</h3>
+                    <button class="btn-close" @onclick="CloseDetailsModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="details-grid">
+                        <div class="detail-item">
+                            <label>Model Name</label>
+                            <p>@_selectedSetting.ModelName</p>
+                        </div>
+                        <div class="detail-item">
+                            <label>Status</label>
+                            <p>
+                                <span class="badge @(_selectedSetting.IsActive ? "bg-success" : "bg-secondary")">
+                                    @(_selectedSetting.IsActive ? "Active" : "Inactive")
+                                </span>
+                            </p>
+                        </div>
+                        <div class="detail-item">
+                            <label>Configuration ID</label>
+                            <p><code>@_selectedSetting.Id</code></p>
+                        </div>
+                        <div class="detail-item">
+                            <label>Created At</label>
+                            <p>@_selectedSetting.CreatedAt.ToString("MMMM dd, yyyy HH:mm:ss")</p>
+                        </div>
+                        <div class="detail-item">
+                            <label>Last Updated</label>
+                            <p>@_selectedSetting.UpdatedAt.ToString("MMMM dd, yyyy HH:mm:ss")</p>
+                        </div>
+                        <div class="detail-item">
+                            <label>Features</label>
+                            <div class="feature-list">
+                                <div class="feature-item">
+                                    <i class="bi @(_selectedSetting.EnableDocumentAnalysis ? "bi-check-circle-fill text-success" : "bi-x-circle-fill text-danger")"></i>
+                                    Document Analysis
+                                </div>
+                                <div class="feature-item">
+                                    <i class="bi @(_selectedSetting.EnableSymptomChecker ? "bi-check-circle-fill text-success" : "bi-x-circle-fill text-danger")"></i>
+                                    Symptom Checker
+                                </div>
+                                <div class="feature-item">
+                                    <i class="bi @(_selectedSetting.EnableDoctorRecommendation ? "bi-check-circle-fill text-success" : "bi-x-circle-fill text-danger")"></i>
+                                    Doctor Recommendation
+                                </div>
+                            </div>
+                        </div>
+                        @if (!string.IsNullOrEmpty(_selectedSetting.SystemPrompt))
+                        {
+                            <div class="detail-item full-width">
+                                <label>System Prompt</label>
+                                <div class="system-prompt-box">
+                                    @_selectedSetting.SystemPrompt
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CloseDetailsModal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}

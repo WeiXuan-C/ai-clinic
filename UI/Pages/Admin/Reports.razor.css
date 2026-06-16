@@ -1,0 +1,550 @@
+.reports-page {
+    padding: 2rem;
+    background: #f7f9fb;
+    min-height: 100vh;
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 2rem;
+}
+
+.page-header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin: 0 0 0.5rem;
+}
+
+.page-header .text-muted {
+    color: #6b7280;
+    font-size: 1rem;
+}
+
+.header-actions {
+    display: flex;
+    gap: 1rem;
+}
+
+/* Loading State */
+.loading-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 2rem;
+    gap: 1rem;
+}
+
+/* Report Sections */
+.report-section {
+    background: white;
+    border-radius: 12px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.section-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin: 0 0 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #f3f4f6;
+}
+
+/* Statistics Grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.stat-card {
+    display: flex;
+    gap: 1rem;
+    padding: 1.5rem;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border-left: 4px solid;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.stat-card.stat-primary {
+    border-color: #3b82f6;
+}
+
+.stat-card.stat-success {
+    border-color: #10b981;
+}
+
+.stat-card.stat-info {
+    border-color: #06b6d4;
+}
+
+.stat-card.stat-warning {
+    border-color: #f59e0b;
+}
+
+.stat-card.stat-danger {
+    border-color: #ef4444;
+}
+
+.stat-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    font-size: 1.75rem;
+}
+
+.stat-card.stat-primary .stat-icon {
+    background: #eff6ff;
+    color: #3b82f6;
+}
+
+.stat-card.stat-success .stat-icon {
+    background: #f0fdf4;
+    color: #10b981;
+}
+
+.stat-card.stat-info .stat-icon {
+    background: #f0f9ff;
+    color: #06b6d4;
+}
+
+.stat-card.stat-warning .stat-icon {
+    background: #fffbeb;
+    color: #f59e0b;
+}
+
+.stat-content {
+    flex: 1;
+}
+
+.stat-content h3 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin: 0 0 0.25rem;
+}
+
+.stat-content p {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin: 0 0 0.5rem;
+}
+
+.stat-content small {
+    font-size: 0.75rem;
+    display: block;
+}
+
+/* Distribution Grid */
+.distribution-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+}
+
+.distribution-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 2px solid #f3f4f6;
+    transition: all 0.3s ease;
+}
+
+.distribution-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.distribution-card.admin {
+    border-color: #dc2626;
+}
+
+.distribution-card.doctor {
+    border-color: #10b981;
+}
+
+.distribution-card.patient {
+    border-color: #3b82f6;
+}
+
+.distribution-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.distribution-header i {
+    font-size: 1.5rem;
+}
+
+.distribution-card.admin .distribution-header i {
+    color: #dc2626;
+}
+
+.distribution-card.doctor .distribution-header i {
+    color: #10b981;
+}
+
+.distribution-card.patient .distribution-header i {
+    color: #3b82f6;
+}
+
+.distribution-header h3 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin: 0;
+    color: #1a1a1a;
+}
+
+.distribution-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.distribution-body .count {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #1a1a1a;
+}
+
+.distribution-body .percentage {
+    font-size: 1.125rem;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.progress-bar {
+    height: 8px;
+    background: #f3f4f6;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 0.5rem;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6, #06b6d4);
+    transition: width 0.5s ease;
+}
+
+.distribution-card.admin .progress-fill {
+    background: linear-gradient(90deg, #dc2626, #ef4444);
+}
+
+.distribution-card.doctor .progress-fill {
+    background: linear-gradient(90deg, #10b981, #34d399);
+}
+
+.distribution-card.patient .progress-fill {
+    background: linear-gradient(90deg, #3b82f6, #60a5fa);
+}
+
+/* Analytics Grid */
+.analytics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+.analytics-card {
+    background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
+    border-radius: 12px;
+    padding: 2rem;
+    border: 1px solid #e5e7eb;
+    transition: all 0.3s ease;
+}
+
+.analytics-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+    border-color: #3b82f6;
+}
+
+.analytics-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.analytics-header i {
+    font-size: 1.75rem;
+}
+
+.analytics-header h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #6b7280;
+    margin: 0;
+}
+
+.analytics-value {
+    font-size: 3rem;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin-bottom: 1rem;
+}
+
+.analytics-footer {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+/* Verification Grid */
+.verification-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+}
+
+.verification-card {
+    display: flex;
+    gap: 1.5rem;
+    padding: 2rem;
+    background: white;
+    border-radius: 12px;
+    border: 2px solid;
+    transition: all 0.3s ease;
+}
+
+.verification-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+}
+
+.verification-card.verified {
+    border-color: #10b981;
+    background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%);
+}
+
+.verification-card.pending {
+    border-color: #f59e0b;
+    background: linear-gradient(135deg, #fffbeb 0%, #ffffff 100%);
+}
+
+.verification-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    font-size: 2.5rem;
+}
+
+.verification-card.verified .verification-icon {
+    background: #d1fae5;
+    color: #10b981;
+}
+
+.verification-card.pending .verification-icon {
+    background: #fef3c7;
+    color: #f59e0b;
+}
+
+.verification-content {
+    flex: 1;
+}
+
+.verification-content h3 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin: 0 0 0.5rem;
+}
+
+.verification-content p {
+    font-size: 1rem;
+    color: #6b7280;
+    margin: 0 0 1rem;
+}
+
+.percentage-label {
+    font-size: 0.875rem;
+    color: #6b7280;
+    display: block;
+    margin-top: 0.5rem;
+}
+
+/* Tickets Overview */
+.tickets-overview {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+}
+
+.ticket-stat-card {
+    display: flex;
+    gap: 1.5rem;
+    padding: 2rem;
+    background: white;
+    border-radius: 12px;
+    border: 2px solid #f3f4f6;
+    transition: all 0.3s ease;
+}
+
+.ticket-stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+}
+
+.ticket-stat-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    font-size: 2rem;
+}
+
+.ticket-stat-icon.danger {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.ticket-stat-icon.info {
+    background: #dbeafe;
+    color: #3b82f6;
+}
+
+.ticket-stat-content {
+    flex: 1;
+}
+
+.ticket-stat-content h3 {
+    font-size: 2.25rem;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin: 0 0 0.5rem;
+}
+
+.ticket-stat-content p {
+    font-size: 1rem;
+    color: #6b7280;
+    margin: 0 0 0.75rem;
+}
+
+/* Health Grid */
+.health-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+}
+
+.health-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    padding: 2rem;
+    background: white;
+    border-radius: 12px;
+    border: 2px solid;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.health-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.health-card.healthy {
+    border-color: #10b981;
+    background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%);
+}
+
+.health-card.warning {
+    border-color: #f59e0b;
+    background: linear-gradient(135deg, #fffbeb 0%, #ffffff 100%);
+}
+
+.health-card i {
+    font-size: 2.5rem;
+}
+
+.health-card.healthy i {
+    color: #10b981;
+}
+
+.health-card.warning i {
+    color: #f59e0b;
+}
+
+.health-card h4 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin: 0;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .reports-page {
+        padding: 1rem;
+    }
+
+    .page-header {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .header-actions {
+        width: 100%;
+        flex-direction: column;
+    }
+
+    .stats-grid,
+    .distribution-grid,
+    .analytics-grid,
+    .verification-grid,
+    .tickets-overview,
+    .health-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .stat-content h3,
+    .analytics-value,
+    .verification-content h3,
+    .ticket-stat-content h3 {
+        font-size: 1.75rem;
+    }
+
+    .section-title {
+        font-size: 1.25rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .stat-card {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+        font-size: 1.5rem;
+    }
+}

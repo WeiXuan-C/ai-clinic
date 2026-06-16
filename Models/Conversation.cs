@@ -72,6 +72,13 @@ public class Conversation
     [Column("ai_confidence_score")]
     public decimal? AiConfidenceScore { get; set; }
 
+    [Column("ai_generated_summary")]
+    public string? AiGeneratedSummary { get; set; }
+
+    [MaxLength(100)]
+    [Column("ai_model_used")]
+    public string? AiModelUsed { get; set; }
+
     // Navigation properties
     [ForeignKey("PatientId")]
     public User Patient { get; set; } = null!;

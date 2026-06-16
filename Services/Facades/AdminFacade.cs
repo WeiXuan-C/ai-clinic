@@ -15,6 +15,8 @@ public class AdminFacade
     private readonly SupportTicketService _supportTicketService;
     private readonly ActivityLogService _activityLogService;
     private readonly UserSuspensionService _suspensionService;
+    private readonly AiAssistantSettingsService _aiAssistantSettingsService;
+    private readonly AiAssistantService _aiAssistantService;
 
     public AdminFacade(
         UserService userService,
@@ -23,7 +25,9 @@ public class AdminFacade
         StatisticsService statisticsService,
         SupportTicketService supportTicketService,
         ActivityLogService activityLogService,
-        UserSuspensionService suspensionService)
+        UserSuspensionService suspensionService,
+        AiAssistantSettingsService aiAssistantSettingsService,
+        AiAssistantService aiAssistantService)
     {
         _userService = userService;
         _doctorProfileService = doctorProfileService;
@@ -32,6 +36,8 @@ public class AdminFacade
         _supportTicketService = supportTicketService;
         _activityLogService = activityLogService;
         _suspensionService = suspensionService;
+        _aiAssistantSettingsService = aiAssistantSettingsService;
+        _aiAssistantService = aiAssistantService;
     }
 
     /// <summary>
@@ -452,7 +458,8 @@ public class AdminFacade
             Items = items,
             Page = page,
             PageSize = pageSize,
-            TotalCount = totalCount
+            TotalCount = totalCount,
+            TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
         };
     }
 
@@ -559,6 +566,175 @@ public class AdminFacade
     public async Task<bool> ExtendSuspensionAsync(Guid userId, DateTime newEndDate, Guid adminId)
     {
         return await _suspensionService.ExtendSuspensionAsync(userId, newEndDate, adminId);
+    }
+
+    #endregion
+
+    #region AI Assistant Management
+
+    /// <summary>
+    /// Get all AI assistant settings
+    /// Returns list of configured AI models and their settings
+    /// </summary>
+    public async Task<List<AiAssistantSetting>> GetAllAiSettingsAsync(Guid adminId)
+    {
+        await _activityLogService.LogActivityAsync(
+            adminId,
+            "ViewAiSettings",
+            "Viewed AI assistant settings");
+
+        return await _aiAssistantSettingsService.GetAllAsync();
+    }
+
+    /// <summary>
+    /// Get the currently active AI assistant setting
+    /// Returns the model configuration currently in use
+    /// </summary>
+    public async Task<AiAssistantSetting?> GetActiveAiSettingAsync()
+    {
+        return await _aiAssistantSettingsService.GetActiveSettingAsync();
+    }
+
+    /// <summary>
+    /// Create a new AI assistant setting
+    /// Validates and logs the creation action
+    /// </summary>
+    public async Task<AiAssistantSetting> CreateAiSettingAsync(
+        AiAssistantSetting setting,
+        Guid adminId)
+    {
+        setting.CreatedByAdminId = adminId;
+        var created = await _aiAssistantSettingsService.CreateAsync(setting);
+
+        await _activityLogService.LogActivityAsync(
+            adminId,
+            "CreateAiSetting",
+            $"Created AI setting: {setting.ModelName}, Active: {setting.IsActive}");
+
+        return created;
+    }
+
+    /// <summary>
+    /// Update an existing AI assistant setting
+    /// Validates and logs the update action
+    /// </summary>
+    public async Task<AiAssistantSetting?> UpdateAiSettingAsync(
+        AiAssistantSetting setting,
+        Guid adminId)
+    {
+        var updated = await _aiAssistantSettingsService.UpdateAsync(setting);
+
+        if (updated != null)
+        {
+            await _activityLogService.LogActivityAsync(
+                adminId,
+                "UpdateAiSetting",
+                $"Updated AI setting ID: {setting.Id}, Model: {setting.ModelName}");
+        }
+
+        return updated;
+    }
+
+    /// <summary>
+    /// Delete an AI assistant setting
+    /// Prevents deletion of active settings and logs the action
+    /// </summary>
+    public async Task<bool> DeleteAiSettingAsync(Guid settingId, Guid adminId)
+    {
+        try
+        {
+            var deleted = await _aiAssistantSettingsService.DeleteAsync(settingId);
+
+            if (deleted)
+            {
+                await _activityLogService.LogActivityAsync(
+                    adminId,
+                    "DeleteAiSetting",
+                    $"Deleted AI setting ID: {settingId}");
+            }
+
+            return deleted;
+        }
+        catch (InvalidOperationException ex)
+        {
+            // Log the attempted deletion of active setting
+            await _activityLogService.LogActivityAsync(
+                adminId,
+                "DeleteAiSettingFailed",
+                $"Failed to delete AI setting ID: {settingId}, Reason: {ex.Message}");
+            
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Activate a specific AI assistant setting
+    /// Deactivates all others and syncs with AI service immediately
+    /// </summary>
+    public async Task<bool> ActivateAiSettingAsync(Guid settingId, Guid adminId)
+    {
+        var activated = await _aiAssistantSettingsService.ActivateSettingAsync(settingId);
+
+        if (activated)
+        {
+            await _activityLogService.LogActivityAsync(
+                adminId,
+                "ActivateAiSetting",
+                $"Activated AI setting ID: {settingId}");
+            
+            // Sync the AI service with the new settings immediately
+            await _aiAssistantService.SyncWithAdminSettingsAsync();
+        }
+
+        return activated;
+    }
+
+    /// <summary>
+    /// Helper method to get AI service instance
+    /// </summary>
+    private async Task<AiAssistantService?> GetAiAssistantServiceAsync()
+    {
+        try
+        {
+            // The AI service is injected elsewhere, but we can trigger sync through a static reference
+            // For now, return null - the sync will happen on next request
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Get AI settings statistics
+    /// Returns overview of AI configuration status
+    /// </summary>
+    public async Task<AiSettingsStats> GetAiSettingsStatsAsync()
+    {
+        return await _aiAssistantSettingsService.GetStatsAsync();
+    }
+
+    #endregion
+
+    #region Reports & Analytics
+
+    /// <summary>
+    /// Get user count by role for reports
+    /// Returns distribution of users across roles
+    /// </summary>
+    public async Task<Dictionary<UserRole, int>> GetUserCountByRoleAsync()
+    {
+        return await _statisticsService.GetUserCountByRoleAsync();
+    }
+
+    /// <summary>
+    /// Get conversation statistics for reports
+    /// Returns comprehensive consultation metrics
+    /// </summary>
+    public async Task<ConversationStats> GetConversationStatsAsync()
+    {
+        return await _statisticsService.GetConversationStatsAsync();
     }
 
     #endregion

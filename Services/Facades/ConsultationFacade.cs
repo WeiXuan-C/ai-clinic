@@ -68,8 +68,14 @@ public class ConsultationFacade
     /// </summary>
     public async Task<ConsultationSession> StartAiConsultationAsync(Guid patientId, string? initialMessage = null)
     {
-        // 1. Create conversation
-        var conversation = await _conversationService.CreateAiConversationAsync(patientId, initialMessage);
+        // Get current AI model from admin settings
+        var currentModel = _aiAssistantService.CurrentModelName;
+        
+        // 1. Create conversation with AI model tracking
+        var conversation = await _conversationService.CreateAiConversationAsync(
+            patientId, 
+            initialMessage,
+            aiModelUsed: currentModel);
 
         // 2. Log activity
         var messagePreview = initialMessage != null && initialMessage.Length > 50 
@@ -79,7 +85,7 @@ public class ConsultationFacade
         await _activityLogService.LogActivityAsync(
             patientId,
             "start_ai_consultation",
-            $"{{\"conversation_id\": \"{conversation.Id}\", \"initial_message\": \"{messagePreview}\"}}"
+            $"{{\"conversation_id\": \"{conversation.Id}\", \"ai_model\": \"{currentModel}\", \"initial_message\": \"{messagePreview}\"}}"
         );
 
         // 3. Get message list
@@ -124,7 +130,26 @@ public class ConsultationFacade
         {
             try
             {
-                var summary = await GeneratePatientConditionSummaryAsync(sourceConversationId.Value);
+                // Try to use pre-generated summary first
+                string? summary = null;
+                
+                using (var db = DbClient.Instance.GetDb())
+                {
+                    var sourceConversation = await db.Conversations.FindAsync(sourceConversationId.Value);
+                    if (sourceConversation != null && !string.IsNullOrWhiteSpace(sourceConversation.AiGeneratedSummary))
+                    {
+                        summary = sourceConversation.AiGeneratedSummary;
+                        _logger.LogInformation("[FACADE] Using pre-generated medical summary from conversation");
+                    }
+                }
+                
+                // If no pre-generated summary, generate on demand
+                if (string.IsNullOrWhiteSpace(summary))
+                {
+                    _logger.LogInformation("[FACADE] No pre-generated summary found, generating on demand");
+                    summary = await GeneratePatientConditionSummaryAsync(sourceConversationId.Value);
+                }
+                
                 if (!string.IsNullOrWhiteSpace(summary))
                 {
                     // 创建系统消息发送给医生
@@ -148,7 +173,7 @@ public class ConsultationFacade
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "[FACADE] Failed to generate patient condition summary for conversation {ConversationId}", 
+                _logger.LogWarning(ex, "[FACADE] Failed to send patient condition summary for conversation {ConversationId}", 
                     sourceConversationId.Value);
                 // 不影响主流程，继续执行
             }
@@ -891,6 +916,7 @@ public class ConsultationFacade
     /// <summary>
     /// Gets AI-recommended doctors based on conversation context (simplified interface)
     /// Uses Strategy Pattern to intelligently match doctors based on symptoms and conversation history
+    /// ENHANCEMENT: Also generates and stores medical summary for doctor reference
     /// </summary>
     public async Task<List<RecommendedDoctorItem>> GetAiRecommendedDoctorsAsync(
         Guid conversationId, 
@@ -928,7 +954,24 @@ public class ConsultationFacade
         // 5. Get recommendations using Strategy Pattern
         var matchResults = await _doctorRecommendationService.GetRecommendedDoctorsAsync(criteria);
         
-        // 6. Convert to UI-friendly format
+        // 6. ⭐ NEW: Generate and store medical summary for doctor reference
+        try
+        {
+            _logger.LogInformation($"[FACADE] Generating medical summary for conversation {conversationId}");
+            var summary = await GeneratePatientConditionSummaryAsync(conversationId);
+            
+            // Store the summary in the conversation for later use
+            await StoreSummaryInConversationAsync(conversationId, summary);
+            
+            _logger.LogInformation($"[FACADE] Medical summary generated and stored successfully");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[FACADE] Failed to generate medical summary, will generate on demand");
+            // Don't fail the whole operation if summary generation fails
+        }
+        
+        // 7. Convert to UI-friendly format
         var recommendedDoctors = matchResults.Select(result => new RecommendedDoctorItem
         {
             UserId = result.Doctor.UserId,
@@ -1076,6 +1119,29 @@ Generate the summary in a clear, structured format suitable for a doctor to quic
             }
 
             return string.Empty;
+        }
+    }
+
+    /// <summary>
+    /// Stores the generated summary in the conversation for later retrieval
+    /// </summary>
+    private async Task StoreSummaryInConversationAsync(Guid conversationId, string summary)
+    {
+        if (string.IsNullOrWhiteSpace(summary))
+        {
+            return;
+        }
+
+        using var db = DbClient.Instance.GetDb();
+        var conversation = await db.Conversations.FindAsync(conversationId);
+        
+        if (conversation != null)
+        {
+            conversation.AiGeneratedSummary = summary;
+            conversation.UpdatedAt = DateTime.UtcNow;
+            await db.SaveChangesAsync();
+            
+            _logger.LogInformation("[FACADE] Stored medical summary in conversation {ConversationId}", conversationId);
         }
     }
 

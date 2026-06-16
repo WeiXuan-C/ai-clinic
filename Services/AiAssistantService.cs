@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using ai_clinic.Services.AI;
+using ai_clinic.Models;
 
 namespace ai_clinic.Services
 {
@@ -10,20 +11,120 @@ namespace ai_clinic.Services
     /// 
     /// This service provides a clean interface for the application to use AI features
     /// without needing to know about the Strategy/Adapter pattern implementation
+    /// Integrates with AiAssistantSettings for admin-controlled model selection
     /// </summary>
     public class AiAssistantService
     {
         private readonly AiModelContext _modelContext;
+        private readonly AiAssistantSettingsService _settingsService;
+        private readonly ILogger<AiAssistantService> _logger;
 
-        public AiAssistantService(AiModelContext modelContext)
+        public AiAssistantService(
+            AiModelContext modelContext,
+            AiAssistantSettingsService settingsService,
+            ILogger<AiAssistantService> logger)
         {
             _modelContext = modelContext ?? throw new ArgumentNullException(nameof(modelContext));
+            _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         /// <summary>
         /// Gets the current model name
         /// </summary>
         public string CurrentModelName => _modelContext.CurrentStrategy.ModelName;
+
+        /// <summary>
+        /// Initialize service with admin-configured model
+        /// Should be called at startup or when settings change
+        /// </summary>
+        public async Task InitializeFromSettingsAsync()
+        {
+            try
+            {
+                var activeSetting = await _settingsService.GetActiveSettingAsync();
+                if (activeSetting != null)
+                {
+                    _logger.LogInformation("[AI SERVICE] Initializing with admin-configured model: {ModelName}", activeSetting.ModelName);
+                    
+                    // Try to match the model name to available models
+                    var availableModels = _modelContext.GetAvailableModels();
+                    var matchingModel = availableModels.FirstOrDefault(m => 
+                        m.DisplayName.Equals(activeSetting.ModelName, StringComparison.OrdinalIgnoreCase) ||
+                        m.Key.Equals(activeSetting.ModelName, StringComparison.OrdinalIgnoreCase));
+                    
+                    if (matchingModel != null)
+                    {
+                        _modelContext.SetStrategy(matchingModel.Key);
+                        _logger.LogInformation("[AI SERVICE] Successfully set model to: {ModelName}", matchingModel.DisplayName);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("[AI SERVICE] Admin-configured model '{ModelName}' not found in available models. Using default.", activeSetting.ModelName);
+                    }
+                }
+                else
+                {
+                    _logger.LogInformation("[AI SERVICE] No active admin settings found. Using default model.");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[AI SERVICE] Failed to initialize from settings. Using default model.");
+            }
+        }
+
+        /// <summary>
+        /// Sync current model with admin settings
+        /// Useful when admin changes the active model
+        /// </summary>
+        public async Task<bool> SyncWithAdminSettingsAsync()
+        {
+            try
+            {
+                await InitializeFromSettingsAsync();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[AI SERVICE] Failed to sync with admin settings");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Gets whether a specific feature is enabled in admin settings
+        /// </summary>
+        public async Task<bool> IsFeatureEnabledAsync(string featureName)
+        {
+            try
+            {
+                var activeSetting = await _settingsService.GetActiveSettingAsync();
+                if (activeSetting == null)
+                    return true; // Default to enabled if no settings
+
+                return featureName.ToLower() switch
+                {
+                    "document_analysis" or "documentanalysis" => activeSetting.EnableDocumentAnalysis,
+                    "symptom_checker" or "symptomchecker" => activeSetting.EnableSymptomChecker,
+                    "doctor_recommendation" or "doctorrecommendation" => activeSetting.EnableDoctorRecommendation,
+                    _ => true
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[AI SERVICE] Failed to check feature enabled status for {FeatureName}", featureName);
+                return true; // Default to enabled on error
+            }
+        }
+
+        /// <summary>
+        /// Gets the active admin settings
+        /// </summary>
+        public async Task<AiAssistantSetting?> GetActiveSettingsAsync()
+        {
+            return await _settingsService.GetActiveSettingAsync();
+        }
 
         /// <summary>
         /// Gets all available models

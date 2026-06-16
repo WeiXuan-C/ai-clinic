@@ -45,9 +45,24 @@ try
     await DatabaseMigrationHelper.AddMedicalDocumentFieldsAsync("Data Source=ai-clinic.db");
     await DatabaseMigrationHelper.AddDoctorSettingsColumnsAsync("Data Source=ai-clinic.db");
     await DatabaseMigrationHelper.MakeDocumentsConversationIdNullableAsync("Data Source=ai-clinic.db");
+    await DatabaseMigrationHelper.AddAiConsultationSummaryColumnsAsync("Data Source=ai-clinic.db");
     
     var logger = app.Services.GetRequiredService<ILogger<Program>>();
     logger.LogInformation("数据库已准备就绪");
+    
+    // Initialize AI service with admin settings
+    // Create a scope to resolve scoped services
+    try
+    {
+        using var scope = app.Services.CreateScope();
+        var aiService = scope.ServiceProvider.GetRequiredService<ai_clinic.Services.AiAssistantService>();
+        await aiService.InitializeFromSettingsAsync();
+        logger.LogInformation("AI service initialized with admin settings");
+    }
+    catch (Exception aiEx)
+    {
+        logger.LogWarning(aiEx, "Failed to initialize AI service with admin settings, using defaults");
+    }
 }
 catch (Exception ex)
 {

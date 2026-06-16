@@ -44,6 +44,9 @@ public static class DependencyInjectionExtensions
         services.AddScoped<DoctorRecordExportService>(); // Doctor record export service (PDF, CSV, JSON)
         services.AddScoped<DoctorReportExportService>(); // Doctor analytics report service
 
+        // AI Assistant Settings Service
+        services.AddScoped<AiAssistantSettingsService>();
+
         // 🔔 Real-time Services - SignalR for live messaging
         // Scoped lifetime ensures proper lifecycle management in Blazor Server
         services.AddScoped<SignalRConsultationService>();

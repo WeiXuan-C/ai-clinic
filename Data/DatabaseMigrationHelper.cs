@@ -321,4 +321,55 @@ public static class DatabaseMigrationHelper
             Console.WriteLine("ℹ️ Documents table already has nullable conversation_id or table doesn't exist");
         }
     }
+
+    /// <summary>
+    /// Add AI consultation summary columns to conversations table if they don't exist
+    /// </summary>
+    public static async Task AddAiConsultationSummaryColumnsAsync(string connectionString)
+    {
+        using var connection = new SqliteConnection(connectionString);
+        await connection.OpenAsync();
+
+        // Check and add ai_generated_summary column
+        var checkCommand = connection.CreateCommand();
+        checkCommand.CommandText = @"
+            SELECT COUNT(*) 
+            FROM pragma_table_info('conversations') 
+            WHERE name='ai_generated_summary'";
+        
+        var exists = Convert.ToInt32(await checkCommand.ExecuteScalarAsync()) > 0;
+
+        if (!exists)
+        {
+            var alterCommand = connection.CreateCommand();
+            alterCommand.CommandText = "ALTER TABLE conversations ADD COLUMN ai_generated_summary TEXT";
+            await alterCommand.ExecuteNonQueryAsync();
+            Console.WriteLine("✅ Added ai_generated_summary column to conversations table");
+        }
+        else
+        {
+            Console.WriteLine("ℹ️ ai_generated_summary column already exists in conversations");
+        }
+
+        // Check and add ai_model_used column
+        checkCommand = connection.CreateCommand();
+        checkCommand.CommandText = @"
+            SELECT COUNT(*) 
+            FROM pragma_table_info('conversations') 
+            WHERE name='ai_model_used'";
+        
+        exists = Convert.ToInt32(await checkCommand.ExecuteScalarAsync()) > 0;
+
+        if (!exists)
+        {
+            var alterCommand = connection.CreateCommand();
+            alterCommand.CommandText = "ALTER TABLE conversations ADD COLUMN ai_model_used TEXT";
+            await alterCommand.ExecuteNonQueryAsync();
+            Console.WriteLine("✅ Added ai_model_used column to conversations table");
+        }
+        else
+        {
+            Console.WriteLine("ℹ️ ai_model_used column already exists in conversations");
+        }
+    }
 }
