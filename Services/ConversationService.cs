@@ -97,10 +97,30 @@ public class ConversationService
     /// Create a new conversation with AI assistant
     /// </summary>
     public async Task<Conversation> CreateAiConversationAsync(
-        Guid patientId, 
+        Guid patientId,
         string? initialMessage = null,
-        string? aiModelUsed = null)
+        string? aiModelUsed = null,
+        AiModelType? modelType = null)
     {
+        // If no model specified, use the first available model for patients
+        if (modelType == null && string.IsNullOrEmpty(aiModelUsed))
+        {
+            var aiSettingsService = new AiAssistantSettingsService();
+            var availableModels = await aiSettingsService.GetAvailableForPatientsAsync();
+            if (availableModels.Any())
+            {
+                var defaultModel = availableModels.First();
+                modelType = defaultModel.ModelType;
+                aiModelUsed = defaultModel.ModelName;
+            }
+            else
+            {
+                // Fallback to Gemma4 if no models configured
+                modelType = AiModelType.Gemma4;
+                aiModelUsed = "Gemma 4";
+            }
+        }
+
         var conversation = new Conversation
         {
             PatientId = patientId,
@@ -108,6 +128,7 @@ public class ConversationService
             Title = "AI Consultation",
             Status = ConversationStatus.Active,
             AiModelUsed = aiModelUsed, // Store which AI model is being used
+            CurrentAiModelType = modelType,
             StartedAt = DateTime.UtcNow,
             LastMessageAt = DateTime.UtcNow,
             CreatedAt = DateTime.UtcNow,
@@ -363,6 +384,61 @@ public class ConversationService
             conversation.UpdatedAt = DateTime.UtcNow;
             await db.SaveChangesAsync();
         }
+    }
+
+    /// <summary>
+    /// Switch the AI model for a conversation
+    /// Only works for AI conversations (no assigned doctor)
+    /// </summary>
+    public async Task<bool> SwitchAiModelAsync(Guid conversationId, AiModelType newModelType)
+    {
+        using var db = DbClient.Instance.GetDb();
+        var conversation = await db.Conversations.FindAsync(conversationId);
+        
+        if (conversation == null || conversation.AssignedDoctorId != null)
+        {
+            return false; // Not found or not an AI conversation
+        }
+
+        // Get the AI model name from settings
+        var aiSettingsService = new AiAssistantSettingsService();
+        var modelSetting = await aiSettingsService.GetByModelTypeAsync(newModelType);
+        
+        if (modelSetting == null || !modelSetting.IsAvailableForPatients)
+        {
+            return false; // Model not available
+        }
+
+        conversation.CurrentAiModelType = newModelType;
+        conversation.AiModelUsed = modelSetting.ModelName;
+        conversation.UpdatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+
+        // Add a system message indicating the model switch
+        var systemMessage = new Message
+        {
+            ConversationId = conversationId,
+            SenderId = null,
+            SenderType = MessageSenderType.AI,
+            Content = $"🤖 AI model switched to {modelSetting.ModelName}. How can I assist you?",
+            AiModelUsed = modelSetting.ModelName,
+            CreatedAt = DateTime.UtcNow,
+            IsRead = false
+        };
+        db.Messages.Add(systemMessage);
+        await db.SaveChangesAsync();
+
+        return true;
+    }
+
+    /// <summary>
+    /// Get current AI model for a conversation
+    /// </summary>
+    public async Task<AiModelType?> GetCurrentAiModelAsync(Guid conversationId)
+    {
+        using var db = DbClient.Instance.GetDb();
+        var conversation = await db.Conversations.FindAsync(conversationId);
+        return conversation?.CurrentAiModelType;
     }
 }
 

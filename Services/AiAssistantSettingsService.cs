@@ -11,14 +11,39 @@ namespace ai_clinic.Services;
 public class AiAssistantSettingsService
 {
     /// <summary>
-    /// Get all AI assistant settings ordered by creation date
+    /// Get all AI assistant settings ordered by display order and creation date
     /// </summary>
     public async Task<List<AiAssistantSetting>> GetAllAsync()
     {
         using var db = DbClient.Instance.GetDb();
         return await db.AiAssistantSettings
-            .OrderByDescending(s => s.CreatedAt)
+            .OrderBy(s => s.DisplayOrder)
+            .ThenByDescending(s => s.CreatedAt)
             .ToListAsync();
+    }
+
+    /// <summary>
+    /// Get all AI models available for patients to use
+    /// Returns only active models that are marked as available for patients
+    /// </summary>
+    public async Task<List<AiAssistantSetting>> GetAvailableForPatientsAsync()
+    {
+        using var db = DbClient.Instance.GetDb();
+        return await db.AiAssistantSettings
+            .Where(s => s.IsActive && s.IsAvailableForPatients)
+            .OrderBy(s => s.DisplayOrder)
+            .ThenBy(s => s.ModelName)
+            .ToListAsync();
+    }
+
+    /// <summary>
+    /// Get AI model by type
+    /// </summary>
+    public async Task<AiAssistantSetting?> GetByModelTypeAsync(AiModelType modelType)
+    {
+        using var db = DbClient.Instance.GetDb();
+        return await db.AiAssistantSettings
+            .FirstOrDefaultAsync(s => s.ModelType == modelType && s.IsActive);
     }
 
     /// <summary>
@@ -44,17 +69,11 @@ public class AiAssistantSettingsService
 
     /// <summary>
     /// Create a new AI assistant setting
-    /// Deactivates all other settings if this one is active
+    /// Multiple settings can be active simultaneously
     /// </summary>
     public async Task<AiAssistantSetting> CreateAsync(AiAssistantSetting setting)
     {
         using var db = DbClient.Instance.GetDb();
-        
-        // If this setting is active, deactivate all others
-        if (setting.IsActive)
-        {
-            await DeactivateAllAsync();
-        }
 
         setting.Id = Guid.NewGuid();
         setting.CreatedAt = DateTime.UtcNow;
@@ -68,7 +87,7 @@ public class AiAssistantSettingsService
 
     /// <summary>
     /// Update an existing AI assistant setting
-    /// Ensures only one active setting at a time
+    /// Handles availability for patients and display order
     /// </summary>
     public async Task<AiAssistantSetting?> UpdateAsync(AiAssistantSetting setting)
     {
@@ -80,14 +99,12 @@ public class AiAssistantSettingsService
         if (existing == null)
             return null;
 
-        // If activating this setting, deactivate all others first
-        if (setting.IsActive && !existing.IsActive)
-        {
-            await DeactivateAllAsync();
-        }
-
         existing.ModelName = setting.ModelName;
+        existing.ModelType = setting.ModelType;
         existing.IsActive = setting.IsActive;
+        existing.IsAvailableForPatients = setting.IsAvailableForPatients;
+        existing.DisplayOrder = setting.DisplayOrder;
+        existing.Description = setting.Description;
         existing.SystemPrompt = setting.SystemPrompt;
         existing.EnableDocumentAnalysis = setting.EnableDocumentAnalysis;
         existing.EnableSymptomChecker = setting.EnableSymptomChecker;
@@ -101,7 +118,6 @@ public class AiAssistantSettingsService
 
     /// <summary>
     /// Delete an AI assistant setting
-    /// Prevents deletion if it's the only active setting
     /// </summary>
     public async Task<bool> DeleteAsync(Guid id)
     {
@@ -113,18 +129,6 @@ public class AiAssistantSettingsService
         if (setting == null)
             return false;
 
-        // Prevent deletion if this is the only active setting
-        if (setting.IsActive)
-        {
-            var activeCount = await db.AiAssistantSettings
-                .CountAsync(s => s.IsActive);
-            
-            if (activeCount <= 1)
-            {
-                throw new InvalidOperationException("Cannot delete the only active AI assistant setting");
-            }
-        }
-
         db.AiAssistantSettings.Remove(setting);
         await db.SaveChangesAsync();
 
@@ -132,8 +136,51 @@ public class AiAssistantSettingsService
     }
 
     /// <summary>
+    /// Toggle patient availability for a specific AI model
+    /// </summary>
+    public async Task<bool> TogglePatientAvailabilityAsync(Guid id, bool isAvailable)
+    {
+        using var db = DbClient.Instance.GetDb();
+        
+        var setting = await db.AiAssistantSettings
+            .FirstOrDefaultAsync(s => s.Id == id);
+
+        if (setting == null)
+            return false;
+
+        setting.IsAvailableForPatients = isAvailable;
+        setting.UpdatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+
+        return true;
+    }
+
+    /// <summary>
+    /// Update display order for multiple AI models
+    /// </summary>
+    public async Task<bool> UpdateDisplayOrdersAsync(Dictionary<Guid, int> orderUpdates)
+    {
+        using var db = DbClient.Instance.GetDb();
+        
+        foreach (var (id, order) in orderUpdates)
+        {
+            var setting = await db.AiAssistantSettings
+                .FirstOrDefaultAsync(s => s.Id == id);
+            
+            if (setting != null)
+            {
+                setting.DisplayOrder = order;
+                setting.UpdatedAt = DateTime.UtcNow;
+            }
+        }
+
+        await db.SaveChangesAsync();
+        return true;
+    }
+
+    /// <summary>
     /// Activate a specific AI assistant setting
-    /// Deactivates all others to maintain single active setting
+    /// No longer deactivates others - multiple models can be active
     /// </summary>
     public async Task<bool> ActivateSettingAsync(Guid id)
     {
@@ -145,10 +192,7 @@ public class AiAssistantSettingsService
         if (setting == null)
             return false;
 
-        // Deactivate all settings first
-        await DeactivateAllAsync();
-
-        // Activate the target setting
+        // Just activate - no need to deactivate others anymore
         setting.IsActive = true;
         setting.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
@@ -188,6 +232,7 @@ public class AiAssistantSettingsService
         {
             TotalSettings = await db.AiAssistantSettings.CountAsync(),
             ActiveSettings = await db.AiAssistantSettings.CountAsync(s => s.IsActive),
+            AvailableForPatients = await db.AiAssistantSettings.CountAsync(s => s.IsActive && s.IsAvailableForPatients),
             ModelsUsed = await db.AiAssistantSettings
                 .Select(s => s.ModelName)
                 .Distinct()
@@ -203,5 +248,6 @@ public class AiSettingsStats
 {
     public int TotalSettings { get; set; }
     public int ActiveSettings { get; set; }
+    public int AvailableForPatients { get; set; }
     public int ModelsUsed { get; set; }
 }

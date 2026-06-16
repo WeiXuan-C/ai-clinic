@@ -79,6 +79,9 @@ public class Conversation
     [Column("ai_model_used")]
     public string? AiModelUsed { get; set; }
 
+    [Column("current_ai_model_type")]
+    public AiModelType? CurrentAiModelType { get; set; }
+
     // Navigation properties
     [ForeignKey("PatientId")]
     public User Patient { get; set; } = null!;

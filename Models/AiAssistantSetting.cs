@@ -15,8 +15,22 @@ public class AiAssistantSetting
     [Column("model_name")]
     public string ModelName { get; set; } = string.Empty;
 
+    [Required]
+    [Column("model_type")]
+    public AiModelType ModelType { get; set; }
+
     [Column("is_active")]
     public bool IsActive { get; set; } = true;
+
+    [Column("is_available_for_patients")]
+    public bool IsAvailableForPatients { get; set; } = true;
+
+    [Column("display_order")]
+    public int DisplayOrder { get; set; } = 0;
+
+    [MaxLength(500)]
+    [Column("description")]
+    public string? Description { get; set; }
 
     [Column("system_prompt")]
     public string? SystemPrompt { get; set; }

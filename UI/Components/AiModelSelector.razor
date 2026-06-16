@@ -1,0 +1,173 @@
+@using ai_clinic.Models
+@using ai_clinic.Services
+@inject AiAssistantSettingsService AiSettingsService
+@inject ConversationService ConversationService
+
+<div class="ai-model-selector">
+    @if (availableModels != null && availableModels.Any())
+    {
+        <div class="current-model-display">
+            <span class="model-icon">🤖</span>
+            <span class="model-label">AI Model:</span>
+            <select class="model-dropdown" 
+                    value="@currentModelType" 
+                    @onchange="OnModelChanged"
+                    disabled="@(!IsEnabled)">
+                @foreach (var model in availableModels)
+                {
+                    <option value="@((int)model.ModelType)">
+                        @model.ModelName
+                    </option>
+                }
+            </select>
+        </div>
+
+        @if (showDescription && selectedModel != null)
+        {
+            <div class="model-description">
+                <small>@selectedModel.Description</small>
+            </div>
+        }
+    }
+    else if (isLoading)
+    {
+        <div class="loading-indicator">
+            <span>Loading AI models...</span>
+        </div>
+    }
+    else
+    {
+        <div class="no-models">
+            <span>No AI models available</span>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="error-message">
+            @errorMessage
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public Guid ConversationId { get; set; }
+
+    [Parameter]
+    public AiModelType? InitialModelType { get; set; }
+
+    [Parameter]
+    public bool ShowDescription { get; set; } = true;
+
+    [Parameter]
+    public bool IsEnabled { get; set; } = true;
+
+    [Parameter]
+    public EventCallback<AiModelType> OnModelSwitched { get; set; }
+
+    private List<AiAssistantSetting>? availableModels;
+    private AiModelType? currentModelType;
+    private AiAssistantSetting? selectedModel;
+    private bool isLoading = true;
+    private string? errorMessage;
+    private bool showDescription => ShowDescription;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAvailableModels();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (InitialModelType.HasValue && currentModelType != InitialModelType)
+        {
+            currentModelType = InitialModelType;
+            UpdateSelectedModel();
+        }
+    }
+
+    private async Task LoadAvailableModels()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+
+            availableModels = await AiSettingsService.GetAvailableForPatientsAsync();
+
+            if (availableModels != null && availableModels.Any())
+            {
+                // Set current model from conversation or use first available
+                if (!currentModelType.HasValue)
+                {
+                    var conversationModel = await ConversationService.GetCurrentAiModelAsync(ConversationId);
+                    currentModelType = conversationModel ?? availableModels.First().ModelType;
+                }
+
+                UpdateSelectedModel();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Failed to load AI models";
+            Console.WriteLine($"Error loading AI models: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void UpdateSelectedModel()
+    {
+        if (availableModels != null && currentModelType.HasValue)
+        {
+            selectedModel = availableModels.FirstOrDefault(m => m.ModelType == currentModelType.Value);
+        }
+    }
+
+    private async Task OnModelChanged(ChangeEventArgs e)
+    {
+        if (e.Value == null || !IsEnabled)
+            return;
+
+        try
+        {
+            var newModelTypeInt = int.Parse(e.Value.ToString()!);
+            var newModelType = (AiModelType)newModelTypeInt;
+
+            if (newModelType == currentModelType)
+                return;
+
+            errorMessage = null;
+
+            // Switch the model in the conversation
+            bool success = await ConversationService.SwitchAiModelAsync(ConversationId, newModelType);
+
+            if (success)
+            {
+                currentModelType = newModelType;
+                UpdateSelectedModel();
+
+                // Notify parent component
+                await OnModelSwitched.InvokeAsync(newModelType);
+            }
+            else
+            {
+                errorMessage = "Failed to switch AI model. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "An error occurred while switching models";
+            Console.WriteLine($"Error switching AI model: {ex.Message}");
+        }
+    }
+
+    public async Task RefreshModels()
+    {
+        await LoadAvailableModels();
+        StateHasChanged();
+    }
+}

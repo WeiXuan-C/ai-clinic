@@ -72,7 +72,10 @@ public partial class AiAssistantSettings
         _isEditMode = false;
         _formModel = new AiAssistantSettingFormModel
         {
+            ModelType = AiModelType.Gemma4,
             IsActive = false,
+            IsAvailableForPatients = true,
+            DisplayOrder = 0,
             EnableDocumentAnalysis = true,
             EnableSymptomChecker = true,
             EnableDoctorRecommendation = true
@@ -87,7 +90,11 @@ public partial class AiAssistantSettings
         _formModel = new AiAssistantSettingFormModel
         {
             ModelName = setting.ModelName,
+            ModelType = setting.ModelType,
             IsActive = setting.IsActive,
+            IsAvailableForPatients = setting.IsAvailableForPatients,
+            DisplayOrder = setting.DisplayOrder,
+            Description = setting.Description,
             SystemPrompt = setting.SystemPrompt,
             EnableDocumentAnalysis = setting.EnableDocumentAnalysis,
             EnableSymptomChecker = setting.EnableSymptomChecker,
@@ -149,7 +156,11 @@ public partial class AiAssistantSettings
             {
                 // Update existing setting
                 _selectedSetting.ModelName = _formModel.ModelName;
+                _selectedSetting.ModelType = _formModel.ModelType;
                 _selectedSetting.IsActive = _formModel.IsActive;
+                _selectedSetting.IsAvailableForPatients = _formModel.IsActive && _formModel.IsAvailableForPatients;
+                _selectedSetting.DisplayOrder = _formModel.DisplayOrder;
+                _selectedSetting.Description = _formModel.Description;
                 _selectedSetting.SystemPrompt = _formModel.SystemPrompt;
                 _selectedSetting.EnableDocumentAnalysis = _formModel.EnableDocumentAnalysis;
                 _selectedSetting.EnableSymptomChecker = _formModel.EnableSymptomChecker;
@@ -164,7 +175,11 @@ public partial class AiAssistantSettings
                 var newSetting = new AiAssistantSetting
                 {
                     ModelName = _formModel.ModelName,
+                    ModelType = _formModel.ModelType,
                     IsActive = _formModel.IsActive,
+                    IsAvailableForPatients = _formModel.IsActive && _formModel.IsAvailableForPatients,
+                    DisplayOrder = _formModel.DisplayOrder,
+                    Description = _formModel.Description,
                     SystemPrompt = _formModel.SystemPrompt,
                     EnableDocumentAnalysis = _formModel.EnableDocumentAnalysis,
                     EnableSymptomChecker = _formModel.EnableSymptomChecker,
@@ -236,6 +251,64 @@ public partial class AiAssistantSettings
     {
         _navigation.NavigateTo("/admin/dashboard");
     }
+
+    private async Task TogglePatientAvailability(Guid settingId, bool isAvailable)
+    {
+        try
+        {
+            var aiSettingsService = new AiAssistantSettingsService();
+            await aiSettingsService.TogglePatientAvailabilityAsync(settingId, isAvailable);
+            
+            var setting = _settings?.FirstOrDefault(s => s.Id == settingId);
+            if (setting != null)
+            {
+                setting.IsAvailableForPatients = isAvailable;
+            }
+            
+            await LoadData();
+            _successMessage = $"Patient availability {(isAvailable ? "enabled" : "disabled")}";
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "Failed to update patient availability";
+            Console.WriteLine($"[AiSettings] Error toggling patient availability: {ex.Message}");
+        }
+    }
+
+    private async Task UpdateDisplayOrder(Guid settingId, int order)
+    {
+        try
+        {
+            var aiSettingsService = new AiAssistantSettingsService();
+            var updates = new Dictionary<Guid, int> { { settingId, order } };
+            await aiSettingsService.UpdateDisplayOrdersAsync(updates);
+            
+            var setting = _settings?.FirstOrDefault(s => s.Id == settingId);
+            if (setting != null)
+            {
+                setting.DisplayOrder = order;
+            }
+            
+            _successMessage = "Display order updated";
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = "Failed to update display order";
+            Console.WriteLine($"[AiSettings] Error updating display order: {ex.Message}");
+        }
+    }
+
+    private string GetModelIcon(AiModelType modelType)
+    {
+        return modelType switch
+        {
+            AiModelType.Gemma4 => "🔷",
+            AiModelType.MiniMax => "⚡",
+            AiModelType.Nemotron => "🔬",
+            AiModelType.Owlapha => "🦉",
+            _ => "🤖"
+        };
+    }
 }
 
 /// <summary>
@@ -245,7 +318,11 @@ public partial class AiAssistantSettings
 public class AiAssistantSettingFormModel
 {
     public string ModelName { get; set; } = string.Empty;
+    public AiModelType ModelType { get; set; } = AiModelType.Gemma4;
     public bool IsActive { get; set; }
+    public bool IsAvailableForPatients { get; set; } = true;
+    public int DisplayOrder { get; set; } = 0;
+    public string? Description { get; set; }
     public string? SystemPrompt { get; set; }
     public bool EnableDocumentAnalysis { get; set; }
     public bool EnableSymptomChecker { get; set; }

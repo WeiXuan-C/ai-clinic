@@ -37,3 +37,11 @@ public enum DocumentType
     Image,
     Other
 }
+
+public enum AiModelType
+{
+    Gemma4,
+    MiniMax,
+    Nemotron,
+    Owlapha
+}

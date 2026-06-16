@@ -30,8 +30,8 @@
     <!-- Information Banner -->
     <div class="alert alert-info" role="alert">
         <i class="bi bi-info-circle-fill"></i>
-        <strong>Active Model in Consultations:</strong> The AI model marked as "Active" below will be used in all patient consultation chatrooms. 
-        Only one model can be active at a time. Changes take effect immediately.
+        <strong>AI Model Management:</strong> Configure which AI models are active and available for patients to use in consultation chatrooms. 
+        Multiple models can be active simultaneously, and patients can switch between available models during their consultations.
     </div>
 
     @if (!string.IsNullOrEmpty(_successMessage))
@@ -83,6 +83,16 @@
                     <p>Unique Models</p>
                 </div>
             </div>
+
+            <div class="stat-card stat-warning">
+                <div class="stat-icon">
+                    <i class="bi bi-people-fill"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>@_stats.AvailableForPatients</h3>
+                    <p>Available to Patients</p>
+                </div>
+            </div>
         </div>
     }
 
@@ -103,16 +113,17 @@
                 <thead>
                     <tr>
                         <th>Model Name</th>
+                        <th>Model Type</th>
                         <th>Status</th>
+                        <th>Patient Access</th>
+                        <th>Display Order</th>
                         <th>Features</th>
-                        <th>Created By</th>
                         <th>Created At</th>
-                        <th>Updated At</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var setting in _settings)
+                    @foreach (var setting in _settings.OrderBy(s => s.DisplayOrder))
                     {
                         <tr class="@(!setting.IsActive ? "inactive-row" : "active-row")">
                             <td>
@@ -122,9 +133,34 @@
                                 </div>
                             </td>
                             <td>
+                                <span class="badge bg-info">
+                                    @GetModelIcon(setting.ModelType) @setting.ModelType.ToString()
+                                </span>
+                            </td>
+                            <td>
                                 <span class="badge @(setting.IsActive ? "bg-success" : "bg-secondary")">
                                     @(setting.IsActive ? "Active" : "Inactive")
                                 </span>
+                            </td>
+                            <td>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           checked="@setting.IsAvailableForPatients"
+                                           @onchange="@(e => TogglePatientAvailability(setting.Id, (bool)e.Value!))"
+                                           disabled="@(!setting.IsActive)" />
+                                    <label class="form-check-label">
+                                        @(setting.IsAvailableForPatients ? "Available" : "Unavailable")
+                                    </label>
+                                </div>
+                            </td>
+                            <td>
+                                <input type="number" 
+                                       class="form-control form-control-sm" 
+                                       style="width: 80px;"
+                                       value="@setting.DisplayOrder"
+                                       @onchange="@(e => UpdateDisplayOrder(setting.Id, int.Parse(e.Value!.ToString()!)))"
+                                       min="0" />
                             </td>
                             <td>
                                 <div class="feature-badges">
@@ -148,18 +184,7 @@
                                     }
                                 </div>
                             </td>
-                            <td>
-                                @if (setting.CreatedByAdminId.HasValue)
-                                {
-                                    <span class="text-muted">Admin</span>
-                                }
-                                else
-                                {
-                                    <span class="text-muted">System</span>
-                                }
-                            </td>
                             <td>@setting.CreatedAt.ToString("MMM dd, yyyy")</td>
-                            <td>@setting.UpdatedAt.ToString("MMM dd, yyyy HH:mm")</td>
                             <td>
                                 <div class="action-buttons">
                                     @if (!setting.IsActive)
@@ -170,12 +195,6 @@
                                             <i class="bi bi-play-circle"></i>
                                         </button>
                                     }
-                                    else
-                                    {
-                                        <button class="btn btn-sm btn-success" disabled title="Currently Active">
-                                            <i class="bi bi-check-circle-fill"></i>
-                                        </button>
-                                    }
                                     <button class="btn btn-sm btn-info" 
                                             @onclick="() => ShowEditModal(setting)"
                                             title="Edit Configuration">
@@ -183,8 +202,7 @@
                                     </button>
                                     <button class="btn btn-sm btn-danger" 
                                             @onclick="() => ShowDeleteModal(setting)"
-                                            title="Delete Configuration"
-                                            disabled="@setting.IsActive">
+                                            title="Delete Configuration">
                                         <i class="bi bi-trash"></i>
                                     </button>
                                     <button class="btn btn-sm btn-secondary" 
@@ -229,7 +247,35 @@
                         <input type="text" 
                                class="form-control" 
                                @bind="_formModel.ModelName" 
-                               placeholder="e.g., gpt-4, claude-3-opus-20240229" />
+                               placeholder="e.g., Gemma 4, MiniMax" />
+                    </div>
+
+                    <div class="form-group">
+                        <label>Model Type <span class="text-danger">*</span></label>
+                        <select class="form-control" @bind="_formModel.ModelType">
+                            <option value="@AiModelType.Gemma4">🔷 Gemma 4 - Advanced medical analysis</option>
+                            <option value="@AiModelType.MiniMax">⚡ MiniMax - Fast consultations</option>
+                            <option value="@AiModelType.Nemotron">🔬 Nemotron - Specialized diagnostics</option>
+                            <option value="@AiModelType.Owlapha">🦉 Owlapha - Comprehensive knowledge</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Description</label>
+                        <textarea class="form-control" 
+                                  rows="2" 
+                                  @bind="_formModel.Description" 
+                                  placeholder="Brief description of this AI model..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Display Order</label>
+                        <input type="number" 
+                               class="form-control" 
+                               @bind="_formModel.DisplayOrder" 
+                               min="0"
+                               placeholder="0" />
+                        <small class="form-text text-muted">Lower numbers appear first in patient selection</small>
                     </div>
 
                     <div class="form-group">
@@ -247,11 +293,27 @@
                                    id="isActiveCheck"
                                    @bind="_formModel.IsActive" />
                             <label class="form-check-label" for="isActiveCheck">
-                                Set as Active Configuration
+                                Set as Active
                             </label>
                         </div>
                         <small class="form-text text-muted">
-                            Only one configuration can be active at a time.
+                            Active models can be used in the system
+                        </small>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="form-check">
+                            <input type="checkbox" 
+                                   class="form-check-input" 
+                                   id="availableForPatientsCheck"
+                                   @bind="_formModel.IsAvailableForPatients"
+                                   disabled="@(!_formModel.IsActive)" />
+                            <label class="form-check-label" for="availableForPatientsCheck">
+                                Available for Patients
+                            </label>
+                        </div>
+                        <small class="form-text text-muted">
+                            Patients can select this model in their consultations
                         </small>
                     </div>
 
@@ -348,6 +410,14 @@
                             <p>@_selectedSetting.ModelName</p>
                         </div>
                         <div class="detail-item">
+                            <label>Model Type</label>
+                            <p>
+                                <span class="badge bg-info">
+                                    @GetModelIcon(_selectedSetting.ModelType) @_selectedSetting.ModelType.ToString()
+                                </span>
+                            </p>
+                        </div>
+                        <div class="detail-item">
                             <label>Status</label>
                             <p>
                                 <span class="badge @(_selectedSetting.IsActive ? "bg-success" : "bg-secondary")">
@@ -355,6 +425,25 @@
                                 </span>
                             </p>
                         </div>
+                        <div class="detail-item">
+                            <label>Patient Access</label>
+                            <p>
+                                <span class="badge @(_selectedSetting.IsAvailableForPatients ? "bg-success" : "bg-secondary")">
+                                    @(_selectedSetting.IsAvailableForPatients ? "Available" : "Unavailable")
+                                </span>
+                            </p>
+                        </div>
+                        <div class="detail-item">
+                            <label>Display Order</label>
+                            <p>@_selectedSetting.DisplayOrder</p>
+                        </div>
+                        @if (!string.IsNullOrEmpty(_selectedSetting.Description))
+                        {
+                            <div class="detail-item full-width">
+                                <label>Description</label>
+                                <p>@_selectedSetting.Description</p>
+                            </div>
+                        }
                         <div class="detail-item">
                             <label>Configuration ID</label>
                             <p><code>@_selectedSetting.Id</code></p>

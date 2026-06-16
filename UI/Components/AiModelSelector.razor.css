@@ -1,0 +1,137 @@
+.ai-model-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+}
+
+.current-model-display {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.model-icon {
+    font-size: 1.2em;
+}
+
+.model-label {
+    font-weight: 500;
+    color: #495057;
+    font-size: 0.9em;
+}
+
+.model-dropdown {
+    flex: 1;
+    padding: 6px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    background-color: white;
+    font-size: 0.95em;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.model-dropdown:hover:not(:disabled) {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.model-dropdown:disabled {
+    background-color: #e9ecef;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.model-dropdown:focus {
+    outline: none;
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.model-description {
+    padding-left: 32px;
+    color: #6c757d;
+    font-size: 0.85em;
+    line-height: 1.4;
+}
+
+.loading-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    color: #6c757d;
+    font-size: 0.9em;
+}
+
+.no-models {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    color: #dc3545;
+    font-size: 0.9em;
+}
+
+.error-message {
+    padding: 8px;
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    border-radius: 4px;
+    color: #721c24;
+    font-size: 0.85em;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .ai-model-selector {
+        padding: 10px;
+    }
+
+    .current-model-display {
+        flex-wrap: wrap;
+    }
+
+    .model-dropdown {
+        width: 100%;
+    }
+
+    .model-description {
+        padding-left: 0;
+        padding-top: 4px;
+    }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .ai-model-selector {
+        background-color: #2d3748;
+        border-color: #4a5568;
+    }
+
+    .model-label {
+        color: #e2e8f0;
+    }
+
+    .model-dropdown {
+        background-color: #1a202c;
+        color: #e2e8f0;
+        border-color: #4a5568;
+    }
+
+    .model-dropdown:hover:not(:disabled) {
+        border-color: #63b3ed;
+    }
+
+    .model-description {
+        color: #a0aec0;
+    }
+
+    .loading-indicator {
+        color: #a0aec0;
+    }
+}
