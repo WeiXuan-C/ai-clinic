@@ -27,9 +27,6 @@
                             placeholder="Message AI Health Assistant..." 
                             class="message-input" 
                         />
-                        <button class="voice-btn" @onclick="VoiceInput" title="Voice input">
-                            <i data-lucide="mic" class="voice-icon"></i>
-                        </button>
                         <button class="send-btn" @onclick="SendMessage" disabled="@string.IsNullOrWhiteSpace(newMessage)">
                             <i data-lucide="arrow-up" class="send-icon"></i>
                         </button>
@@ -120,9 +117,6 @@
                         placeholder="Message AI Health Assistant..." 
                         class="message-input" 
                     />
-                    <button class="voice-btn" @onclick="VoiceInput" title="Voice input">
-                        <i data-lucide="mic" class="voice-icon"></i>
-                    </button>
                     <button class="send-btn" @onclick="SendMessage" disabled="@string.IsNullOrWhiteSpace(newMessage)">
                         <i data-lucide="arrow-up" class="send-icon"></i>
                     </button>

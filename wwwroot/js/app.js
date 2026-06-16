@@ -52,3 +52,24 @@ window.initializeLucideIcons = function() {
 document.addEventListener('DOMContentLoaded', function() {
     window.initializeLucideIcons();
 });
+
+// Initialize Lucide (alias for backward compatibility)
+window.initializeLucide = window.initializeLucideIcons;
+
+// Scroll to bottom of element reference
+window.scrollToBottom = function(element) {
+    if (element) {
+        setTimeout(() => {
+            element.scrollTop = element.scrollHeight;
+        }, 50);
+    }
+};
+
+// Focus on an element
+window.focusElement = function(element) {
+    if (element) {
+        setTimeout(() => {
+            element.focus();
+        }, 100);
+    }
+};

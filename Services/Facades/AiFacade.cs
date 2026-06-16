@@ -424,9 +424,9 @@ public class AiFacade
     /// Gets remaining queries for anonymous user
     /// Facade method to expose anonymous consultation limits
     /// </summary>
-    public int GetAnonymousRemainingQueries(string sessionId)
+    public async Task<int> GetAnonymousRemainingQueriesAsync(string sessionId)
     {
-        return _anonymousConsultationService.GetRemainingQueries(sessionId);
+        return await _anonymousConsultationService.GetRemainingQueriesAsync(sessionId);
     }
 
     /// <summary>

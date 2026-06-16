@@ -36,8 +36,8 @@ public partial class Consultation : ComponentBase
         // Generate or retrieve session ID
         sessionId = await GetOrCreateSessionId();
 
-        // Get remaining queries
-        availableCredits = AiFacade.GetAnonymousRemainingQueries(sessionId);
+        // Get remaining queries (now async)
+        availableCredits = await AiFacade.GetAnonymousRemainingQueriesAsync(sessionId);
 
         Console.WriteLine($"[GENERAL CONSULTATION] Session ID: {sessionId}, Available Credits: {availableCredits}");
     }

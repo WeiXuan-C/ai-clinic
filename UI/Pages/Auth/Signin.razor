@@ -62,7 +62,7 @@
                             <label class="form-label">PASSWORD</label>
                             <div class="input-wrapper">
                                 <input type="@(showPassword ? "text" : "password")" class="form-input" placeholder="Enter your password" @bind="password" />
-                                <i data-lucide="@(showPassword ? "eye-off" : "eye")" class="input-icon clickable" @onclick="TogglePasswordVisibility"></i>
+                                <i data-lucide="@(showPassword ? "eye-off" : "eye")" class="input-icon clickable" @onclick="TogglePasswordVisibility" @onclick:preventDefault="true"></i>
                             </div>
                         </div>
 
@@ -360,6 +360,16 @@
         opacity: 0.5;
     }
 
+    .input-icon.clickable {
+        cursor: pointer;
+        opacity: 0.6;
+        transition: opacity 0.2s;
+    }
+
+    .input-icon.clickable:hover {
+        opacity: 1;
+    }
+
     .btn-send-code {
         width: 100%;
         padding: 1rem;
@@ -416,6 +426,7 @@
 
     .clickable {
         cursor: pointer;
+        user-select: none;
     }
 
     .error-message {
@@ -489,14 +500,24 @@
         if (firstRender)
         {
             // Initialize Lucide icons after first render
-            await JS.InvokeVoidAsync("initializeLucide");
+            await JS.InvokeVoidAsync("eval", "if (typeof lucide !== 'undefined' && lucide.createIcons) { lucide.createIcons(); }");
         }
         await base.OnAfterRenderAsync(firstRender);
     }
 
-    private void TogglePasswordVisibility()
+    private async Task TogglePasswordVisibility()
     {
         showPassword = !showPassword;
+        StateHasChanged();
+        await Task.Delay(50); // Small delay to ensure DOM updates
+        try
+        {
+            await JS.InvokeVoidAsync("eval", "if (typeof lucide !== 'undefined' && lucide.createIcons) { lucide.createIcons(); }");
+        }
+        catch
+        {
+            // Ignore JS errors silently
+        }
     }
 
     private async Task HandleSignIn()

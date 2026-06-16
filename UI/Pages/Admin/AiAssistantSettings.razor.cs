@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Components;
 using ai_clinic.Models;
 using ai_clinic.Services;
+using ai_clinic.Services.Facades;
 
 namespace ai_clinic.UI.Pages.Admin;
 
@@ -10,6 +11,10 @@ namespace ai_clinic.UI.Pages.Admin;
 /// </summary>
 public partial class AiAssistantSettings
 {
+    [Inject] private AuthFacade _authFacade { get; set; } = default!;
+    [Inject] private AdminFacade _adminFacade { get; set; } = default!;
+    [Inject] private NavigationManager _navigation { get; set; } = default!;
+
     private List<AiAssistantSetting>? _settings;
     private AiSettingsStats? _stats;
     private bool _isLoading = true;
@@ -24,9 +29,9 @@ public partial class AiAssistantSettings
     private AiAssistantSetting? _selectedSetting;
     private AiAssistantSettingFormModel _formModel = new();
 
-    protected override async Task OnInitializedAsync()
+    protected override Task OnInitializedAsync()
     {
-        await LoadData();
+        return LoadData();
     }
 
     private async Task LoadData()
@@ -34,17 +39,17 @@ public partial class AiAssistantSettings
         try
         {
             _isLoading = true;
-            
-            var currentUser = AuthFacade.CurrentUser;
+
+            var currentUser = _authFacade.CurrentUser;
             if (currentUser == null)
             {
-                Navigation.NavigateTo("/auth/signin");
+                _navigation.NavigateTo("/auth/signin");
                 return;
             }
 
             // Load settings and statistics in parallel using Facade
-            var settingsTask = AdminFacade.GetAllAiSettingsAsync(currentUser.Id);
-            var statsTask = AdminFacade.GetAiSettingsStatsAsync();
+            var settingsTask = _adminFacade.GetAllAiSettingsAsync(currentUser.Id);
+            var statsTask = _adminFacade.GetAiSettingsStatsAsync();
 
             await Task.WhenAll(settingsTask, statsTask);
 
@@ -126,7 +131,7 @@ public partial class AiAssistantSettings
     {
         try
         {
-            var currentUser = AuthFacade.CurrentUser;
+            var currentUser = _authFacade.CurrentUser;
             if (currentUser == null)
             {
                 _errorMessage = "Authentication required";
@@ -150,7 +155,7 @@ public partial class AiAssistantSettings
                 _selectedSetting.EnableSymptomChecker = _formModel.EnableSymptomChecker;
                 _selectedSetting.EnableDoctorRecommendation = _formModel.EnableDoctorRecommendation;
 
-                await AdminFacade.UpdateAiSettingAsync(_selectedSetting, currentUser.Id);
+                await _adminFacade.UpdateAiSettingAsync(_selectedSetting, currentUser.Id);
                 _successMessage = "AI configuration updated successfully";
             }
             else
@@ -166,7 +171,7 @@ public partial class AiAssistantSettings
                     EnableDoctorRecommendation = _formModel.EnableDoctorRecommendation
                 };
 
-                await AdminFacade.CreateAiSettingAsync(newSetting, currentUser.Id);
+                await _adminFacade.CreateAiSettingAsync(newSetting, currentUser.Id);
                 _successMessage = "AI configuration created successfully";
             }
 
@@ -184,13 +189,13 @@ public partial class AiAssistantSettings
     {
         try
         {
-            var currentUser = AuthFacade.CurrentUser;
+            var currentUser = _authFacade.CurrentUser;
             if (currentUser == null || _selectedSetting == null)
                 return;
 
-            await AdminFacade.DeleteAiSettingAsync(_selectedSetting.Id, currentUser.Id);
+            await _adminFacade.DeleteAiSettingAsync(_selectedSetting.Id, currentUser.Id);
             _successMessage = "AI configuration deleted successfully";
-            
+
             CloseDeleteModal();
             await LoadData();
         }
@@ -211,13 +216,13 @@ public partial class AiAssistantSettings
     {
         try
         {
-            var currentUser = AuthFacade.CurrentUser;
+            var currentUser = _authFacade.CurrentUser;
             if (currentUser == null)
                 return;
 
-            await AdminFacade.ActivateAiSettingAsync(settingId, currentUser.Id);
+            await _adminFacade.ActivateAiSettingAsync(settingId, currentUser.Id);
             _successMessage = "AI configuration activated successfully";
-            
+
             await LoadData();
         }
         catch (Exception ex)
@@ -229,7 +234,7 @@ public partial class AiAssistantSettings
 
     private void NavigateBack()
     {
-        Navigation.NavigateTo("/admin/dashboard");
+        _navigation.NavigateTo("/admin/dashboard");
     }
 }
 

@@ -2085,9 +2085,6 @@
                                @bind:event="oninput"
                                @onkeydown="HandleKeyPress"
                                @ref="messageInputRef" />
-                        <button class="icon-btn" title="Voice input">
-                            <i data-lucide="mic" style="width: 20px; height: 20px;"></i>
-                        </button>
                         <button class="send-btn @(string.IsNullOrWhiteSpace(newMessage) && attachments.Count == 0 ? "disabled" : "")" 
                                 @onclick="SendMessage"
                                 disabled="@(string.IsNullOrWhiteSpace(newMessage) && attachments.Count == 0)"

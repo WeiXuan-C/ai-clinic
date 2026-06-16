@@ -72,15 +72,60 @@ namespace ai_clinic.Services.AI
 
             // Adapt the response to our expected format
             if (response.Choices == null || response.Choices.Length == 0)
-                throw new InvalidOperationException("No response from AI model");
+            {
+                Console.WriteLine($"[ADAPTER ERROR] No choices in response for model: {ModelId}");
+                throw new InvalidOperationException($"No response from AI model {ModelName} (ID: {ModelId})");
+            }
 
             var content = response.Choices[0].Message?.Content;
-            if (content is string textContent)
+
+            // Handle different content types
+            string? textContent = null;
+
+            if (content is string str)
             {
+                textContent = str;
+            }
+            else if (content is System.Text.Json.JsonElement jsonElement)
+            {
+                Console.WriteLine($"[ADAPTER DEBUG] JsonElement ValueKind: {jsonElement.ValueKind}");
+                
+                // Handle JsonElement type - extract string value
+                if (jsonElement.ValueKind == System.Text.Json.JsonValueKind.String)
+                {
+                    textContent = jsonElement.GetString();
+                }
+                else if (jsonElement.ValueKind == System.Text.Json.JsonValueKind.Array ||
+                         jsonElement.ValueKind == System.Text.Json.JsonValueKind.Object)
+                {
+                    // For complex types, serialize to JSON string
+                    textContent = jsonElement.GetRawText();
+                }
+                else
+                {
+                    // Try to get raw text for any other type
+                    textContent = jsonElement.ToString();
+                }
+                
+                Console.WriteLine($"[ADAPTER DEBUG] Extracted text length: {textContent?.Length ?? 0}");
+            }
+            else if (content != null)
+            {
+                // Fallback: try to convert to string
+                textContent = content.ToString();
+            }
+
+            if (!string.IsNullOrWhiteSpace(textContent))
+            {
+                Console.WriteLine($"[ADAPTER SUCCESS] Returning response with {textContent.Length} characters");
                 return textContent;
             }
 
-            throw new InvalidOperationException("Empty response from AI model");
+            Console.WriteLine($"[ADAPTER ERROR] Empty or null content in response for model: {ModelId}");
+            Console.WriteLine($"[ADAPTER ERROR] Content type: {content?.GetType().Name ?? "null"}");
+            Console.WriteLine($"[ADAPTER ERROR] Content value: {content ?? "null"}");
+
+            throw new InvalidOperationException($"Empty response from AI model {ModelName} (ID: {ModelId}). This may indicate an invalid model ID or the model returned no content.");
         }
 
         /// <summary>
