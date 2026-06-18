@@ -8,17 +8,6 @@ using Microsoft.EntityFrameworkCore;
 namespace ai_clinic.Services.Facades;
 
 /// <summary>
-/// FACADE PATTERN - Consultation Facade
-/// Provides a unified high-level interface for the complex consultation system
-/// 
-/// Subsystems include:
-/// - ConversationService: Manages conversations
-/// - MessageService: Manages messages
-/// - DoctorProfileService: Manages doctor information
-/// - ActivityLogService: Records activity logs
-/// - AiAssistantService: AI assistant service
-/// - ConsultationHub (SignalR): Real-time messaging
-/// 
 /// Use cases:
 /// - Simplifies client code, hides subsystem complexity
 /// - Provides one-stop consultation functionality interface
@@ -857,17 +846,24 @@ public class ConsultationFacade
         // 2. 获取消息列表
         var messages = await _messageService.GetByConversationIdAsync(conversationId);
 
-        // 3. 标记消息为已读
+        // 3. 标记消息为已读并获取已标记的消息ID列表
         var excludeSenderType = userRole == UserRole.Patient 
             ? MessageSenderType.Patient 
             : MessageSenderType.Doctor;
-        await _messageService.MarkConversationAsReadAsync(conversationId, excludeSenderType);
+        var markedMessageIds = await _messageService.MarkConversationAsReadAsync(conversationId, excludeSenderType);
 
-        // 🔔 REAL-TIME: Send read receipts for unread messages
-        var unreadMessages = messages.Where(m => !m.IsRead && m.SenderType != excludeSenderType);
-        foreach (var message in unreadMessages)
+        // 🔔 REAL-TIME: Send read receipts for newly marked messages
+        foreach (var messageId in markedMessageIds)
         {
-            await _hubContext.SendMessageReadReceipt(conversationId, message.Id, userId);
+            await _hubContext.SendMessageReadReceipt(conversationId, messageId, userId);
+            _logger.LogInformation($"[FACADE] Sent read receipt for message {messageId} to conversation {conversationId}");
+        }
+        
+        // Update message IsRead status in memory
+        foreach (var message in messages.Where(m => markedMessageIds.Contains(m.Id)))
+        {
+            message.IsRead = true;
+            message.ReadAt = DateTime.UtcNow;
         }
 
         // 4. 获取医生信息（如果有）
@@ -1344,9 +1340,7 @@ Generate the summary in a clear, structured format suitable for a doctor to quic
             foreach (var fallbackModel in fallbackModels)
             {
                 try
-                {
-                    _logger.LogInformation($"[AI GEN] Trying fallback model: {fallbackModel.DisplayName}");
-                    
+                {                    
                     // 切换到fallback模型
                     _aiAssistantService.SwitchModel(fallbackModel.Key);
                     attemptedModels.Add(fallbackModel.DisplayName);
@@ -1357,9 +1351,7 @@ Generate the summary in a clear, structured format suitable for a doctor to quic
                         medicalContext: null,
                         temperature: 0.7
                     );
-                    
-                    _logger.LogInformation($"[AI GEN] Fallback successful with {fallbackModel.DisplayName}");
-                    
+                                        
                     return new AiResponseContent
                     {
                         Content = aiResponse,
@@ -1373,9 +1365,6 @@ Generate the summary in a clear, structured format suitable for a doctor to quic
                     continue;
                 }
             }
-            
-            // 所有模型都失败了，返回友好的错误消息
-            _logger.LogError("[AI GEN] All AI models failed");
             
             return new AiResponseContent
             {

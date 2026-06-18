@@ -1,6 +1,5 @@
 using ai_clinic.Models;
 using Microsoft.JSInterop;
-using System.Text.Json;
 
 namespace ai_clinic.Services;
 
@@ -173,7 +172,7 @@ public class AuthStateService
 
     /// <summary>
     /// Set the current authenticated user and load their profile
-    /// Persists session to cookie
+    /// Persists session to cookie (will retry on next render if prerendering)
     /// </summary>
     public async Task SetCurrentUserAsync(User user, UserService userService, PatientProfileService patientProfileService, DoctorProfileService doctorProfileService)
     {
@@ -192,13 +191,22 @@ public class AuthStateService
             Console.WriteLine($"[AuthStateService] Doctor profile loaded: {_currentDoctorProfile?.FullName ?? "null"}");
         }
 
-        // Persist to cookie (30 days expiration)
-        Console.WriteLine($"[AuthStateService] Setting cookie for userId: {user.Id}");
-        await SetCookieAsync("userId", user.Id.ToString(), 30);
-        
-        // Brief wait to ensure cookie is written
-        await Task.Delay(50);
-        Console.WriteLine("[AuthStateService] Cookie set");
+        // Try to persist to cookie (may fail during prerendering, which is OK)
+        try
+        {
+            Console.WriteLine($"[AuthStateService] Attempting to set cookie for userId: {user.Id}");
+            await SetCookieAsync("userId", user.Id.ToString(), 30);
+            
+            // Brief wait to ensure cookie is written (only if not prerendering)
+            await Task.Delay(50);
+            Console.WriteLine("[AuthStateService] Cookie set successfully");
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("statically rendered"))
+        {
+            Console.WriteLine("[AuthStateService] Cookie write deferred until after render (this is normal during signup)");
+            // Mark that we need to retry cookie setting after render
+            _isInitialized = false; // Will cause retry on next navigation
+        }
 
         NotifyAuthStateChanged();
         Console.WriteLine("[AuthStateService] Auth state changed notification sent");
@@ -214,7 +222,22 @@ public class AuthStateService
         _currentPatientProfile = null;
         _currentDoctorProfile = null;
         
-        await ClearSessionAsync();
+        try
+        {
+            await ClearSessionAsync();
+        }
+        catch (JSDisconnectedException)
+        {
+            // Circuit already disconnected, which is expected during logout
+            // Silently ignore this exception
+            Console.WriteLine("[AuthStateService] Circuit disconnected during logout (expected behavior)");
+        }
+        catch (Exception ex)
+        {
+            // Log other exceptions but don't throw
+            Console.WriteLine($"[AuthStateService] Error clearing session: {ex.Message}");
+        }
+        
         NotifyAuthStateChanged();
     }
 
@@ -330,6 +353,11 @@ public class AuthStateService
             
             return null;
         }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("statically rendered"))
+        {
+            Console.WriteLine($"[AuthStateService] Cookie read skipped during prerendering (expected)");
+            return null;
+        }
         catch (Exception ex)
         {
             Console.WriteLine($"[AuthStateService] Exception reading cookie: {ex.Message}");
@@ -344,9 +372,15 @@ public class AuthStateService
             var expires = DateTime.UtcNow.AddDays(days).ToString("R");
             await _jsRuntime.InvokeVoidAsync("eval", $"document.cookie = '{name}={value}; expires={expires}; path=/; SameSite=Strict'");
         }
-        catch
+        catch (InvalidOperationException ex) when (ex.Message.Contains("statically rendered"))
         {
-            // Ignore cookie errors
+            Console.WriteLine($"[AuthStateService] Cookie write skipped during prerendering (expected)");
+            // This is normal during prerendering - cookie will be set on next render
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[AuthStateService] Exception setting cookie: {ex.Message}");
+            // Ignore cookie errors - auth will work through state for this session
         }
     }
 
@@ -356,8 +390,13 @@ public class AuthStateService
         {
             await _jsRuntime.InvokeVoidAsync("eval", $"document.cookie = '{name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'");
         }
-        catch
+        catch (InvalidOperationException ex) when (ex.Message.Contains("statically rendered"))
         {
+            Console.WriteLine($"[AuthStateService] Cookie delete skipped during prerendering (expected)");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[AuthStateService] Exception deleting cookie: {ex.Message}");
             // Ignore cookie errors
         }
     }

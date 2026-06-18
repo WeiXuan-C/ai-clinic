@@ -372,4 +372,198 @@ public static class DatabaseMigrationHelper
             Console.WriteLine("ℹ️ ai_model_used column already exists in conversations");
         }
     }
+
+    /// <summary>
+    /// Add AI model management features to ai_assistant_settings table
+    /// Adds columns for model types, patient availability, display order, and inserts default AI models
+    /// </summary>
+    public static async Task AddAiModelManagementAsync(string connectionString)
+    {
+        using var connection = new SqliteConnection(connectionString);
+        await connection.OpenAsync();
+
+        using var transaction = connection.BeginTransaction();
+        try
+        {
+            // Check and add model_type column
+            var checkCommand = connection.CreateCommand();
+            checkCommand.Transaction = transaction;
+            checkCommand.CommandText = @"
+                SELECT COUNT(*) 
+                FROM pragma_table_info('ai_assistant_settings') 
+                WHERE name='model_type'";
+            
+            var exists = Convert.ToInt32(await checkCommand.ExecuteScalarAsync()) > 0;
+
+            if (!exists)
+            {
+                var alterCommand = connection.CreateCommand();
+                alterCommand.Transaction = transaction;
+                alterCommand.CommandText = "ALTER TABLE ai_assistant_settings ADD COLUMN model_type INTEGER NOT NULL DEFAULT 0";
+                await alterCommand.ExecuteNonQueryAsync();
+                Console.WriteLine("✅ Added model_type column to ai_assistant_settings table");
+            }
+            else
+            {
+                Console.WriteLine("ℹ️ model_type column already exists in ai_assistant_settings");
+            }
+
+            // Check and add is_available_for_patients column
+            checkCommand = connection.CreateCommand();
+            checkCommand.Transaction = transaction;
+            checkCommand.CommandText = @"
+                SELECT COUNT(*) 
+                FROM pragma_table_info('ai_assistant_settings') 
+                WHERE name='is_available_for_patients'";
+            
+            exists = Convert.ToInt32(await checkCommand.ExecuteScalarAsync()) > 0;
+
+            if (!exists)
+            {
+                var alterCommand = connection.CreateCommand();
+                alterCommand.Transaction = transaction;
+                alterCommand.CommandText = "ALTER TABLE ai_assistant_settings ADD COLUMN is_available_for_patients INTEGER NOT NULL DEFAULT 1";
+                await alterCommand.ExecuteNonQueryAsync();
+                Console.WriteLine("✅ Added is_available_for_patients column to ai_assistant_settings table");
+            }
+            else
+            {
+                Console.WriteLine("ℹ️ is_available_for_patients column already exists in ai_assistant_settings");
+            }
+
+            // Check and add display_order column
+            checkCommand = connection.CreateCommand();
+            checkCommand.Transaction = transaction;
+            checkCommand.CommandText = @"
+                SELECT COUNT(*) 
+                FROM pragma_table_info('ai_assistant_settings') 
+                WHERE name='display_order'";
+            
+            exists = Convert.ToInt32(await checkCommand.ExecuteScalarAsync()) > 0;
+
+            if (!exists)
+            {
+                var alterCommand = connection.CreateCommand();
+                alterCommand.Transaction = transaction;
+                alterCommand.CommandText = "ALTER TABLE ai_assistant_settings ADD COLUMN display_order INTEGER NOT NULL DEFAULT 0";
+                await alterCommand.ExecuteNonQueryAsync();
+                Console.WriteLine("✅ Added display_order column to ai_assistant_settings table");
+            }
+            else
+            {
+                Console.WriteLine("ℹ️ display_order column already exists in ai_assistant_settings");
+            }
+
+            // Check and add description column
+            checkCommand = connection.CreateCommand();
+            checkCommand.Transaction = transaction;
+            checkCommand.CommandText = @"
+                SELECT COUNT(*) 
+                FROM pragma_table_info('ai_assistant_settings') 
+                WHERE name='description'";
+            
+            exists = Convert.ToInt32(await checkCommand.ExecuteScalarAsync()) > 0;
+
+            if (!exists)
+            {
+                var alterCommand = connection.CreateCommand();
+                alterCommand.Transaction = transaction;
+                alterCommand.CommandText = "ALTER TABLE ai_assistant_settings ADD COLUMN description TEXT";
+                await alterCommand.ExecuteNonQueryAsync();
+                Console.WriteLine("✅ Added description column to ai_assistant_settings table");
+            }
+            else
+            {
+                Console.WriteLine("ℹ️ description column already exists in ai_assistant_settings");
+            }
+
+            // Create index for better query performance
+            var indexCommand = connection.CreateCommand();
+            indexCommand.Transaction = transaction;
+            indexCommand.CommandText = @"
+                CREATE INDEX IF NOT EXISTS idx_ai_assistant_settings_available 
+                ON ai_assistant_settings(is_available_for_patients, is_active, display_order)";
+            await indexCommand.ExecuteNonQueryAsync();
+            Console.WriteLine("✅ Created index on ai_assistant_settings");
+
+            // Check and add current_ai_model_type column to conversations
+            checkCommand = connection.CreateCommand();
+            checkCommand.Transaction = transaction;
+            checkCommand.CommandText = @"
+                SELECT COUNT(*) 
+                FROM pragma_table_info('conversations') 
+                WHERE name='current_ai_model_type'";
+            
+            exists = Convert.ToInt32(await checkCommand.ExecuteScalarAsync()) > 0;
+
+            if (!exists)
+            {
+                var alterCommand = connection.CreateCommand();
+                alterCommand.Transaction = transaction;
+                alterCommand.CommandText = "ALTER TABLE conversations ADD COLUMN current_ai_model_type INTEGER";
+                await alterCommand.ExecuteNonQueryAsync();
+                Console.WriteLine("✅ Added current_ai_model_type column to conversations table");
+            }
+            else
+            {
+                Console.WriteLine("ℹ️ current_ai_model_type column already exists in conversations");
+            }
+
+            // Check if default models exist
+            var countCommand = connection.CreateCommand();
+            countCommand.Transaction = transaction;
+            countCommand.CommandText = "SELECT COUNT(*) FROM ai_assistant_settings";
+            var count = Convert.ToInt32(await countCommand.ExecuteScalarAsync());
+
+            if (count == 0)
+            {
+                // Insert default AI models
+                var insertCommand = connection.CreateCommand();
+                insertCommand.Transaction = transaction;
+                insertCommand.CommandText = @"
+                    INSERT INTO ai_assistant_settings (id, model_name, model_type, is_active, is_available_for_patients, display_order, description, system_prompt, enable_document_analysis, enable_symptom_checker, enable_doctor_recommendation, created_at, updated_at)
+                    VALUES 
+                        (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))),2) || '-' || substr('89ab',abs(random()) % 4 + 1, 1) || substr(lower(hex(randomblob(2))),2) || '-' || lower(hex(randomblob(6))),
+                         'Gemma 4', 0, 1, 1, 1, 'Google Gemma 4 - Advanced medical analysis and consultation',
+                         'You are a professional medical AI assistant powered by Gemma 4. Provide accurate, helpful, and empathetic medical guidance.', 1, 1, 1, datetime('now'), datetime('now')),
+                        (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))),2) || '-' || substr('89ab',abs(random()) % 4 + 1, 1) || substr(lower(hex(randomblob(2))),2) || '-' || lower(hex(randomblob(6))),
+                         'MiniMax', 1, 1, 1, 2, 'MiniMax - Efficient and fast medical consultations',
+                         'You are a professional medical AI assistant powered by MiniMax. Provide quick, accurate, and helpful medical guidance.', 1, 1, 1, datetime('now'), datetime('now')),
+                        (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))),2) || '-' || substr('89ab',abs(random()) % 4 + 1, 1) || substr(lower(hex(randomblob(2))),2) || '-' || lower(hex(randomblob(6))),
+                         'Nemotron', 2, 1, 1, 3, 'NVIDIA Nemotron - Specialized medical diagnostics',
+                         'You are a professional medical AI assistant powered by Nemotron. Provide specialized diagnostic support and medical guidance.', 1, 1, 1, datetime('now'), datetime('now')),
+                        (lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))),2) || '-' || substr('89ab',abs(random()) % 4 + 1, 1) || substr(lower(hex(randomblob(2))),2) || '-' || lower(hex(randomblob(6))),
+                         'Owlapha', 3, 1, 1, 4, 'Owlapha - Comprehensive medical knowledge assistant',
+                         'You are a professional medical AI assistant powered by Owlapha. Provide comprehensive medical knowledge and patient guidance.', 1, 1, 1, datetime('now'), datetime('now'))";
+                await insertCommand.ExecuteNonQueryAsync();
+                Console.WriteLine("✅ Inserted 4 default AI models into ai_assistant_settings table");
+            }
+            else
+            {
+                Console.WriteLine($"ℹ️ ai_assistant_settings table already has {count} model(s), skipping default inserts");
+            }
+
+            // Update existing conversations to use Gemma4 as default
+            var updateCommand = connection.CreateCommand();
+            updateCommand.Transaction = transaction;
+            updateCommand.CommandText = @"
+                UPDATE conversations 
+                SET current_ai_model_type = 0 
+                WHERE ai_model_used IS NOT NULL AND current_ai_model_type IS NULL";
+            var updated = await updateCommand.ExecuteNonQueryAsync();
+            if (updated > 0)
+            {
+                Console.WriteLine($"✅ Updated {updated} conversation(s) with default AI model type");
+            }
+
+            transaction.Commit();
+            Console.WriteLine("✅ AI Model Management migration completed successfully");
+        }
+        catch (Exception ex)
+        {
+            transaction.Rollback();
+            Console.WriteLine($"❌ AI Model Management migration failed: {ex.Message}");
+            throw;
+        }
+    }
 }

@@ -148,6 +148,7 @@ public partial class Consultation : ComponentBase, IAsyncDisposable
 
             // Subscribe to events
             SignalRService.OnMessageReceived += HandleMessageReceived;
+            SignalRService.OnMessageRead += HandleMessageRead;
             SignalRService.OnUserTyping += HandleUserTyping;
             SignalRService.OnUserStoppedTyping += HandleUserStoppedTyping;
             SignalRService.OnConnected += HandleConnected;
@@ -200,6 +201,41 @@ public partial class Consultation : ComponentBase, IAsyncDisposable
             StateHasChanged();
             await ScrollToBottom();
         });
+    }
+
+    /// <summary>
+    /// Handle message read receipt
+    /// </summary>
+    private void HandleMessageRead(MessageReadEventArgs args)
+    {
+        Console.WriteLine($"[SignalR Patient] Message read receipt: {args.MessageId} by {args.ReadByUserId}");
+
+        // Only process if it's for the current conversation
+        if (currentConversation?.Id != args.ConversationId)
+            return;
+
+        // Don't process if it's our own read receipt
+        if (args.ReadByUserId == currentPatientId)
+            return;
+
+        // Find and update the message
+        var message = messages.FirstOrDefault(m => m.Id == args.MessageId);
+        if (message != null)
+        {
+            message.IsRead = true;
+            message.ReadAt = args.Timestamp;
+            
+            InvokeAsync(StateHasChanged);
+            Console.WriteLine($"[SignalR Patient] Message {args.MessageId} marked as read");
+        }
+        
+        // Update conversation list unread count
+        var conv = conversationList.FirstOrDefault(c => c.Id == args.ConversationId);
+        if (conv != null && conv.UnreadCount > 0)
+        {
+            conv.UnreadCount = Math.Max(0, conv.UnreadCount - 1);
+            InvokeAsync(StateHasChanged);
+        }
     }
 
     /// <summary>

@@ -218,25 +218,70 @@ public class DoctorFacade
     /// </summary>
     public async Task SaveDoctorProfileAsync(DoctorProfile profile)
     {
-        var existingProfile = await _doctorProfileService.GetByUserIdAsync(profile.UserId);
-
-        if (existingProfile == null)
+        try
         {
-            await _doctorProfileService.CreateAsync(profile);
+            // Clear User navigation property to prevent EF from tracking/updating the User entity
+            // This prevents "UNIQUE constraint failed: users.email" errors
+            profile.User = null!;
+            
+            var existingProfile = await _doctorProfileService.GetByUserIdAsync(profile.UserId);
+
+            if (existingProfile == null)
+            {
+                Console.WriteLine($"[DoctorFacade] No existing profile found, creating new one for user: {profile.UserId}");
+                await _doctorProfileService.CreateAsync(profile);
+            }
+            else
+            {
+                Console.WriteLine($"[DoctorFacade] Existing profile found (ID: {existingProfile.Id}), updating for user: {profile.UserId}");
+                profile.Id = existingProfile.Id;
+                profile.CreatedAt = existingProfile.CreatedAt; // Preserve creation date
+                await _doctorProfileService.UpdateAsync(profile);
+            }
+
+            // Update statistics after saving
+            await _doctorProfileService.UpdateDoctorStatisticsAsync(profile.UserId);
+
+            await _activityLogService.LogActivityAsync(
+                profile.UserId,
+                "UpdateDoctorProfile",
+                $"Profile ID: {profile.Id}");
         }
-        else
+        catch (InvalidOperationException ex) when (ex.Message.Contains("already exists"))
         {
-            profile.Id = existingProfile.Id;
-            await _doctorProfileService.UpdateAsync(profile);
+            // Profile exists but GetByUserIdAsync returned null (possibly due to error)
+            // Try to update instead
+            Console.WriteLine($"[DoctorFacade] Profile creation failed (already exists), attempting update for user: {profile.UserId}");
+            
+            // Clear User navigation property again before retry
+            profile.User = null!;
+            
+            // Fetch the existing profile again with a fresh db context
+            var existingProfile = await _doctorProfileService.GetByUserIdAsync(profile.UserId);
+            if (existingProfile != null)
+            {
+                profile.Id = existingProfile.Id;
+                profile.CreatedAt = existingProfile.CreatedAt;
+                await _doctorProfileService.UpdateAsync(profile);
+                
+                await _doctorProfileService.UpdateDoctorStatisticsAsync(profile.UserId);
+                
+                await _activityLogService.LogActivityAsync(
+                    profile.UserId,
+                    "UpdateDoctorProfile",
+                    $"Profile ID: {profile.Id}");
+            }
+            else
+            {
+                // Still can't find it, throw the original exception
+                throw;
+            }
         }
-
-        // Update statistics after saving
-        await _doctorProfileService.UpdateDoctorStatisticsAsync(profile.UserId);
-
-        await _activityLogService.LogActivityAsync(
-            profile.UserId,
-            "UpdateDoctorProfile",
-            $"Profile ID: {profile.Id}");
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DoctorFacade] Error in SaveDoctorProfileAsync: {ex.Message}");
+            throw;
+        }
     }
 
     /// <summary>

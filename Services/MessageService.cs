@@ -1,14 +1,23 @@
 using ai_clinic.Data;
 using ai_clinic.Models;
+using ai_clinic.Services.Hubs;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace ai_clinic.Services;
 
 /// <summary>
-/// Service for managing Messages in conversations
+/// Service for managing Messages in conversations with real-time SignalR notifications
 /// </summary>
 public class MessageService
 {
+    private readonly IHubContext<ConsultationHub>? _hubContext;
+
+    public MessageService(IHubContext<ConsultationHub>? hubContext = null)
+    {
+        _hubContext = hubContext;
+    }
+
     /// <summary>
     /// Get all messages for a conversation
     /// </summary>
@@ -97,7 +106,7 @@ public class MessageService
     }
 
     /// <summary>
-    /// Create a new message
+    /// Create a new message and broadcast via SignalR
     /// </summary>
     public async Task<Message> CreateAsync(Message message)
     {
@@ -138,6 +147,26 @@ public class MessageService
         await db.SaveChangesAsync();
         Console.WriteLine($"[MSG SVC] Message saved successfully - ID: {message.Id}");
         
+        // Broadcast message via SignalR
+        if (_hubContext != null)
+        {
+            try
+            {
+                Console.WriteLine($"[MSG SVC] 📡 Broadcasting message via SignalR to conversation {message.ConversationId}");
+                await _hubContext.SendMessageToConversation(message.ConversationId, message);
+                Console.WriteLine($"[MSG SVC] ✅ SignalR broadcast successful");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MSG SVC] ⚠️ SignalR broadcast failed: {ex.Message}");
+                // Don't throw - message is already saved to database
+            }
+        }
+        else
+        {
+            Console.WriteLine($"[MSG SVC] ⚠️ HubContext is null, SignalR broadcast skipped");
+        }
+        
         return message;
     }
 
@@ -157,37 +186,84 @@ public class MessageService
     }
 
     /// <summary>
-    /// Mark message as read
+    /// Mark message as read and send SignalR notification
     /// </summary>
-    public async Task MarkAsReadAsync(Guid messageId)
+    public async Task MarkAsReadAsync(Guid messageId, Guid? readByUserId = null)
     {
         using var db = DbClient.Instance.GetDb();
         var message = await db.Messages.FindAsync(messageId);
-        if (message != null)
+        if (message != null && !message.IsRead)
         {
             message.IsRead = true;
             message.ReadAt = DateTime.UtcNow;
             await db.SaveChangesAsync();
+
+            // Send SignalR notification if hub context is available
+            if (_hubContext != null && readByUserId.HasValue)
+            {
+                try
+                {
+                    await _hubContext.SendMessageReadReceipt(
+                        message.ConversationId,
+                        messageId,
+                        readByUserId.Value
+                    );
+                    Console.WriteLine($"[MSG SVC] 📡 Sent read receipt via SignalR for message {messageId}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[MSG SVC] ⚠️ Failed to send read receipt via SignalR: {ex.Message}");
+                }
+            }
         }
     }
 
     /// <summary>
     /// Mark all messages in a conversation as read for a specific user
+    /// Returns the list of message IDs that were marked as read
     /// </summary>
-    public async Task MarkConversationAsReadAsync(Guid conversationId, MessageSenderType excludeSenderType)
+    public async Task<List<Guid>> MarkConversationAsReadAsync(Guid conversationId, MessageSenderType excludeSenderType, Guid? readByUserId = null)
     {
         using var db = DbClient.Instance.GetDb();
         var unreadMessages = await db.Messages
             .Where(m => m.ConversationId == conversationId && !m.IsRead && m.SenderType != excludeSenderType)
             .ToListAsync();
 
+        var markedIds = new List<Guid>();
         foreach (var message in unreadMessages)
         {
             message.IsRead = true;
             message.ReadAt = DateTime.UtcNow;
+            markedIds.Add(message.Id);
         }
 
-        await db.SaveChangesAsync();
+        if (markedIds.Any())
+        {
+            await db.SaveChangesAsync();
+
+            // Send SignalR notifications for each read message
+            if (_hubContext != null && readByUserId.HasValue)
+            {
+                try
+                {
+                    foreach (var messageId in markedIds)
+                    {
+                        await _hubContext.SendMessageReadReceipt(
+                            conversationId,
+                            messageId,
+                            readByUserId.Value
+                        );
+                    }
+                    Console.WriteLine($"[MSG SVC] 📡 Sent {markedIds.Count} read receipts via SignalR");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[MSG SVC] ⚠️ Failed to send read receipts via SignalR: {ex.Message}");
+                }
+            }
+        }
+
+        return markedIds;
     }
 
     /// <summary>

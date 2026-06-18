@@ -647,19 +647,17 @@
                 // Wait a moment to show success message
                 await Task.Delay(1500);
                 
-                // Redirect based on role
-                switch (result.User.Role)
+                // Use forceLoad to ensure clean page load with proper auth state
+                // This avoids prerendering issues with cookie setting
+                var redirectUrl = result.User.Role switch
                 {
-                    case UserRole.Patient:
-                        Navigation.NavigateTo("/patient/dashboard");
-                        break;
-                    case UserRole.Doctor:
-                        Navigation.NavigateTo("/doctor/dashboard");
-                        break;
-                    default:
-                        Navigation.NavigateTo("/");
-                        break;
-                }
+                    UserRole.Patient => "/patient/dashboard",
+                    UserRole.Doctor => "/doctor/dashboard",
+                    UserRole.Admin => "/admin/dashboard",
+                    _ => "/"
+                };
+                
+                Navigation.NavigateTo(redirectUrl, forceLoad: true);
             }
             else
             {

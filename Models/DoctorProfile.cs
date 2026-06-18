@@ -120,6 +120,6 @@ public class DoctorProfile
     // Navigation property
     [ForeignKey("UserId")]
     public User User { get; set; } = null!;
-    
+
     public ICollection<DoctorRating> Ratings { get; set; } = new List<DoctorRating>();
 }

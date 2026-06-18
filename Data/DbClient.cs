@@ -11,7 +11,7 @@ public sealed class DbClient
 {
     // Private static instance - only created once
     private static readonly Lazy<DbClient> _instance = new Lazy<DbClient>(() => new DbClient());
-    
+
     // Database connection string
     private readonly string _connectionString;
 
@@ -36,7 +36,7 @@ public sealed class DbClient
         var options = new DbContextOptionsBuilder<AiClinicDbContext>()
             .UseSqlite(_connectionString)
             .Options;
-            
+
         return new AiClinicDbContext(options);
     }
 }

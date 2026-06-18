@@ -1,4 +1,4 @@
-@page "/patient/consultation"
+﻿@page "/patient/consultation"
 @layout Components.Layout.SidebarLayout
 @using ai_clinic.Models
 @using ai_clinic.UI.Components
@@ -1792,7 +1792,7 @@
         <div class="history-sidebar-header">
             <h3>CONVERSATIONS</h3>
             <button class="new-consultation-btn" @onclick="ShowNewConversationDialog">
-                <i data-lucide="plus" style="width: 14px; height: 14px;"></i>
+                <span style="font-size: 14px; font-weight: bold;">+</span>
                 New
             </button>
         </div>
@@ -1814,14 +1814,14 @@
                         @if (conv.IsAiConversation)
                         {
                             <span class="ai-tag">
-                                <i data-lucide="bot" style="width: 12px; height: 12px;"></i>
+                                <span style="font-size: 11px;">🤖</span>
                                 AI Assistant
                             </span>
                         }
                         else
                         {
                             <span class="ai-tag">
-                                <i data-lucide="stethoscope" style="width: 12px; height: 12px;"></i>
+                                <span style="font-size: 11px;">🩺</span>
                                 @conv.DoctorName
                             </span>
                         }
@@ -1831,7 +1831,7 @@
             else
             {
                 <div style="text-align: center; padding: 24px; color: #6b7280;">
-                    <i data-lucide="inbox" style="width: 48px; height: 48px; color: #d1d5db; margin: 0 auto 12px;"></i>
+                    <div style="font-size: 48px; color: #d1d5db; margin: 0 auto 12px;">📥</div>
                     <p>No conversations yet</p>
                     <p style="font-size: 12px; margin-top: 8px;">Click "New" to start</p>
                 </div>
@@ -1848,12 +1848,12 @@
                 <div class="chat-header-title">
                     @if (currentConversation.AssignedDoctorId == null)
                     {
-                        <i data-lucide="bot" style="width: 20px; height: 20px; color: #10b981;"></i>
+                        <span style="font-size: 20px;">🤖</span>
                         <span>AI Assistant</span>
                     }
                     else
                     {
-                        <i data-lucide="stethoscope" style="width: 20px; height: 20px; color: #8b5cf6;"></i>
+                        <span style="font-size: 20px;">🩺</span>
                         <span>Dr. @(currentConversation.AssignedDoctor?.DoctorProfile?.FullName ?? "Doctor")</span>
                     }
                 </div>
@@ -1874,16 +1874,16 @@
                                 }
                                 else
                                 {
-                                    <i data-lucide="user" style="width: 20px; height: 20px; color: white;"></i>
+                                    <span style="font-size: 20px; color: white;">👤</span>
                                 }
                             }
                             else if (message.SenderType == MessageSenderType.AI)
                             {
-                                <i data-lucide="bot" style="width: 20px; height: 20px; color: white;"></i>
+                                <span style="font-size: 20px; color: white;">🤖</span>
                             }
                             else
                             {
-                                <i data-lucide="stethoscope" style="width: 20px; height: 20px; color: white;"></i>
+                                <span style="font-size: 20px; color: white;">🩺</span>
                             }
                         </div>
                         <div class="message-content">
@@ -1925,7 +1925,7 @@
                                                     <!-- Non-image attachment - show download link -->
                                                     <div style="margin-top: 8px; padding: 8px 12px; background: rgba(0,0,0,0.05); border-radius: 8px; display: flex; align-items: center; gap: 8px; cursor: pointer;"
                                                          @onclick="@(() => DownloadDocument(doc))">
-                                                        <i data-lucide="file" style="width: 16px; height: 16px; color: #6b7280;"></i>
+                                                        <span style="font-size: 16px; color: #6b7280;">📄</span>
                                                         <div style="flex: 1; min-width: 0;">
                                                             <div style="font-size: 12px; font-weight: 500; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                                                                 @doc.FileName
@@ -1934,7 +1934,7 @@
                                                                 @FormatFileSize(doc.FileSizeBytes)
                                                             </div>
                                                         </div>
-                                                        <i data-lucide="download" style="width: 16px; height: 16px; color: #3b82f6;"></i>
+                                                        <span style="font-size: 16px; color: #3b82f6;">⬇️</span>
                                                     </div>
                                                 }
                                             }
@@ -1954,11 +1954,11 @@
                         <div class="message-avatar">
                             @if (currentConversation.AssignedDoctorId == null)
                             {
-                                <i data-lucide="bot" style="width: 20px; height: 20px; color: white;"></i>
+                                <span style="font-size: 20px; color: white;">🤖</span>
                             }
                             else
                             {
-                                <i data-lucide="stethoscope" style="width: 20px; height: 20px; color: white;"></i>
+                                <span style="font-size: 20px; color: white;">🩺</span>
                             }
                         </div>
                         <div class="typing-indicator">
@@ -1975,7 +1975,7 @@
                 @if (currentConversation.Status == ConversationStatus.Closed)
                 {
                     <div class="consultation-closed-banner">
-                        <i data-lucide="lock" style="width: 18px; height: 18px;"></i>
+                        <span style="font-size: 18px;">🔒</span>
                         <span>This consultation has been closed by your doctor. You can view messages but cannot send new ones.</span>
                     </div>
                 }
@@ -1983,13 +1983,13 @@
                 {
                     <div class="input-features">
                         <span class="feature-badge">
-                            <i data-lucide="shield-check" style="width: 14px; height: 14px;"></i>
+                            <span style="font-size: 14px;">🛡️</span>
                             End-to-end encrypted medical sanctuary
                         </span>
                         @if (currentConversation.AssignedDoctorId == null)
                         {
                             <button class="model-selector-btn" @onclick="ShowModelSelector">
-                                <i data-lucide="cpu" style="width: 14px; height: 14px;"></i>
+                                <span style="font-size: 14px;">🧠</span>
                                 @ConsultationFacade.GetCurrentAiModelName()
                             </button>
                         }
@@ -2012,7 +2012,7 @@
                                     }
                                     else
                                     {
-                                        <i data-lucide="file" style="width: 20px; height: 20px; color: #6b7280;"></i>
+                                        <span style="font-size: 20px; color: #6b7280;">📄</span>
                                     }
                                     <div style="flex: 1; min-width: 0;">
                                         <div style="font-size: 12px; font-weight: 500; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
@@ -2024,7 +2024,7 @@
                                     </div>
                                     <button @onclick="@(() => RemoveAttachment(attachment))" 
                                             style="background: transparent; border: none; color: #ef4444; cursor: pointer; padding: 4px; display: flex; align-items: center;">
-                                        <i data-lucide="x" style="width: 16px; height: 16px;"></i>
+                                        <span style="font-size: 16px; font-weight: bold;">×</span>
                                     </button>
                                 </div>
                             }
@@ -2045,7 +2045,7 @@
                     
                     <div class="input-box">
                         <button class="icon-btn" title="Emoji" @onclick="ToggleEmojiPicker">
-                            <i data-lucide="smile" style="width: 20px; height: 20px;"></i>
+                            <span style="font-size: 20px;">😊</span>
                         </button>
                         
                         @if (showEmojiPicker)
@@ -2077,7 +2077,7 @@
                         
                         <InputFile OnChange="HandleFileSelected" multiple accept="image/*,.pdf,.doc,.docx" id="file-upload" style="display: none;" />
                         <label for="file-upload" class="icon-btn" title="Attach file" style="cursor: pointer; margin: 0;">
-                            <i data-lucide="paperclip" style="width: 20px; height: 20px;"></i>
+                            <span style="font-size: 20px;">📎</span>
                         </label>
                         <input type="text" 
                                placeholder="Describe your symptoms or ask a question..." 
@@ -2089,7 +2089,7 @@
                                 @onclick="SendMessage"
                                 disabled="@(string.IsNullOrWhiteSpace(newMessage) && attachments.Count == 0)"
                                 title="Send message">
-                            <i data-lucide="send" style="width: 20px; height: 20px;"></i>
+                            <span style="font-size: 20px;">➤</span>
                         </button>
                     </div>
                 }
@@ -2098,7 +2098,7 @@
         else
         {
             <div class="empty-state">
-                <i data-lucide="message-circle" style="width: 64px; height: 64px; color: #d1d5db; margin-bottom: 16px;"></i>
+                <div style="font-size: 64px; color: #d1d5db; margin-bottom: 16px;">💬</div>
                 <div class="empty-state-text">Select a conversation or create a new one</div>
             </div>
         }
@@ -2138,7 +2138,7 @@
                 <div style="margin-top: 24px; padding: 20px; background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border-radius: 12px; border: 2px solid #fbbf24;">
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
                         <h3 style="font-size: 15px; font-weight: 700; color: #111827; margin: 0; display: flex; align-items: center; gap: 8px;">
-                            <i data-lucide="star" style="width: 18px; height: 18px; color: #fbbf24; fill: #fbbf24;"></i>
+                            <span style="font-size: 18px;">⭐</span>
                             Your Rating
                         </h3>
                         <div style="font-size: 20px; font-weight: 800; color: #f59e0b;">
@@ -2149,7 +2149,7 @@
                     <div style="display: flex; gap: 4px; margin-bottom: 12px;">
                         @for (int i = 1; i <= 5; i++)
                         {
-                            <i data-lucide="star" style="width: 20px; height: 20px; @(i <= existingRating.Rating ? "fill: #fbbf24; color: #fbbf24;" : "fill: #e5e7eb; color: #e5e7eb;")"></i>
+                            <span style="font-size: 18px;">⭐</span>
                         }
                     </div>
 
@@ -2211,14 +2211,14 @@
                 <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e5e7eb;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                         <h3 style="font-size: 16px; font-weight: 600; color: #111827; margin: 0; display: flex; align-items: center; gap: 8px;">
-                            <i data-lucide="sparkles" style="width: 18px; height: 18px; color: #0ea5e9;"></i>
+                            <span style="font-size: 18px;">✨</span>
                             AI Recommendations
                         </h3>
                         @if (!showRecommendedDoctors)
                         {
                             <button @onclick="LoadRecommendedDoctors" 
                                     style="padding: 6px 12px; background: #0ea5e9; color: white; border: none; border-radius: 8px; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 4px;">
-                                <i data-lucide="eye" style="width: 14px; height: 14px;"></i>
+                                <span style="font-size: 14px;">👁️</span>
                                 Show
                             </button>
                         }
@@ -2238,7 +2238,7 @@
                                     <div class="recommended-doctor-card" @onclick="@(() => ShowDoctorDetails(doctor))">
                                         <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
                                             <div style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                                                <i data-lucide="user-round" style="width: 24px; height: 24px; color: white;"></i>
+                                                <span style="font-size: 24px;">👤</span>
                                             </div>
                                             <div style="flex: 1; min-width: 0;">
                                                 <div style="font-size: 14px; font-weight: 600; color: #111827; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
@@ -2252,7 +2252,7 @@
                                         
                                         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
                                             <div style="font-size: 11px; color: #f59e0b; font-weight: 500; display: flex; align-items: center; gap: 4px;">
-                                                <i data-lucide="star" style="width: 12px; height: 12px; fill: #f59e0b;"></i>
+                                                <span style="font-size: 18px;">⭐</span>
                                                 @doctor.AverageRating.ToString("F1")
                                             </div>
                                             <div style="font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
@@ -2263,7 +2263,7 @@
                                         @if (doctor.MatchReasons.Any())
                                         {
                                             <div style="font-size: 11px; color: #10b981; margin-bottom: 8px; display: flex; align-items: start; gap: 4px;">
-                                                <i data-lucide="check-circle" style="width: 12px; height: 12px; flex-shrink: 0; margin-top: 1px;"></i>
+                                                <span style="font-size: 12px;">✓</span>
                                                 <span>@doctor.MatchReasons.First()</span>
                                             </div>
                                         }
@@ -2288,7 +2288,7 @@
                         else
                         {
                             <div style="text-align: center; padding: 16px; color: #6b7280; font-size: 13px;">
-                                <i data-lucide="search" style="width: 32px; height: 32px; color: #d1d5db; margin: 0 auto 8px;"></i>
+                                <span style="font-size: 32px;">🔍</span>
                                 <div>No recommendations yet</div>
                             </div>
                         }
@@ -2315,7 +2315,7 @@
             {
                 <div style="margin-top: 24px; padding-top: 20px; border-top: 2px solid #e5e7eb;">
                     <h3 style="font-size: 16px; font-weight: 600; color: #111827; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
-                        <i data-lucide="file-text" style="width: 18px; height: 18px; color: #8b5cf6;"></i>
+                        <span style="font-size: 18px;">📄</span>
                         Medical Records
                     </h3>
                     <p style="font-size: 12px; color: #6b7280; margin-bottom: 16px;">
@@ -2335,7 +2335,7 @@
                         {
                             <div class="record-section">
                                 <div class="record-section-header">
-                                    <i data-lucide="stethoscope" style="width: 14px; height: 14px;"></i>
+                                    <span style="font-size: 14px;">🩺</span>
                                     <span>Consultation Notes (@relatedConsultationNotes.Count)</span>
                                 </div>
                                 @foreach (var note in relatedConsultationNotes.Take(3))
@@ -2355,7 +2355,7 @@
                                                 @if (note.IsFinalized)
                                                 {
                                                     <span class="finalized-badge">
-                                                        <i data-lucide="check-circle" style="width: 10px; height: 10px;"></i>
+                                                        <span style="font-size: 12px;">✓</span>
                                                         Finalized
                                                     </span>
                                                 }
@@ -2382,7 +2382,7 @@
                         {
                             <div class="record-section">
                                 <div class="record-section-header">
-                                    <i data-lucide="pill" style="width: 14px; height: 14px;"></i>
+                                    <span style="font-size: 14px;">💊</span>
                                     <span>Prescriptions (@relatedPrescriptions.Count)</span>
                                 </div>
                                 @foreach (var rx in relatedPrescriptions.Take(3))
@@ -2417,7 +2417,7 @@
                     else
                     {
                         <div style="text-align: center; padding: 16px; color: #9ca3af;">
-                            <i data-lucide="inbox" style="width: 32px; height: 32px; margin-bottom: 8px; opacity: 0.5;"></i>
+                            <span style="font-size: 32px;">📥</span>
                             <p style="font-size: 12px;">No medical records yet</p>
                         </div>
                     }
@@ -2439,14 +2439,14 @@
             <div class="rating-modal-header">
                 <h2>Rate Your Consultation</h2>
                 <button class="close-btn" @onclick="CloseRatingDialog">
-                    <i data-lucide="x"></i>
+                    <span style="font-size: 20px; font-weight: bold;">×</span>
                 </button>
             </div>
 
             <div class="rating-content">
                 <div class="rating-intro">
                     <div class="rating-icon-circle">
-                        <i data-lucide="star" style="width: 32px; height: 32px; color: #fbbf24; fill: #fbbf24;"></i>
+                        <span style="font-size: 18px;">⭐</span>
                     </div>
                     <p class="rating-description">
                         How was your experience with Dr. @(currentConversation.AssignedDoctor?.DoctorProfile?.FullName)?
@@ -2472,7 +2472,7 @@
                                     @onclick="@(() => SetOverallRating(ratingValue))">
                                 <div class="rating-btn-content">
                                     <span class="rating-number">@ratingValue</span>
-                                    <i data-lucide="star" style="width: 24px; height: 24px; @(isSelected ? "fill: white; color: white;" : "fill: #fbbf24; color: #fbbf24;")"></i>
+                                    <span style="font-size: 18px;">⭐</span>
                                 </div>
                             </button>
                         }
@@ -2490,14 +2490,14 @@
                     @if (selectedRating > 0)
                     {
                         <div class="rating-feedback">
-                            <i data-lucide="check-circle" style="width: 20px; height: 20px; color: #10b981; fill: #10b981;"></i>
+                            <span style="font-size: 12px;">✓</span>
                             <span>You rated <strong>@GetRatingText(selectedRating)</strong> (@selectedRating out of 5 stars)</span>
                         </div>
                     }
                     else
                     {
                         <div class="rating-hint">
-                            <i data-lucide="hand-pointer" style="width: 16px; height: 16px; color: #6b7280;"></i>
+                            <span style="font-size: 16px;">👆</span>
                             <span>Click a number to rate your experience</span>
                         </div>
                     }
@@ -2515,7 +2515,7 @@
                     
                     <div class="rating-section-inline">
                         <div class="rating-section-left">
-                            <i data-lucide="user-check" style="width: 20px; height: 20px; color: #0ea5e9;"></i>
+                            <span style="font-size: 20px;">👤</span>
                             <label class="rating-label">Professionalism</label>
                         </div>
                         <div class="rating-buttons-row small">
@@ -2534,7 +2534,7 @@
 
                     <div class="rating-section-inline">
                         <div class="rating-section-left">
-                            <i data-lucide="message-circle" style="width: 20px; height: 20px; color: #0ea5e9;"></i>
+                            <span style="font-size: 20px;">💬</span>
                             <label class="rating-label">Communication</label>
                         </div>
                         <div class="rating-buttons-row small">
@@ -2553,7 +2553,7 @@
 
                     <div class="rating-section-inline">
                         <div class="rating-section-left">
-                            <i data-lucide="brain" style="width: 20px; height: 20px; color: #0ea5e9;"></i>
+                            <span style="font-size: 20px;">🧠</span>
                             <label class="rating-label">Knowledge</label>
                         </div>
                         <div class="rating-buttons-row small">
@@ -2572,7 +2572,7 @@
 
                     <div class="rating-section-inline">
                         <div class="rating-section-left">
-                            <i data-lucide="clock" style="width: 20px; height: 20px; color: #0ea5e9;"></i>
+                            <span style="font-size: 20px;">⏰</span>
                             <label class="rating-label">Response Time</label>
                         </div>
                         <div class="rating-buttons-row small">
@@ -2608,7 +2608,7 @@
                 @if (!string.IsNullOrEmpty(errorMessage))
                 {
                     <div class="error-banner">
-                        <i data-lucide="alert-circle"></i>
+                        <span style="font-size: 18px;">⚠️</span>
                         @errorMessage
                     </div>
                 }
@@ -2645,7 +2645,7 @@
                     <p class="last-updated-info">Last updated: @selectedNote.UpdatedAt.ToString("MMM dd, yyyy HH:mm")</p>
                 </div>
                 <button @onclick="CloseNotePreview" class="close-btn">
-                    <i data-lucide="x" style="width: 20px; height: 20px;"></i>
+                    <span style="font-size: 20px; font-weight: bold;">×</span>
                 </button>
             </div>
             <div class="preview-content">
@@ -2672,7 +2672,7 @@
                 @if (selectedNote.IsFinalized)
                 {
                     <div class="finalized-badge" style="width: fit-content; margin-top: 12px;">
-                        <i data-lucide="check-circle" style="width: 12px; height: 12px;"></i>
+                        <span style="font-size: 12px;">✓</span>
                         Finalized
                     </div>
                 }
@@ -2692,7 +2692,7 @@
                     <p class="last-updated-info">Last updated: @selectedPrescription.UpdatedAt.ToString("MMM dd, yyyy HH:mm")</p>
                 </div>
                 <button @onclick="ClosePrescriptionPreview" class="close-btn">
-                    <i data-lucide="x" style="width: 20px; height: 20px;"></i>
+                    <span style="font-size: 20px; font-weight: bold;">×</span>
                 </button>
             </div>
             <div class="preview-content">
@@ -2748,7 +2748,7 @@
                 <div class="option-card @(selectedDoctorId == null && isAiMode ? "selected" : "")" 
                      @onclick="@(() => { isAiMode = true; selectedDoctorId = null; })">
                     <div class="option-icon">
-                        <i data-lucide="bot" style="width: 48px; height: 48px; color: #10b981;"></i>
+                        <span style="font-size: 48px;">🤖</span>
                     </div>
                     <div class="option-title">AI Assistant</div>
                     <div class="option-description">Instant responses, 24/7 availability</div>
@@ -2757,7 +2757,7 @@
                 <div class="option-card @(!isAiMode ? "selected" : "")" 
                      @onclick="@(() => isAiMode = false)">
                     <div class="option-icon">
-                        <i data-lucide="stethoscope" style="width: 48px; height: 48px; color: #8b5cf6;"></i>
+                        <span style="font-size: 14px;">🩺</span>
                     </div>
                     <div class="option-title">Human Doctor</div>
                     <div class="option-description">Professional medical consultation</div>
@@ -2774,7 +2774,7 @@
                                @bind="DoctorSearchQuery"
                                @bind:event="oninput"
                                style="width: 100%; padding: 12px 40px 12px 16px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; outline: none;" />
-                        <i data-lucide="search" style="width: 18px; height: 18px; color: #9ca3af; position: absolute; right: 12px; top: 50%; transform: translateY(-50%);"></i>
+                        <span style="font-size: 32px;">🔍</span>
                     </div>
                     @if (!string.IsNullOrWhiteSpace(DoctorSearchQuery) && filteredDoctors.Any())
                     {
@@ -2803,13 +2803,13 @@
                             <div class="doctor-card @(selectedDoctorId == doctor.UserId ? "selected" : "")"
                                  @onclick="@(() => selectedDoctorId = doctor.UserId)">
                                 <div class="doctor-avatar">
-                                    <i data-lucide="user-round" style="width: 28px; height: 28px; color: #6b7280;"></i>
+                                    <span style="font-size: 24px;">👤</span>
                                 </div>
                                 <div class="doctor-info">
                                     <div class="doctor-name">Dr. @doctor.FullName</div>
                                     <div class="doctor-specialty">@doctor.PrimarySpecialization</div>
                                     <div class="doctor-rating" style="display: flex; align-items: center; gap: 4px;">
-                                        <i data-lucide="star" style="width: 12px; height: 12px; fill: #f59e0b; color: #f59e0b;"></i>
+                                        <span style="font-size: 18px;">⭐</span>
                                         @doctor.AverageRating.ToString("F1") (@doctor.TotalRatings reviews)
                                     </div>
                                     @if (doctor.YearsOfExperience.HasValue)
@@ -2830,7 +2830,7 @@
                     else if (!string.IsNullOrWhiteSpace(DoctorSearchQuery))
                     {
                         <div style="text-align: center; padding: 32px; color: #6b7280;">
-                            <i data-lucide="search-x" style="width: 48px; height: 48px; color: #d1d5db; margin: 0 auto 16px;"></i>
+                            <span style="font-size: 48px;">��❌</span>
                             <div style="font-size: 16px; font-weight: 500; margin-bottom: 8px;">No doctors found</div>
                             <div style="font-size: 14px;">Try adjusting your search criteria</div>
                         </div>
@@ -2838,7 +2838,7 @@
                     else
                     {
                         <div style="text-align: center; padding: 32px; color: #6b7280;">
-                            <i data-lucide="user-x" style="width: 48px; height: 48px; color: #d1d5db; margin: 0 auto 16px;"></i>
+                            <span style="font-size: 48px;">👤❌</span>
                             <div style="font-size: 16px; font-weight: 500; margin-bottom: 8px;">No doctors available</div>
                             <div style="font-size: 14px;">All doctors are currently busy. Please try again later or use AI Assistant.</div>
                         </div>
@@ -2923,7 +2923,7 @@
                             </div>
                             <div class="doctor-specialty">@doctor.PrimarySpecialization</div>
                             <div class="doctor-rating" style="display: flex; align-items: center; gap: 4px;">
-                                <i data-lucide="star" style="width: 12px; height: 12px; fill: #f59e0b; color: #f59e0b;"></i>
+                                <span style="font-size: 18px;">⭐</span>
                                 @doctor.AverageRating.ToString("F1") (@doctor.TotalRatings reviews)
                             </div>
                             @if (doctor.YearsOfExperience.HasValue)
@@ -2946,7 +2946,7 @@
                                     @foreach (var reason in doctor.MatchReasons.Take(2))
                                     {
                                         <div style="font-size: 11px; color: #059669; margin-bottom: 2px; display: flex; align-items: start; gap: 4px;">
-                                            <i data-lucide="check" style="width: 12px; height: 12px; flex-shrink: 0; margin-top: 1px;"></i>
+                                            <span style="font-size: 12px;">✓</span>
                                             <span>@reason</span>
                                         </div>
                                     }

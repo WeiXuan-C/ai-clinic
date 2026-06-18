@@ -29,17 +29,16 @@ public class DoctorProfileService
             }
             else
             {
-                Console.WriteLine($"[DoctorProfileService] ✓ Profile found. Specialization: {profile.PrimarySpecialization}");
+                Console.WriteLine($"[DoctorProfileService] ✓ Profile found. ID: {profile.Id}, Specialization: {profile.PrimarySpecialization}");
             }
             
             return profile;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[DoctorProfileService] ERROR in GetByUserIdAsync");
+            Console.WriteLine($"[DoctorProfileService] ERROR in GetByUserIdAsync for user: {userId}");
             Console.WriteLine($"  Type: {ex.GetType().Name}");
             Console.WriteLine($"  Message: {ex.Message}");
-            Console.WriteLine($"  Stack Trace: {ex.StackTrace}");
             
             // Check for database connection issues
             if (ex.InnerException != null)
@@ -47,7 +46,14 @@ public class DoctorProfileService
                 Console.WriteLine($"  Inner Exception: {ex.InnerException.Message}");
             }
             
-            throw; // Re-throw to be handled by caller
+            // Return null instead of throwing - let the caller handle missing profiles
+            // Only throw for critical errors like database connectivity issues
+            if (ex is DbUpdateException || ex is InvalidOperationException)
+            {
+                return null; // Profile not found or db issue - let caller handle it
+            }
+            
+            throw; // Re-throw critical errors
         }
     }
 
@@ -56,10 +62,57 @@ public class DoctorProfileService
     /// </summary>
     public async Task<DoctorProfile> CreateAsync(DoctorProfile profile)
     {
-        using var db = DbClient.Instance.GetDb();
-        db.DoctorProfiles.Add(profile);
-        await db.SaveChangesAsync();
-        return profile;
+        try
+        {
+            Console.WriteLine($"[DoctorProfileService] CreateAsync started for user: {profile.UserId}");
+
+            using var db = DbClient.Instance.GetDb();
+
+            // Check if profile already exists for this user
+            var existingByUser = await db.DoctorProfiles
+                .AsNoTracking() // Don't track this query
+                .FirstOrDefaultAsync(d => d.UserId == profile.UserId);
+
+            if (existingByUser != null)
+            {
+                Console.WriteLine($"[DoctorProfileService] Profile already exists for user: {profile.UserId}");
+                throw new InvalidOperationException($"A doctor profile already exists for user {profile.UserId}");
+            }
+
+            // Check if license number is already in use
+            var existingByLicense = await db.DoctorProfiles
+                .AsNoTracking()
+                .FirstOrDefaultAsync(d => d.LicenseNumber == profile.LicenseNumber);
+
+            if (existingByLicense != null)
+            {
+                Console.WriteLine($"[DoctorProfileService] License number {profile.LicenseNumber} is already in use by another doctor");
+                throw new InvalidOperationException($"License number {profile.LicenseNumber} is already registered to another doctor");
+            }
+
+            // Detach the User navigation property to prevent EF from trying to update it
+            if (profile.User != null)
+            {
+                db.Entry(profile.User).State = EntityState.Detached;
+                profile.User = null!; // Clear the navigation property
+            }
+
+            db.DoctorProfiles.Add(profile);
+            await db.SaveChangesAsync();
+
+            Console.WriteLine($"[DoctorProfileService] ✓ Profile created successfully. ID: {profile.Id}");
+            return profile;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DoctorProfile] Error creating profile: {ex.Message}");
+            if (ex.InnerException != null)
+            {
+                Console.WriteLine($"[DoctorProfile] Inner exception: {ex.InnerException.Message}");
+            }
+            Console.WriteLine($"[DoctorProfile] Stack trace: {ex.StackTrace}");
+            throw;
+        }
     }
 
     /// <summary>
@@ -97,6 +150,14 @@ public class DoctorProfileService
     public async Task<DoctorProfile> UpdateAsync(DoctorProfile profile)
     {
         using var db = DbClient.Instance.GetDb();
+        
+        // Detach the User navigation property to prevent EF from trying to update it
+        if (profile.User != null)
+        {
+            db.Entry(profile.User).State = EntityState.Detached;
+            profile.User = null!; // Clear the navigation property
+        }
+        
         profile.UpdatedAt = DateTime.UtcNow;
         db.DoctorProfiles.Update(profile);
         await db.SaveChangesAsync();

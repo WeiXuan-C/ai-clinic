@@ -46,6 +46,7 @@ try
     await DatabaseMigrationHelper.AddDoctorSettingsColumnsAsync("Data Source=ai-clinic.db");
     await DatabaseMigrationHelper.MakeDocumentsConversationIdNullableAsync("Data Source=ai-clinic.db");
     await DatabaseMigrationHelper.AddAiConsultationSummaryColumnsAsync("Data Source=ai-clinic.db");
+    await DatabaseMigrationHelper.AddAiModelManagementAsync("Data Source=ai-clinic.db");
     
     var logger = app.Services.GetRequiredService<ILogger<Program>>();
     logger.LogInformation("数据库已准备就绪");
