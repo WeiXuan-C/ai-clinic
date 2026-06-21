@@ -17,12 +17,9 @@ public partial class Consultation : ComponentBase, IAsyncDisposable
     [Inject] private NavigationManager Navigation { get; set; } = null!;
     [Inject] private AuthFacade AuthFacade { get; set; } = null!;
     [Inject] private ConsultationFacade ConsultationFacade { get; set; } = null!;
+    [Inject] private PatientFacade PatientFacade { get; set; } = null!;
     [Inject] private IJSRuntime JS { get; set; } = null!;
-    [Inject] private DocumentService DocumentService { get; set; } = null!;
-    [Inject] private NavigationManager NavigationManager { get; set; } = null!;
     [Inject] private SignalRConsultationService SignalRService { get; set; } = null!;
-    [Inject] private PrescriptionService PrescriptionService { get; set; } = null!;
-    [Inject] private ConsultationService ConsultationService { get; set; } = null!;
 
     private List<ConversationListItem> conversationList = [];
     private List<Message> messages = [];
@@ -602,7 +599,14 @@ public partial class Consultation : ComponentBase, IAsyncDisposable
                             PatientId = AuthFacade.CurrentUser!.Id
                         };
 
-                        var savedDoc = await DocumentService.CreateAsync(document);
+                        var savedDoc = await PatientFacade.UploadMedicalDocumentAsync(
+                            AuthFacade.CurrentUser!.Id,
+                            attachment.FileName,
+                            document.FileType.ToString(),
+                            attachment.FileData,
+                            attachment.FileName,
+                            null
+                        );
                         documentIds.Add(savedDoc.Id);
                         Console.WriteLine($"[DEBUG] Uploaded document: {savedDoc.FileName} (ID: {savedDoc.Id})");
                     }
@@ -982,7 +986,7 @@ public partial class Consultation : ComponentBase, IAsyncDisposable
                     var docs = new List<Document>();
                     foreach (var docId in docIds)
                     {
-                        var doc = await DocumentService.GetByIdAsync(docId);
+                        var doc = await PatientFacade.GetMedicalDocumentAsync(currentPatientId, docId);
                         if (doc != null)
                         {
                             docs.Add(doc);
@@ -1165,8 +1169,8 @@ public partial class Consultation : ComponentBase, IAsyncDisposable
             var patientId = currentConversation.PatientId;
 
             // Load medical data for this patient in parallel
-            var consultationNotesTask = ConsultationService.GetByPatientIdAsync(patientId);
-            var prescriptionsTask = PrescriptionService.GetByPatientIdAsync(patientId);
+            var consultationNotesTask = PatientFacade.GetConsultationNotesAsync(patientId);
+            var prescriptionsTask = PatientFacade.GetPrescriptionsAsync(patientId);
 
             await Task.WhenAll(consultationNotesTask, prescriptionsTask);
 

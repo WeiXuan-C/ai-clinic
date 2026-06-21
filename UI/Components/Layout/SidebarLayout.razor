@@ -29,24 +29,6 @@
         // Subscribe to navigation changes
         Navigation.LocationChanged += OnLocationChanged;
         currentPath = Navigation.Uri;
-
-        // Check screen size on initialization
-        await CheckScreenSize();
-    }
-
-    private async Task CheckScreenSize()
-    {
-        try
-        {
-            // Check if screen is mobile size (less than 768px)
-            var isMobile = await JSRuntime.InvokeAsync<bool>("eval", "window.innerWidth < 768");
-            // On mobile: sidebar is closed by default
-            isSidebarCollapsed = false; // Always start closed/normal
-        }
-        catch
-        {
-            isSidebarCollapsed = false; // Default to closed
-        }
     }
 
     private void ToggleSidebar()
