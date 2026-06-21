@@ -332,6 +332,40 @@ public class PatientFacade
     }
 
     /// <summary>
+    /// Get a medical document by ID (returns full document object)
+    /// Simplified interface for UI layer to access document metadata
+    /// </summary>
+    public async Task<Models.Document?> GetMedicalDocumentAsync(Guid userId, Guid documentId)
+    {
+        var document = await _documentService.GetByIdAsync(documentId);
+        
+        if (document == null || document.PatientId != userId)
+        {
+            return null;
+        }
+
+        return document;
+    }
+
+    /// <summary>
+    /// Get consultation notes for a patient
+    /// Simplified interface for UI layer
+    /// </summary>
+    public async Task<List<ConsultationNote>> GetConsultationNotesAsync(Guid userId)
+    {
+        return await _consultationService.GetByPatientIdAsync(userId);
+    }
+
+    /// <summary>
+    /// Get prescriptions for a patient
+    /// Simplified interface for UI layer
+    /// </summary>
+    public async Task<List<Prescription>> GetPrescriptionsAsync(Guid userId)
+    {
+        return await _prescriptionService.GetByPatientIdAsync(userId);
+    }
+
+    /// <summary>
     /// Delete a medical record or document
     /// Coordinates deletion and activity logging
     /// </summary>

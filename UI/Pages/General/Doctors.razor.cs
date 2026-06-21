@@ -101,6 +101,7 @@ public partial class Doctors : ComponentBase
 
     /// <summary>
     /// Parses JSON array string to list
+    /// Handles multiple formats: JSON array, comma-separated, or empty
     /// </summary>
     private List<string> ParseJsonArray(string? jsonArray)
     {
@@ -109,11 +110,35 @@ public partial class Doctors : ComponentBase
 
         try
         {
-            return System.Text.Json.JsonSerializer.Deserialize<List<string>>(jsonArray) ?? new List<string>();
+            // Trim whitespace
+            jsonArray = jsonArray.Trim();
+            
+            // If it starts with '[', assume it's JSON array format
+            if (jsonArray.StartsWith('['))
+            {
+                return System.Text.Json.JsonSerializer.Deserialize<List<string>>(jsonArray) ?? new List<string>();
+            }
+            
+            // Otherwise, treat as comma-separated values
+            return jsonArray
+                .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim())
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .ToList();
         }
-        catch
+        catch (Exception ex)
         {
-            return new List<string>();
+            Console.WriteLine($"Error parsing JSON array '{jsonArray}': {ex.Message}");
+            
+            // Last fallback: try to return as single-item list
+            try
+            {
+                return new List<string> { jsonArray.Trim() };
+            }
+            catch
+            {
+                return new List<string>();
+            }
         }
     }
 
