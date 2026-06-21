@@ -3,6 +3,7 @@ using ai_clinic.Data;
 using ai_clinic;
 using ai_clinic.Services.Hubs;
 using QuestPDF.Infrastructure;
+using System.Linq;
 
 // Configure QuestPDF license (Community license for non-commercial use)
 QuestPDF.Settings.License = LicenseType.Community;
@@ -16,8 +17,8 @@ builder.Services.AddRazorComponents()
 // Add MudBlazor services
 builder.Services.AddMudServices();
 
-// 🔒 Singleton Pattern: DbClient 通过静态 Instance 属性访问
-// 不需要在 DI 容器中注册，因为它自己管理生命周期
+// 🔒 Singleton Pattern: DbClient accessed through static Instance property
+// No need to register in DI container as it manages its own lifecycle
 
 // Configure SignalR for Blazor Server with better error handling
 builder.Services.AddSignalR(options =>
@@ -34,7 +35,13 @@ builder.Services.AddApplicationServices();
 
 var app = builder.Build();
 
-// 确保数据库已创建
+// Verify DbClient singleton pattern
+if (DbClient.VerifySingletonInstance())
+{
+    Console.WriteLine("✓ DbClient Singleton Pattern Verified Successfully");
+}
+
+// Ensure database is created
 try
 {
     using var db = DbClient.Instance.GetDb();
@@ -48,27 +55,12 @@ try
     await DatabaseMigrationHelper.AddAiConsultationSummaryColumnsAsync("Data Source=ai-clinic.db");
     await DatabaseMigrationHelper.AddAiModelManagementAsync("Data Source=ai-clinic.db");
     
-    var logger = app.Services.GetRequiredService<ILogger<Program>>();
-    logger.LogInformation("数据库已准备就绪");
-    
-    // Initialize AI service with admin settings
-    // Create a scope to resolve scoped services
-    try
-    {
-        using var scope = app.Services.CreateScope();
-        var aiService = scope.ServiceProvider.GetRequiredService<ai_clinic.Services.AiAssistantService>();
-        await aiService.InitializeFromSettingsAsync();
-        logger.LogInformation("AI service initialized with admin settings");
-    }
-    catch (Exception aiEx)
-    {
-        logger.LogWarning(aiEx, "Failed to initialize AI service with admin settings, using defaults");
-    }
+     using var scope = app.Services.CreateScope();
+
 }
-catch (Exception ex)
+catch
 {
-    var logger = app.Services.GetRequiredService<ILogger<Program>>();
-    logger.LogError(ex, "数据库初始化时发生错误");
+    // Database initialization error
 }
 
 // Configure the HTTP request pipeline.

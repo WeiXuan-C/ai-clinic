@@ -322,7 +322,7 @@ public class ConversationService
     {
         using var db = DbClient.Instance.GetDb();
         
-        // SQLite 不支持 decimal 类型的 ORDER BY，所以先获取数据再在内存中排序
+        // SQLite does not support ORDER BY with decimal types, so fetch data first and sort in memory
         var doctors = await db.DoctorProfiles
             .Include(d => d.User)
             .Where(d => d.IsActive &&
@@ -330,7 +330,7 @@ public class ConversationService
                         d.AvailabilityStatus == DoctorAvailabilityStatus.Available)
             .ToListAsync();
 
-        // 在内存中按评分排序
+        // Sort by rating in memory
         return doctors
             .OrderByDescending(d => d.AverageRating)
             .Select(d => new DoctorListItem

@@ -57,7 +57,7 @@ public static class DependencyInjectionExtensions
         services.AddScoped<PatientFacade>();
         services.AddScoped<DoctorFacade>();
         services.AddScoped<AdminFacade>();
-        services.AddScoped<ConsultationFacade>(); // 咨询外观 - 协调对话、消息、医生、SignalR等子系统
+        services.AddScoped<ConsultationFacade>(); // Consultation facade - coordinates conversation, message, doctor, SignalR and other subsystems
 
         // 🤖 AI Services - Strategy & Adapter Patterns
         // Adaptee: OpenRouter API client (the external API we're adapting)
@@ -77,7 +77,7 @@ public static class DependencyInjectionExtensions
         
         // 🎭 AI Facade: Unified interface for AI model switching and generation
         // Coordinates: AiModelContext + AiAssistantService + ActivityLogService
-        services.AddScoped<AiFacade>(); // AI外观 - 协调模型切换、响应生成、日志记录等子系统
+        services.AddScoped<AiFacade>(); // AI facade - coordinates model switching, response generation, logging and other subsystems
 
         // Anonymous consultation service for non-logged-in users
         services.AddScoped<AnonymousConsultationService>();

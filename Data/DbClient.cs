@@ -28,6 +28,25 @@ public sealed class DbClient
     public static DbClient Instance => _instance.Value;
 
     /// <summary>
+    /// Verifies that multiple calls to Instance return the same singleton instance
+    /// </summary>
+    public static bool VerifySingletonInstance()
+    {
+        DbClient db1 = DbClient.Instance;
+        DbClient db2 = DbClient.Instance;
+        DbClient db3 = DbClient.Instance;
+        DbClient db4 = DbClient.Instance;
+
+        // Confirm these are the same instance
+        if (db1 == db2 && db2 == db3 && db3 == db4)
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// Gets database context
     /// Usage: using var db = DbContext.Instance.GetDb();
     /// </summary>
@@ -42,7 +61,7 @@ public sealed class DbClient
 }
 
 /// <summary>
-/// Entity Framework DbContext - 数据库操作类
+/// Entity Framework DbContext - Database operations class
 /// </summary>
 public class AiClinicDbContext : Microsoft.EntityFrameworkCore.DbContext
 {
