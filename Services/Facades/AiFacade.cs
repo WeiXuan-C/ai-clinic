@@ -23,7 +23,7 @@ namespace ai_clinic.Services.Facades;
 /// </summary>
 public class AiFacade
 {
-    // 子系统服务
+    // Subsystem services
     private readonly AiAssistantService _aiAssistantService;
     private readonly AiModelContext _modelContext;
     private readonly ActivityLogService _activityLogService;
@@ -85,12 +85,12 @@ public class AiFacade
         {
             var previousModel = _aiAssistantService.CurrentModelName;
 
-            // 切换模型
+            // Switch model
             _aiAssistantService.SwitchModel(modelKey);
 
             var newModel = _aiAssistantService.CurrentModelName;
 
-            // 记录活动日志
+            // Log activity
             if (userId.HasValue)
             {
                 await _activityLogService.LogActivityAsync(
@@ -163,7 +163,7 @@ public class AiFacade
                 maxTokens
             );
 
-            // 记录活动日志
+            // Log activity
             if (userId.HasValue)
             {
                 await _activityLogService.LogActivityAsync(
@@ -202,7 +202,7 @@ public class AiFacade
     {
         try
         {
-            // 确保使用推理模型以获得更好的医疗建议
+            // Ensure using reasoning model for better medical advice
             var currentModel = _aiAssistantService.CurrentModelName;
             var shouldSwitchBack = !currentModel.Contains("Owl Alpha");
 
@@ -217,7 +217,7 @@ public class AiFacade
                 temperature
             );
 
-            // 记录活动日志
+            // Log activity
             if (patientId.HasValue)
             {
                 await _activityLogService.LogActivityAsync(
@@ -227,7 +227,7 @@ public class AiFacade
                 );
             }
 
-            // 切换回原来的模型
+            // Switch back to original model
             if (shouldSwitchBack)
             {
                 _aiAssistantService.SwitchModel("gemma-4");
@@ -268,7 +268,7 @@ public class AiFacade
                 diagnosis
             );
 
-            // 记录活动日志
+            // Log activity
             if (doctorId.HasValue)
             {
                 await _activityLogService.LogActivityAsync(
@@ -305,11 +305,11 @@ public class AiFacade
     {
         try
         {
-            // 保存当前模型
+            // Save current model
             var currentModel = _aiAssistantService.CurrentModelName;
             var shouldSwitchBack = !currentModel.Contains("Qianfan");
 
-            // 切换到OCR模型
+            // Switch to OCR model
             if (shouldSwitchBack)
             {
                 _aiAssistantService.SwitchModel("qianfan-ocr");
@@ -317,7 +317,7 @@ public class AiFacade
 
             var analysis = await _aiAssistantService.AnalyzeMedicalDocumentAsync(documentText);
 
-            // 记录活动日志
+            // Log activity
             if (userId.HasValue)
             {
                 await _activityLogService.LogActivityAsync(
@@ -327,7 +327,7 @@ public class AiFacade
                 );
             }
 
-            // 切换回原来的模型
+            // Switch back to original model
             if (shouldSwitchBack)
             {
                 _aiAssistantService.SwitchModel("gemma-4");
@@ -366,7 +366,7 @@ public class AiFacade
 
         foreach (var task in tasks)
         {
-            // 为每个任务切换到最合适的模型
+            // Switch to the most suitable model for each task
             await SwitchToOptimalModelAsync(task.TaskType, userId);
 
             try
@@ -397,7 +397,7 @@ public class AiFacade
             }
         }
 
-        // 记录批量处理日志
+        // Log batch processing
         if (userId.HasValue)
         {
             await _activityLogService.LogActivityAsync(

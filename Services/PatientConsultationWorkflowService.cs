@@ -7,39 +7,39 @@ using ai_clinic.Services.DoctorRecommendation.Strategies;
 namespace ai_clinic.Services;
 
 /// <summary>
-/// 患者咨询工作流服务
-/// 处理从AI对话到医生推荐再到咨询创建的完整流程
+/// Patient consultation workflow service
+/// Handles the complete flow from AI dialogue to doctor recommendation to consultation creation
 /// 
-/// 数据存储策略（不创建新表，充分利用现有表）:
+/// Data Storage Strategy (no new tables created, leveraging existing tables):
 /// 
-/// 1. messages 表:
-///    - 存储患者消息 (sender_type='patient')
-///    - 存储AI响应 (sender_type='ai', ai_model_used, ai_confidence_score)
-///    - 存储医生消息 (sender_type='doctor')
+/// 1. messages table:
+///    - Store patient messages (sender_type='patient')
+///    - Store AI responses (sender_type='ai', ai_model_used, ai_confidence_score)
+///    - Store doctor messages (sender_type='doctor')
 /// 
-/// 2. medical_records 表:
-///    - AI阶段: record_type='AI Consultation', created_by_doctor_id=NULL
-///      - content: AI生成的摘要
-///      - diagnosis_description: 症状+严重程度+专科
-///    - 医生阶段: record_type='Consultation Note', created_by_doctor_id=doctor_id
-///      - 完整的医疗记录
+/// 2. medical_records table:
+///    - AI phase: record_type='AI Consultation', created_by_doctor_id=NULL
+///      - content: AI-generated summary
+///      - diagnosis_description: symptoms + severity + specialty
+///    - Doctor phase: record_type='Consultation Note', created_by_doctor_id=doctor_id
+///      - Complete medical record
 /// 
-/// 3. conversations 表:
-///    - initial_symptoms: JSON数组，存储提取的症状
-///    - ai_suggested_specialization: AI建议的专科
+/// 3. conversations table:
+///    - initial_symptoms: JSON array storing extracted symptoms
+///    - ai_suggested_specialization: AI-recommended specialty
 ///    - status: active/archived/closed
-///    - assigned_doctor_id: NULL(AI对话) 或 doctor_id(医生对话)
+///    - assigned_doctor_id: NULL (AI dialogue) or doctor_id (doctor dialogue)
 /// 
-/// 4. consultation_notes 表:
-///    - 用户选择医生后创建 (is_finalized=FALSE)
-///    - 医生完成咨询后更新 (is_finalized=TRUE)
-///    - symptoms: JSON数组格式
+/// 4. consultation_notes table:
+///    - Created when user selects doctor (is_finalized=FALSE)
+///    - Updated when doctor completes consultation (is_finalized=TRUE)
+///    - symptoms: JSON array format
 /// 
-/// 5. prescriptions 表:
-///    - 医生开具处方时创建
-///    - 关联到 consultation_note_id
+/// 5. prescriptions table:
+///    - Created when doctor issues prescription
+///    - Linked to consultation_note_id
 /// 
-/// AiSymptomAnalysis 是内存中的DTO，不需要数据库表
+/// AiSymptomAnalysis is an in-memory DTO, no database table needed
 /// </summary>
 public class PatientConsultationWorkflowService
 {
@@ -67,15 +67,15 @@ public class PatientConsultationWorkflowService
     }
 
     /// <summary>
-    /// 处理患者消息并返回AI分析结果（包含结构化症状提取）
+    /// Process patient message and return AI analysis result (including structured symptom extraction)
     /// 
-    /// 返回格式示例:
+    /// Return format example:
     /// {
     ///   "symptoms": ["chest pain", "shortness of breath"],
     ///   "condition": "Cardiology",
     ///   "severity": "high",
     ///   "summary": "Patient experiencing chest pain and breathing difficulty",
-    ///   "aiResponse": "完整的AI回复内容..."
+    ///   "aiResponse": "Complete AI response content..."
     /// }
     /// </summary>
     public async Task<AiSymptomAnalysis> ProcessPatientMessageAsync(
@@ -88,23 +88,23 @@ public class PatientConsultationWorkflowService
         Console.WriteLine($"[WORKFLOW] Patient ID: {patientId}");
         Console.WriteLine($"[WORKFLOW] Message: {patientMessage}");
 
-        // 1. 保存患者消息
+        // 1. Save patient message
         await _messageService.CreatePatientMessageAsync(conversationId, patientId, patientMessage);
 
-        // 2. 获取AI响应
+        // 2. Get AI response
         var aiResponse = await _aiAssistantService.GenerateMedicalResponseAsync(patientMessage);
         
-        // 3. 分析症状并提取结构化信息（关键步骤：提取症状、专科、严重程度）
+        // 3. Analyze symptoms and extract structured information (key step: extract symptoms, specialty, severity)
         var analysis = await AnalyzeSymptomsAsync(patientMessage, aiResponse);
         
-        // 4. 保存AI消息
+        // 4. Save AI message
         await _messageService.CreateAiMessageAsync(
             conversationId, 
             analysis.AiResponse,
             _aiAssistantService.CurrentModelName,
             analysis.ConfidenceScore);
 
-        // 5. 保存到医疗记录（medical_records表，record_type='AI Consultation'）
+        // 5. Save to medical record (medical_records table, record_type='AI Consultation')
         await SaveToMedicalRecordAsync(patientId, conversationId, analysis);
 
         Console.WriteLine("[WORKFLOW] ProcessPatientMessageAsync Completed");
@@ -115,13 +115,13 @@ public class PatientConsultationWorkflowService
     }
 
     /// <summary>
-    /// 分析症状并提取结构化信息
+    /// Analyze symptoms and extract structured information
     /// </summary>
     private async Task<AiSymptomAnalysis> AnalyzeSymptomsAsync(string patientMessage, string aiResponse)
     {
         Console.WriteLine("[WORKFLOW] Analyzing symptoms...");
 
-        // 使用AI提取结构化信息
+        // Use AI to extract structured information
         var extractionPrompt = $@"Based on the patient's message, extract structured information in JSON format.
 
 Patient Message: ""{patientMessage}""
@@ -152,7 +152,7 @@ Respond with ONLY the JSON object, nothing else.";
 
         Console.WriteLine($"[WORKFLOW] Extraction response: {extractionResponse}");
 
-        // 解析JSON响应
+        // Parse JSON response
         var analysis = ParseAiExtractionResponse(extractionResponse, aiResponse);
         
         Console.WriteLine($"[WORKFLOW] Extracted {analysis.Symptoms.Count} symptoms, condition: {analysis.Condition}, severity: {analysis.Severity}");
@@ -161,13 +161,13 @@ Respond with ONLY the JSON object, nothing else.";
     }
 
     /// <summary>
-    /// 解析AI提取的JSON响应
+    /// Parse AI-extracted JSON response
     /// </summary>
     private AiSymptomAnalysis ParseAiExtractionResponse(string jsonResponse, string originalAiResponse)
     {
         try
         {
-            // 清理响应，移除可能的markdown代码块标记
+            // Clean up response, remove possible markdown code block markers
             var cleanJson = jsonResponse.Trim();
             cleanJson = Regex.Replace(cleanJson, @"^```json\s*", "", RegexOptions.Multiline);
             cleanJson = Regex.Replace(cleanJson, @"^```\s*", "", RegexOptions.Multiline);
@@ -194,7 +194,7 @@ Respond with ONLY the JSON object, nothing else.";
                 ConfidenceScore = 0.8m
             };
 
-            // 提取症状
+            // Extract symptoms
             if (extracted.ContainsKey("symptoms") && extracted["symptoms"].ValueKind == JsonValueKind.Array)
             {
                 analysis.Symptoms = extracted["symptoms"]
@@ -204,20 +204,20 @@ Respond with ONLY the JSON object, nothing else.";
                     .ToList();
             }
 
-            // 提取专科
+            // Extract specialty
             if (extracted.ContainsKey("condition"))
             {
                 analysis.Condition = extracted["condition"].GetString();
             }
 
-            // 提取严重程度
+            // Extract severity
             if (extracted.ContainsKey("severity"))
             {
                 var severity = extracted["severity"].GetString()?.ToLower() ?? "medium";
                 analysis.Severity = severity;
             }
 
-            // 提取摘要
+            // Extract summary
             if (extracted.ContainsKey("summary"))
             {
                 analysis.Summary = extracted["summary"].GetString() ?? "";
@@ -229,7 +229,7 @@ Respond with ONLY the JSON object, nothing else.";
         {
             Console.WriteLine($"[WORKFLOW ERROR] Failed to parse AI extraction: {ex.Message}");
             
-            // 返回默认分析结果
+            // Return default analysis result
             return new AiSymptomAnalysis
             {
                 AiResponse = originalAiResponse,
@@ -243,15 +243,15 @@ Respond with ONLY the JSON object, nothing else.";
     }
 
     /// <summary>
-    /// 保存AI分析到医疗记录
+    /// Save AI analysis to medical record
     /// 
-    /// 数据存储策略:
-    /// - record_type = "AI Consultation" (标识为AI生成)
-    /// - created_by_doctor_id = NULL (表示非医生创建)
-    /// - content = AI生成的摘要
-    /// - diagnosis_description = 症状列表 + 严重程度 + 建议专科
+    /// Data storage strategy:
+    /// - record_type = "AI Consultation" (identifies as AI-generated)
+    /// - created_by_doctor_id = NULL (indicates not created by doctor)
+    /// - content = AI-generated summary
+    /// - diagnosis_description = symptom list + severity + recommended specialty
     /// 
-    /// 同时更新 conversations 表的 AI 相关字段
+    /// Also updates AI-related fields in conversations table
     /// </summary>
     private async Task SaveToMedicalRecordAsync(
         Guid patientId,
@@ -260,7 +260,7 @@ Respond with ONLY the JSON object, nothing else.";
     {
         Console.WriteLine("[WORKFLOW] Saving AI analysis to medical_records table...");
 
-        // 构建详细的诊断描述（包含所有AI分析信息）
+        // Build detailed diagnosis description (containing all AI analysis information)
         var diagnosisDescription = $@"AI Analysis Results:
 Symptoms: {string.Join(", ", analysis.Symptoms)}
 Suggested Specialization: {analysis.Condition ?? "General Practice"}
@@ -273,23 +273,23 @@ This is an AI-generated preliminary assessment. Professional medical consultatio
         {
             PatientId = patientId,
             ConversationId = conversationId,
-            CreatedByDoctorId = null, // NULL表示AI生成，非医生创建
+            CreatedByDoctorId = null, // NULL indicates AI-generated, not created by doctor
             RecordType = "AI Consultation",
             Title = $"AI Consultation - {analysis.Condition ?? "General"}",
-            Content = analysis.Summary, // AI生成的摘要
-            DiagnosisDescription = diagnosisDescription, // 详细的分析结果
+            Content = analysis.Summary, // AI-generated summary
+            DiagnosisDescription = diagnosisDescription, // Detailed analysis results
             RecordDate = DateTime.UtcNow
         };
 
         await _medicalRecordService.CreateAsync(record);
         Console.WriteLine($"[WORKFLOW] Medical record created: {record.Id}");
 
-        // 同时更新 conversations 表的 AI 相关字段
+        // Also update AI-related fields in conversations table
         await UpdateConversationWithAiAnalysisAsync(conversationId, analysis);
     }
 
     /// <summary>
-    /// 更新对话表的AI分析字段
+    /// Update conversation table with AI analysis fields
     /// </summary>
     private async Task UpdateConversationWithAiAnalysisAsync(
         Guid conversationId,
@@ -300,7 +300,7 @@ This is an AI-generated preliminary assessment. Professional medical consultatio
         
         if (conversation != null)
         {
-            // 将症状列表转换为JSON字符串存储
+            // Convert symptom list to JSON string for storage
             conversation.InitialSymptoms = System.Text.Json.JsonSerializer.Serialize(analysis.Symptoms);
             conversation.AiSuggestedSpecialization = analysis.Condition;
             conversation.RequiredSpecialization = analysis.Condition;
@@ -313,7 +313,7 @@ This is an AI-generated preliminary assessment. Professional medical consultatio
     }
 
     /// <summary>
-    /// 获取推荐的医生列表
+    /// Get recommended doctor list
     /// </summary>
     public async Task<List<DoctorMatchResult>> GetRecommendedDoctorsAsync(AiSymptomAnalysis analysis)
     {
@@ -326,7 +326,7 @@ This is an AI-generated preliminary assessment. Professional medical consultatio
             MaxResults = 5
         };
 
-        // 根据严重程度选择不同的匹配策略
+        // Select different matching strategies based on severity
         IDoctorMatchingStrategy strategy = analysis.Severity switch
         {
             "emergency" or "high" => new SpecializationBasedMatchingStrategy(),
@@ -342,15 +342,15 @@ This is an AI-generated preliminary assessment. Professional medical consultatio
     }
 
     /// <summary>
-    /// 创建与医生的咨询（用户选择医生后调用）
+    /// Create consultation with doctor (called after user selects doctor)
     /// 
-    /// 数据存储策略:
-    /// 1. 创建新的 conversation (assigned_doctor_id = doctor_id)
-    /// 2. 发送摘要消息到 messages 表 (sender_type = 'patient')
-    /// 3. 更新原AI对话状态为 archived
-    /// 4. 创建初始 consultation_note (is_finalized = FALSE)
+    /// Data storage strategy:
+    /// 1. Create new conversation (assigned_doctor_id = doctor_id)
+    /// 2. Send summary message to messages table (sender_type = 'patient')
+    /// 3. Update original AI conversation status to archived
+    /// 4. Create initial consultation_note (is_finalized = FALSE)
     /// 
-    /// 返回新创建的医生对话
+    /// Returns newly created doctor conversation
     /// </summary>
     public async Task<Conversation> CreateDoctorConsultationAsync(
         Guid patientId,
@@ -363,29 +363,29 @@ This is an AI-generated preliminary assessment. Professional medical consultatio
         Console.WriteLine($"[WORKFLOW] Doctor ID: {doctorId}");
         Console.WriteLine($"[WORKFLOW] AI Conversation ID: {aiConversationId}");
 
-        // 1. 获取AI对话的历史消息
+        // 1. Get AI conversation message history
         var aiMessages = await _messageService.GetByConversationIdAsync(aiConversationId);
         Console.WriteLine($"[WORKFLOW] Retrieved {aiMessages.Count} messages from AI conversation");
         
-        // 2. 生成对话摘要（发送给医生的初始消息）
+        // 2. Generate conversation summary (initial message to send to doctor)
         var conversationSummary = await GenerateConversationSummaryAsync(aiMessages, analysis);
 
-        // 3. 创建与医生的新对话
+        // 3. Create new conversation with doctor
         var doctorConversation = await _conversationService.CreateDoctorConversationAsync(
             patientId,
             doctorId,
-            conversationSummary); // 摘要作为初始消息
+            conversationSummary); // Summary as initial message
 
         Console.WriteLine($"[WORKFLOW] New doctor conversation created: {doctorConversation.Id}");
 
-        // 4. 复制AI分析的症状信息到新对话
+        // 4. Copy AI analysis symptom information to new conversation
         await CopyAiAnalysisToNewConversationAsync(doctorConversation.Id, analysis);
 
-        // 5. 更新原AI对话状态为 archived
+        // 5. Update original AI conversation status to archived
         await _conversationService.UpdateStatusAsync(aiConversationId, ConversationStatus.Archived);
         Console.WriteLine($"[WORKFLOW] Original AI conversation {aiConversationId} archived");
 
-        // 6. 创建初始咨询记录（待医生完成，is_finalized=FALSE）
+        // 6. Create initial consultation record (pending doctor completion, is_finalized=FALSE)
         var consultationNote = await CreateInitialConsultationNoteAsync(
             doctorConversation.Id,
             patientId,
@@ -399,7 +399,7 @@ This is an AI-generated preliminary assessment. Professional medical consultatio
     }
 
     /// <summary>
-    /// 复制AI分析信息到新的医生对话
+    /// Copy AI analysis information to new doctor conversation
     /// </summary>
     private async Task CopyAiAnalysisToNewConversationAsync(
         Guid conversationId,
@@ -422,7 +422,7 @@ This is an AI-generated preliminary assessment. Professional medical consultatio
     }
 
     /// <summary>
-    /// 生成对话摘要发送给医生
+    /// Generate conversation summary to send to doctor
     /// </summary>
     private async Task<string> GenerateConversationSummaryAsync(
         List<Message> messages,
@@ -472,15 +472,15 @@ This patient has been referred to you based on the AI preliminary assessment. Pl
     }
 
     /// <summary>
-    /// 创建初始咨询记录
+    /// Create initial consultation record
     /// 
-    /// 数据存储策略:
-    /// - is_finalized = FALSE (表示待医生完成)
-    /// - symptoms = JSON数组格式的症状列表
-    /// - diagnosis = "Pending - Referred from AI: {专科}"
+    /// Data storage strategy:
+    /// - is_finalized = FALSE (indicates pending doctor completion)
+    /// - symptoms = JSON array format symptom list
+    /// - diagnosis = "Pending - Referred from AI: {specialty}"
     /// - treatment_plan = "To be determined by doctor"
     /// 
-    /// 医生稍后会更新这条记录，填写完整的诊断和治疗计划
+    /// Doctor will update this record later to fill in complete diagnosis and treatment plan
     /// </summary>
     private async Task<ConsultationNote> CreateInitialConsultationNoteAsync(
         Guid conversationId,
@@ -495,11 +495,11 @@ This patient has been referred to you based on the AI preliminary assessment. Pl
             ConversationId = conversationId,
             PatientId = patientId,
             DoctorId = doctorId,
-            Symptoms = JsonSerializer.Serialize(analysis.Symptoms), // JSON数组格式
+            Symptoms = JsonSerializer.Serialize(analysis.Symptoms), // JSON array format
             Diagnosis = $"Pending - Referred from AI: {analysis.Condition ?? "General Practice"}",
             TreatmentPlan = "To be determined by doctor",
             FollowUpInstructions = $"AI Preliminary Assessment:\n- Severity: {analysis.Severity}\n- Summary: {analysis.Summary}",
-            IsFinalized = false // 待医生完成
+            IsFinalized = false // Pending doctor completion
         };
 
         await _consultationService.CreateAsync(note);
@@ -510,13 +510,13 @@ This patient has been referred to you based on the AI preliminary assessment. Pl
     }
 
     /// <summary>
-    /// 完整工作流：从患者消息到医生推荐
+    /// Complete workflow: from patient message to doctor recommendation
     /// 
-    /// 步骤:
-    /// 1. 处理患者消息
-    /// 2. AI分析并提取症状
-    /// 3. 保存到medical_records
-    /// 4. 推荐相关医生
+    /// Steps:
+    /// 1. Process patient message
+    /// 2. AI analysis and symptom extraction
+    /// 3. Save to medical_records
+    /// 4. Recommend relevant doctors
     /// </summary>
     public async Task<PatientConsultationWorkflowResult> ExecuteFullWorkflowAsync(
         Guid conversationId,
@@ -525,10 +525,10 @@ This patient has been referred to you based on the AI preliminary assessment. Pl
     {
         Console.WriteLine("=== [WORKFLOW] ExecuteFullWorkflowAsync Started ===");
 
-        // 1. 处理患者消息并获取AI分析
+        // 1. Process patient message and get AI analysis
         var analysis = await ProcessPatientMessageAsync(conversationId, patientId, patientMessage);
 
-        // 2. 获取推荐医生
+        // 2. Get recommended doctors
         var recommendedDoctors = await GetRecommendedDoctorsAsync(analysis);
 
         Console.WriteLine("=== [WORKFLOW] ExecuteFullWorkflowAsync Completed ===");
@@ -541,15 +541,15 @@ This patient has been referred to you based on the AI preliminary assessment. Pl
     }
 
     /// <summary>
-    /// 完整工作流：从患者选择医生到创建咨询记录
+    /// Complete workflow: from patient selecting doctor to creating consultation record
     /// 
-    /// 步骤:
-    /// 1. 创建与医生的新对话
-    /// 2. 生成并发送对话摘要给医生
-    /// 3. 创建初始consultation_note (is_finalized=FALSE)
-    /// 4. 归档原AI对话
+    /// Steps:
+    /// 1. Create new conversation with doctor
+    /// 2. Generate and send conversation summary to doctor
+    /// 3. Create initial consultation_note (is_finalized=FALSE)
+    /// 4. Archive original AI conversation
     /// 
-    /// 此方法在用户从推荐列表中选择医生后调用
+    /// This method is called after user selects a doctor from the recommended list
     /// </summary>
     public async Task<DoctorConsultationCreationResult> CreateDoctorConsultationWithNotesAsync(
         Guid patientId,
@@ -559,14 +559,14 @@ This patient has been referred to you based on the AI preliminary assessment. Pl
     {
         Console.WriteLine("=== [WORKFLOW] CreateDoctorConsultationWithNotesAsync Started ===");
 
-        // 创建医生咨询（包含对话、摘要消息、consultation_note）
+        // Create doctor consultation (includes conversation, summary message, consultation_note)
         var doctorConversation = await CreateDoctorConsultationAsync(
             patientId,
             doctorId,
             aiConversationId,
             analysis);
 
-        // 获取创建的consultation_note
+        // Get created consultation_note
         var consultationNotes = await _consultationService.GetByConversationIdAsync(doctorConversation.Id);
         var initialNote = consultationNotes.FirstOrDefault();
 
@@ -582,7 +582,7 @@ This patient has been referred to you based on the AI preliminary assessment. Pl
 }
 
 /// <summary>
-/// 工作流执行结果
+/// Workflow execution result
 /// </summary>
 public class PatientConsultationWorkflowResult
 {
@@ -591,31 +591,31 @@ public class PatientConsultationWorkflowResult
 }
 
 /// <summary>
-/// 医生咨询创建结果
+/// Doctor consultation creation result
 /// </summary>
 public class DoctorConsultationCreationResult
 {
     /// <summary>
-    /// 新创建的医生对话
+    /// Newly created doctor conversation
     /// </summary>
     public Conversation DoctorConversation { get; set; } = null!;
 
     /// <summary>
-    /// 初始咨询记录（is_finalized=FALSE，待医生完成）
+    /// Initial consultation record (is_finalized=FALSE, pending doctor completion)
     /// </summary>
     public ConsultationNote? InitialConsultationNote { get; set; }
 
     /// <summary>
-    /// 发送给医生的对话摘要消息
+    /// Conversation summary message sent to doctor
     /// </summary>
     public string ConversationSummaryMessage { get; set; } = string.Empty;
 }
 
 /// <summary>
-/// AI分析患者症状后的结构化响应
-/// 这是一个内存DTO，不是数据库表
+/// AI analysis of patient symptoms structured response
+/// This is an in-memory DTO, not a database table
 /// 
-/// 示例输出:
+/// Example output:
 /// {
 ///   "symptoms": ["chest pain", "shortness of breath"],
 ///   "condition": "Cardiology",
@@ -626,32 +626,32 @@ public class DoctorConsultationCreationResult
 public class AiSymptomAnalysis
 {
     /// <summary>
-    /// 提取的症状列表
+    /// Extracted symptom list
     /// </summary>
     public List<string> Symptoms { get; set; } = new List<string>();
 
     /// <summary>
-    /// 建议的专科（如 "Cardiology", "Neurology"）
+    /// Recommended specialty (e.g., "Cardiology", "Neurology")
     /// </summary>
     public string? Condition { get; set; }
 
     /// <summary>
-    /// 严重程度（"low", "medium", "high", "emergency"）
+    /// Severity level ("low", "medium", "high", "emergency")
     /// </summary>
     public string Severity { get; set; } = "medium";
 
     /// <summary>
-    /// AI生成的摘要
+    /// AI-generated summary
     /// </summary>
     public string Summary { get; set; } = string.Empty;
 
     /// <summary>
-    /// AI的完整回复内容
+    /// AI's complete response content
     /// </summary>
     public string AiResponse { get; set; } = string.Empty;
 
     /// <summary>
-    /// 置信度分数 (0-1)
+    /// Confidence score (0-1)
     /// </summary>
     public decimal ConfidenceScore { get; set; } = 0.8m;
 }

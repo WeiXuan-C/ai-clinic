@@ -29,11 +29,6 @@ public partial class AiAssistantSettings
     private AiAssistantSetting? _selectedSetting;
     private AiAssistantSettingFormModel _formModel = new();
 
-    protected override Task OnInitializedAsync()
-    {
-        return LoadData();
-    }
-
     private async Task LoadData()
     {
         try

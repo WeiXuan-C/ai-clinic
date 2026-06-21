@@ -417,8 +417,8 @@ public class PatientFacade
     /*
     // TODO: Implement PatientConsultationWorkflowService and related types
     /// <summary>
-    /// 发送患者消息并获取AI分析和医生推荐
-    /// 完整的工作流：消息 -> AI分析 -> 症状提取 -> 医疗记录 -> 医生推荐
+    /// Send patient message and get AI analysis and doctor recommendations
+    /// Complete workflow: message -> AI analysis -> symptom extraction -> medical record -> doctor recommendation
     /// </summary>
     public async Task<PatientConsultationWorkflowResult> SendMessageAndGetRecommendationsAsync(
         Guid conversationId,
@@ -427,13 +427,13 @@ public class PatientFacade
     {
         Console.WriteLine("[PATIENT FACADE] SendMessageAndGetRecommendationsAsync called");
         
-        // 执行完整工作流
+        // Execute complete workflow
         var result = await _workflowService.ExecuteFullWorkflowAsync(
             conversationId,
             patientId,
             message);
 
-        // 记录活动
+        // Log activity
         await _activityLogService.LogActivityAsync(
             patientId,
             "AiConsultation",
@@ -443,8 +443,8 @@ public class PatientFacade
     }
 
     /// <summary>
-    /// 选择医生并创建咨询
-    /// 用户从推荐列表中选择医生后调用此方法
+    /// Select doctor and create consultation
+    /// Called after user selects a doctor from the recommendation list
     /// </summary>
     public async Task<DoctorConsultationResult> SelectDoctorAndCreateConsultationAsync(
         Guid patientId,
@@ -454,14 +454,14 @@ public class PatientFacade
     {
         Console.WriteLine("[PATIENT FACADE] SelectDoctorAndCreateConsultationAsync called");
 
-        // 创建与医生的咨询
+        // Create consultation with doctor
         var doctorConversation = await _workflowService.CreateDoctorConsultationAsync(
             patientId,
             doctorId,
             aiConversationId,
             analysis);
 
-        // 记录活动
+        // Log activity
         await _activityLogService.LogActivityAsync(
             patientId,
             "SelectDoctor",
@@ -476,8 +476,8 @@ public class PatientFacade
     }
 
     /// <summary>
-    /// 获取推荐医生（不创建咨询）
-    /// 用于显示医生列表供用户选择
+    /// Get recommended doctors (without creating consultation)
+    /// Used to display doctor list for user selection
     /// </summary>
     public async Task<List<DoctorMatchResult>> GetRecommendedDoctorsAsync(AiSymptomAnalysis analysis)
     {

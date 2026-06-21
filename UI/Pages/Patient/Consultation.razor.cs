@@ -501,7 +501,7 @@ public partial class Consultation : ComponentBase, IAsyncDisposable
             
             if (withAi)
             {
-                // 使用 Facade 创建 AI 咨询
+                // Use Facade to create AI consultation
                 newSession = await ConsultationFacade.StartAiConsultationAsync(AuthFacade.CurrentUser!.Id);
             }
             else
@@ -510,7 +510,7 @@ public partial class Consultation : ComponentBase, IAsyncDisposable
                 {
                     return;
                 }
-                // 使用 Facade 创建医生咨询（不传递 sourceConversationId，因为这不是从AI推荐来的）
+                // Use Facade to create doctor consultation (don't pass sourceConversationId since this is not from AI recommendation)
                 newSession = await ConsultationFacade.StartDoctorConsultationAsync(
                     AuthFacade.CurrentUser!.Id, 
                     selectedDoctorId.Value,
