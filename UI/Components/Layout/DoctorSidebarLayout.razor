@@ -17,6 +17,7 @@
     private string? userPhotoUrl = null;
     private string currentPath = "";
     private bool isSidebarCollapsed = false;
+    private bool _hasCheckedScreenSize = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -29,9 +30,6 @@
         // Subscribe to navigation changes
         Navigation.LocationChanged += OnLocationChanged;
         currentPath = Navigation.Uri;
-
-        // Check screen size on initialization
-        await CheckScreenSize();
     }
 
     private async Task CheckScreenSize()
@@ -100,6 +98,14 @@
     {
         if (firstRender)
         {
+            // Check screen size after first render when JavaScript is available
+            if (!_hasCheckedScreenSize)
+            {
+                await CheckScreenSize();
+                _hasCheckedScreenSize = true;
+                StateHasChanged();
+            }
+            
             // Initialize Lucide icons for all pages using this layout
             await JSRuntime.InvokeVoidAsync("initializeLucide");
         }

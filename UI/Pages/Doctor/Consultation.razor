@@ -20,10 +20,6 @@
                          @onclick="@(() => LoadConversation(conv.Id))">
                         <div class="history-header">
                             <div class="history-title">@conv.Title</div>
-                            @if (conv.UnreadCount > 0)
-                            {
-                                <span class="unread-badge">@conv.UnreadCount</span>
-                            }
                         </div>
                         <div class="history-meta">@FormatTime(conv.LastMessageAt) • @conv.Status</div>
                         @if (conv.IsAiConversation)
