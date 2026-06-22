@@ -67,22 +67,58 @@ namespace ai_clinic.Services.AI
                     throw new HttpRequestException($"OpenRouter API returned {response.StatusCode}: {responseContent}");
                 }
                 
+                // Try to parse as error response first (OpenRouter sometimes returns errors with 200 status)
+                try
+                {
+                    var errorCheck = JsonSerializer.Deserialize<OpenRouterErrorResponse>(responseContent);
+                    if (errorCheck?.Error != null)
+                    {
+                        Console.WriteLine($"[API ERROR] Error in successful response: {errorCheck.Error.Message}");
+                        throw new HttpRequestException(
+                            $"OpenRouter API Error {errorCheck.Error.Code}: {errorCheck.Error.Message}");
+                    }
+                }
+                catch (JsonException)
+                {
+                    // Not an error response, continue
+                }
+                
                 // Deserialize the response
                 var result = JsonSerializer.Deserialize<OpenRouterResponse>(responseContent);
                 
                 if (result == null)
                 {
                     Console.WriteLine("[API ERROR] Failed to deserialize response");
+                    Console.WriteLine($"[API ERROR] Raw Response: {responseContent}");
                     throw new InvalidOperationException("Failed to deserialize OpenRouter response");
                 }
                 
                 Console.WriteLine($"[API] Response ID: {result.Id}");
                 Console.WriteLine($"[API] Choices Count: {result.Choices?.Length ?? 0}");
-                if (result.Choices != null && result.Choices.Length > 0)
+                
+                // Log full response if no choices
+                if (result.Choices == null || result.Choices.Length == 0)
+                {
+                    Console.WriteLine("[API ERROR] No choices in response!");
+                    Console.WriteLine($"[API ERROR] Full Response: {responseContent}");
+                }
+                else
                 {
                     var firstChoice = result.Choices[0];
-                    var contentLength = firstChoice.Message?.Content is string str ? str.Length : 0;
-                    Console.WriteLine($"[API] First Choice Content Length: {contentLength} chars");
+                    var content = firstChoice.Message?.Content;
+                    int contentLength = 0;
+                    
+                    if (content is string str)
+                    {
+                        contentLength = str.Length;
+                    }
+                    else if (content is System.Text.Json.JsonElement jsonElement)
+                    {
+                        // For JsonElement, get the raw text length
+                        contentLength = jsonElement.GetRawText()?.Length ?? 0;
+                    }
+                    
+                    Console.WriteLine($"[API] First Choice Content Length: {contentLength} chars (Type: {content?.GetType().Name ?? "null"})");
                 }
                 Console.WriteLine("=== [OPENROUTER API DEBUG] CallApiAsync Completed ===\n");
                 
